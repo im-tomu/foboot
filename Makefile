@@ -1,7 +1,7 @@
 PACKAGE    = $(notdir $(realpath .))
 FOMU_SDK  ?= .
 ADD_CFLAGS = -I$(FOMU_SDK)/include -D__vexriscv__ -march=rv32im  -mabi=ilp32
-ADD_LFLAGS = -L$(FOMU_SDK)/lib $(FOMU_SDK)/lib/crt0-vexriscv-ctr.o -lbase-nofloat -lcompiler_rt
+ADD_LFLAGS = 
 SRC_DIR    = src
 
 GIT_VERSION= $(shell git describe --tags)
@@ -40,14 +40,14 @@ LFLAGS     = $(CFLAGS) $(ADD_LFLAGS) \
 
 OBJ_DIR    = .obj
 
-CSOURCES   = $(wildcard $(SRC_DIR)/*.c)
-CPPSOURCES = $(wildcard $(SRC_DIR)/*.cpp)
-ASOURCES   = $(wildcard $(SRC_DIR)/*.S)
+CSOURCES   = $(wildcard $(SRC_DIR)/*.c) $(wildcard third_party/libbase/*.c)
+CPPSOURCES = $(wildcard $(SRC_DIR)/*.cpp) $(wildcard third_party/libbase/*.cpp)
+ASOURCES   = $(wildcard $(SRC_DIR)/*.S) $(wildcard third_party/libbase/*.S)
 COBJS      = $(addprefix $(OBJ_DIR)/, $(notdir $(CSOURCES:.c=.o)))
 CXXOBJS    = $(addprefix $(OBJ_DIR)/, $(notdir $(CPPSOURCES:.cpp=.o)))
 AOBJS      = $(addprefix $(OBJ_DIR)/, $(notdir $(ASOURCES:.S=.o)))
 OBJECTS    = $(COBJS) $(CXXOBJS) $(AOBJS)
-VPATH      = $(SRC_DIR)
+VPATH      = $(SRC_DIR) third_party/libbase
 
 QUIET      = @
 
