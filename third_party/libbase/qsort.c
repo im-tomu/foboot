@@ -42,7 +42,7 @@
 
 #include <stdlib.h>
 
-#define min(a, b)  (a) < (b) ? a : b
+#define min(a, b)  ((unsigned)(a)) < (((unsigned)(b))) ? ((unsigned)(a)) : ((unsigned)(b))
 
 #define swapcode(TYPE, parmi, parmj, n) \
   { \
@@ -199,12 +199,12 @@ loop:
   r = min(pd - pc, pn - pd - size);
   vecswap(pb, pn - r, r);
 
-  if ((r = pb - pa) > size)
+  if ((r = pb - pa) > (int)size)
     {
       qsort(base, r / size, size, compar);
     }
 
-  if ((r = pd - pc) > size)
+  if ((r = pd - pc) > (int)size)
     {
       /* Iterate rather than recurse to save stack space */
       base = pn - r;
