@@ -83,7 +83,8 @@ unsigned int crc32(const unsigned char *buffer, unsigned int len)
 }
 #else
 unsigned int crc32(const unsigned char *message, unsigned int len) {
-   int i, j;
+   int j;
+   unsigned int i;
    unsigned int byte, crc, mask;
 
    i = 0;

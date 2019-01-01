@@ -28,11 +28,11 @@ CFLAGS     = $(ADD_CFLAGS) \
              -Wall -Wextra \
              -ffunction-sections -fdata-sections -fno-common \
              -fomit-frame-pointer -Os \
-			 -flto -ffreestanding -fuse-linker-plugin \
              -DGIT_VERSION=u\"$(GIT_VERSION)\" -std=gnu11
 CXXFLAGS   = $(CFLAGS) -std=c++11 -fno-rtti -fno-exceptions
 LFLAGS     = $(CFLAGS) $(ADD_LFLAGS) \
              -nostartfiles \
+             -nostdlib \
              -Wl,--gc-sections \
              -Wl,--no-warn-mismatch \
 			 -Wl,--script=$(LDSCRIPT) \
@@ -40,14 +40,14 @@ LFLAGS     = $(CFLAGS) $(ADD_LFLAGS) \
 
 OBJ_DIR    = .obj
 
-CSOURCES   = $(wildcard $(SRC_DIR)/*.c) $(wildcard third_party/libbase/*.c)
-CPPSOURCES = $(wildcard $(SRC_DIR)/*.cpp) $(wildcard third_party/libbase/*.cpp)
-ASOURCES   = $(wildcard $(SRC_DIR)/*.S) $(wildcard third_party/libbase/*.S)
+CSOURCES   = $(wildcard $(SRC_DIR)/*.c) $(wildcard third_party/libbase/*.c) $(wildcard third_party/*.c)
+CPPSOURCES = $(wildcard $(SRC_DIR)/*.cpp) $(wildcard third_party/libbase/*.cpp) $(wildcard third_party/*.cpp)
+ASOURCES   = $(wildcard $(SRC_DIR)/*.S) $(wildcard third_party/libbase/*.S) $(wildcard third_party/*.S)
 COBJS      = $(addprefix $(OBJ_DIR)/, $(notdir $(CSOURCES:.c=.o)))
 CXXOBJS    = $(addprefix $(OBJ_DIR)/, $(notdir $(CPPSOURCES:.cpp=.o)))
 AOBJS      = $(addprefix $(OBJ_DIR)/, $(notdir $(ASOURCES:.S=.o)))
 OBJECTS    = $(COBJS) $(CXXOBJS) $(AOBJS)
-VPATH      = $(SRC_DIR) third_party/libbase
+VPATH      = $(SRC_DIR) third_party/libbase third_party
 
 QUIET      = @
 

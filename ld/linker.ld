@@ -20,6 +20,7 @@ SECTIONS
 		_frodata = .;
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
+		*(.srodata)
 		_erodata = .;
 	} > rom
 

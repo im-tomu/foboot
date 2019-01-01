@@ -2,3 +2,7 @@
 .swp
 .swo
 *~
+/foboot.bin
+/foboot.dfu
+/foboot.ihex
+/foboot.elf
