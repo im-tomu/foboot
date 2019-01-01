@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 void usb_isr(void);
+void usb_init(void);
 
 #ifdef __cplusplus
 }

@@ -27,6 +27,7 @@ static void init(void) {
     irq_setmask(0);
     irq_setie(1);
     uart_init();
+    usb_init();
     init_printf(NULL, rv_putchar);
 }
 
