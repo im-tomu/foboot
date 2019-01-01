@@ -139,8 +139,8 @@ static void grainuum_state_process_tx(struct GrainuumState *state)
   }
 
   /* Keep the packet size to 8 bytes max */
-  if (state->data_out_left > 8)
-    state->packet.size = 8;
+  if (state->data_out_left > GRAINUUM_PACKET_SIZE_MAX)
+    state->packet.size = GRAINUUM_PACKET_SIZE_MAX;
   else
     state->packet.size = state->data_out_left;
 
@@ -172,9 +172,9 @@ static void usbStateTransferSuccess(struct GrainuumState *state)
    * to this function with state->data_out_left == 0.  This will send
    * a NULL packet, which indicates end-of-transfer.
    */
-  state->data_out_left -= 8;
-  state->data_out_max -= 8;
-  state->data_out += 8;
+  state->data_out_left -= GRAINUUM_PACKET_SIZE_MAX;
+  state->data_out_max -= GRAINUUM_PACKET_SIZE_MAX;
+  state->data_out += GRAINUUM_PACKET_SIZE_MAX;
 
   if ((state->data_out_left < 0) || (state->data_out_max < 0)) {
     grainuum_state_clear_tx(state, 0);
@@ -274,7 +274,7 @@ static int grainuum_state_process_setup(struct GrainuumState *state, const uint8
 }
 
 static void grainuum_state_parse_data(struct GrainuumState *state,
-                               const uint8_t packet[10],
+                               const uint8_t packet[GRAINUUM_PACKET_SIZE_MAX + 2],
                                uint32_t size)
 {
   (void)size;
@@ -316,10 +316,10 @@ static inline void grainuum_state_parse_token(struct GrainuumState *state,
 }
 
 void grainuumProcess(struct GrainuumUSB *usb,
-                     const uint8_t packet[12])
+                     const uint8_t packet[GRAINUUM_PACKET_SIZE_MAX + 3])
 {
 
-  uint32_t size = packet[11];
+  uint32_t size = packet[GRAINUUM_PACKET_SIZE_MAX + 3];
   struct GrainuumState *state = &usb->state;
   switch(packet[0]) {
   case USB_PID_SETUP:

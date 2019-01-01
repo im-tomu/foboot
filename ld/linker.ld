@@ -31,7 +31,7 @@ SECTIONS
 		*(.data .data.* .gnu.linkonce.d.*)
 		*(.data1)
 		_gp = ALIGN(16);
-		*(.sdata .sdata.* .gnu.linkonce.s.*)
+		*(.sdata .sdata.* .gnu.linkonce.s.* .sdata2 .sdata2.*)
 		_edata = ALIGN(16); /* Make sure _edata is >= _gp. */
 	} > sram
 

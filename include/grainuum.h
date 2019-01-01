@@ -42,6 +42,8 @@
 #define GRAINUUM_STATE_EXTRA
 #endif /* GRAINUUM_STATE_EXTRA */
 
+#define GRAINUUM_PACKET_SIZE_MAX 64
+
 /**
  * @brief   Extra fields for GrainuumUSB struct.
  * @note    Use this to store context and thread information.
@@ -152,9 +154,9 @@ struct usb_packet {
   union {
     struct {
       uint8_t pid;
-      uint8_t data[10]; /* Including CRC */
+      uint8_t data[GRAINUUM_PACKET_SIZE_MAX + 2]; /* Including CRC */
     } __attribute((packed, aligned(4)));
-    uint8_t raw_data[11];
+    uint8_t raw_data[GRAINUUM_PACKET_SIZE_MAX + 3];
   } __attribute((packed, aligned(4)));
   uint8_t size; /* Not including pid (so may be 0) */
   /* Checksum omitted */
