@@ -1,5 +1,7 @@
 .global main
 .global isr
+
+.section .text.start
 .global _start
 
 _start:
@@ -12,6 +14,7 @@ _start:
   nop
   nop
 
+.section .text
 .global  trap_entry
 trap_entry:
   sw x1,  - 1*4(sp)
