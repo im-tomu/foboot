@@ -55,13 +55,13 @@ ALL        = all
 TARGET     = $(PACKAGE).elf
 CLEAN      = clean
 
-$(ALL): $(TARGET) $(PACKAGE).bin $(PACKAGE).ihex $(PACKAGE).dfu
+$(ALL): $(TARGET) $(PACKAGE).bin $(PACKAGE).ihex
 
 $(OBJECTS): | $(OBJ_DIR)
 
 $(TARGET): $(OBJECTS) $(LDSCRIPTS)
 	$(QUIET) echo "  LD       $@"
-	$(QUIET) $(CXX) $(OBJECTS) $(LFLAGS) -o $@
+	$(QUIET) $(CC) $(OBJECTS) $(LFLAGS) -o $@
 
 $(PACKAGE).bin: $(TARGET)
 	$(QUIET) echo "  OBJCOPY  $@"
