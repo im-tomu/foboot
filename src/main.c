@@ -11,8 +11,8 @@ void isr(void) {
     
     irqs = irq_pending() & irq_getmask();
     
-    if (irqs & (1 << USB_INTERRUPT))
-        usb_isr();
+//    if (irqs & (1 << USB_INTERRUPT))
+//        usb_isr();
 
     if (irqs & (1 << UART_INTERRUPT))
         uart_isr();
