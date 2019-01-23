@@ -29,6 +29,7 @@
  * authorization.                                                           *
  ****************************************************************************/
  #include "grainuum.h"
+ #include <printf.h>
 
 #ifndef NULL
 #define NULL ((void *)0)
@@ -316,13 +317,15 @@ static inline void grainuum_state_parse_token(struct GrainuumState *state,
 }
 
 void grainuumProcess(struct GrainuumUSB *usb,
-                     const uint8_t packet[GRAINUUM_PACKET_SIZE_MAX + 3])
+                     const uint8_t packet[GRAINUUM_PACKET_SIZE_MAX + 3],
+                     uint32_t size)
 {
 
-  uint32_t size = packet[GRAINUUM_PACKET_SIZE_MAX + 3];
+  // uint32_t size = packet[GRAINUUM_PACKET_SIZE_MAX + 3];
   struct GrainuumState *state = &usb->state;
   switch(packet[0]) {
   case USB_PID_SETUP:
+  printf("Setup packet!\n");
     state->packet_type = packet_type_setup;
     grainuum_state_clear_tx(state, 1);
     grainuum_state_parse_token(state, packet + 1);

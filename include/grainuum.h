@@ -497,7 +497,8 @@ int grainuumDataQueued(struct GrainuumUSB *usb);
  * @api
  */
 void grainuumProcess(struct GrainuumUSB *usb,
-                     const uint8_t packet[12]);
+                     const uint8_t packet[12],
+                     uint32_t size);
 
 /**
  * @brief   Initialize the Grainuum USB system.

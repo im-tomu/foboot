@@ -29,57 +29,53 @@
  * authorization.                                                           *
  ****************************************************************************/
 
-#include <generated/csr.h> 
+#include <generated/csr.h>
 #include <grainuum.h>
+#include <printf.h>
 
-__attribute__((weak))
-void grainuumConnectPre(struct GrainuumUSB *usb)
+__attribute__((weak)) void grainuumConnectPre(struct GrainuumUSB *usb)
 {
   (void)usb;
 }
-__attribute__((weak))
-void grainuumConnectPost(struct GrainuumUSB *usb)
-{
-  (void)usb;
-}
-
-__attribute__((weak))
-void grainuumDisconnectPre(struct GrainuumUSB *usb)
-{
-  (void)usb;
-}
-__attribute__((weak))
-void grainuumDisconnectPost(struct GrainuumUSB *usb)
+__attribute__((weak)) void grainuumConnectPost(struct GrainuumUSB *usb)
 {
   (void)usb;
 }
 
-__attribute__((weak))
-void grainuumReceivePacket(struct GrainuumUSB *usb)
+__attribute__((weak)) void grainuumDisconnectPre(struct GrainuumUSB *usb)
+{
+  (void)usb;
+}
+__attribute__((weak)) void grainuumDisconnectPost(struct GrainuumUSB *usb)
 {
   (void)usb;
 }
 
-__attribute__((weak))
-void grainuumInitPre(struct GrainuumUSB *usb)
+__attribute__((weak)) void grainuumReceivePacket(struct GrainuumUSB *usb)
 {
   (void)usb;
 }
 
-__attribute__((weak))
-void grainuumInitPost(struct GrainuumUSB *usb)
+__attribute__((weak)) void grainuumInitPre(struct GrainuumUSB *usb)
+{
+  (void)usb;
+}
+
+__attribute__((weak)) void grainuumInitPost(struct GrainuumUSB *usb)
 {
   (void)usb;
 }
 
 /* --- */
 
-void grainuum_receive_packet(struct GrainuumUSB *usb) {
+void grainuum_receive_packet(struct GrainuumUSB *usb)
+{
   grainuumReceivePacket(usb);
 }
 
 int grainuumCaptureI(struct GrainuumUSB *usb, uint8_t samples[67])
 {
+#if 0
   int ret;
   const uint8_t nak_pkt[] = {USB_PID_NAK};
   const uint8_t ack_pkt[] = {USB_PID_ACK};
@@ -133,6 +129,45 @@ int grainuumCaptureI(struct GrainuumUSB *usb, uint8_t samples[67])
   }
 
   return ret;
+#endif
+  uint8_t obufbuf[128];
+  uint32_t obufbuf_cnt = 0;
+  while (!usb_ep_0_out_obuf_empty_read())
+  {
+    uint32_t obh = usb_ep_0_out_obuf_head_read();
+    obufbuf[obufbuf_cnt++] = obh;
+    usb_ep_0_out_obuf_head_write(1);
+  }
+
+  int i;
+  static int loops;
+  uint8_t last_tok = usb_ep_0_out_last_tok_read();
+  printf("i: %d  b: %d olt: %02x  --", loops, obufbuf_cnt, last_tok); //obe: %d  obh: %02x\n", i, obe, obh);
+  for (i = 0; i < obufbuf_cnt; i++)
+  {
+    printf(" %02x", obufbuf[i]);
+  }
+  printf("\n");
+
+  usb_ep_0_out_ev_pending_write((1 << 1));
+
+  // Response
+  if (!usb_ep_0_in_ibuf_empty_read())
+  {
+    printf("USB ibuf still has data\n");
+    return 0;
+  }
+
+  uint32_t usb_in_pending = usb_ep_0_out_ev_pending_read();
+  if (usb_in_pending)
+  {
+    printf("USB EP0 in pending is: %02x\n", usb_in_pending);
+    return 0;
+  }
+
+  grainuumProcess(usb, obufbuf, obufbuf_cnt);
+
+  return 0;
 }
 
 int grainuumInitialized(struct GrainuumUSB *usb)
@@ -143,16 +178,34 @@ int grainuumInitialized(struct GrainuumUSB *usb)
   return usb->initialized;
 }
 
+enum usb_responses {
+  USB_STALL = 0b11,
+  USB_ACK   = 0b00,
+  USB_NAK   = 0b01,
+  USB_NONE  = 0b10,
+};
+
 void grainuumWriteQueue(struct GrainuumUSB *usb, int epnum,
                         const void *buffer, int size)
 {
   usb->queued_data = buffer;
   usb->queued_epnum = epnum;
   usb->queued_size = size;
+
+  int i;
+  const uint8_t *buffer_u8 = buffer;
+  for (i = 0; i < size; i++)
+  {
+    usb_ep_0_in_ibuf_head_write(buffer_u8[i]);
+  }
+  // Indicate that we respond with an ACK
+  usb_ep_0_in_respond_write(USB_ACK);
+  usb_ep_0_in_ev_pending_write(0xff);
 }
 
 void grainuumInit(struct GrainuumUSB *usb,
-                  struct GrainuumConfig *cfg) {
+                  struct GrainuumConfig *cfg)
+{
 
   if (usb->initialized)
     return;
@@ -168,7 +221,8 @@ void grainuumInit(struct GrainuumUSB *usb,
   grainuumInitPost(usb);
 }
 
-void grainuumDisconnect(struct GrainuumUSB *usb) {
+void grainuumDisconnect(struct GrainuumUSB *usb)
+{
 
   grainuumDisconnectPre(usb);
 
@@ -177,7 +231,8 @@ void grainuumDisconnect(struct GrainuumUSB *usb) {
   grainuumDisconnectPost(usb);
 }
 
-void grainuumConnect(struct GrainuumUSB *usb) {
+void grainuumConnect(struct GrainuumUSB *usb)
+{
 
   grainuumConnectPre(usb);
 

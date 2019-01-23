@@ -7,13 +7,6 @@
 
 #include <generated/csr.h>
 
-enum usb_responses {
-    USB_STALL = 0b11,
-    USB_ACK   = 0b00,
-    USB_NAK   = 0b01,
-    USB_NONE  = 0b10,
-};
-
 void isr(void)
 {
     unsigned int irqs;
@@ -41,12 +34,6 @@ static void init(void)
     usb_init();
     time_init();
     init_printf(NULL, rv_putchar);
-}
-
-static uint32_t read_timer(void)
-{
-    timer0_update_value_write(1);
-    return timer0_value_read();
 }
 
 #ifdef CSR_USB_EP_0_OUT_EV_PENDING_ADDR
@@ -86,40 +73,13 @@ static void get_print_status(void)
 
     if (s.out_ev_pending & (1 << 1)) {
         loops++;
-        uint8_t obufbuf[128];
-        while (!usb_ep_0_out_obuf_empty_read()) {
-            uint32_t obh = usb_ep_0_out_obuf_head_read();
-            obufbuf[obufbuf_cnt++] = obh;
-            usb_ep_0_out_obuf_head_write(1);
-        }
-
-        int i;
-        printf("i: %d  b: %d olt: %02x  --", loops, obufbuf_cnt, s.out_last_tok);//obe: %d  obh: %02x\n", i, obe, obh);
-        for (i = 0; i < obufbuf_cnt; i++) {
-            printf(" %02x", obufbuf[i]);
-        }
-        printf("\n");
-
-        usb_ep_0_out_ev_pending_write((1 << 1));
-
-        // Response
-        if (!usb_ep_0_in_ibuf_empty_read()) {
-            printf("USB ibuf still has data\n");
-            return;
-        }
-
-        uint32_t usb_in_pending = usb_ep_0_out_ev_pending_read();
-        if (usb_in_pending) {
-            printf("USB EP0 in pending is: %02x\n", usb_in_pending);
-            return;
-        }
-
-        for (i = 0; i < 0x20; i++) {
-            usb_ep_0_in_ibuf_head_write(i);
-        }
-        // Indicate that we respond with an ACK
-        usb_ep_0_in_respond_write(USB_ACK);
-        usb_ep_0_in_ev_pending_write(0xff);
+        usb_isr();
+        // for (i = 0; i < 0x20; i++) {
+        //     usb_ep_0_in_ibuf_head_write(i);
+        // }
+        // // Indicate that we respond with an ACK
+        // usb_ep_0_in_respond_write(USB_ACK);
+        // usb_ep_0_in_ev_pending_write(0xff);
     }
 }
 #else
@@ -166,26 +126,14 @@ int main(int argc, char **argv)
     printf("Status: %d\n", usb_ep_0_out_obuf_empty_read());
     get_print_status();
 
-    int i = 0;
     printf("Hello, world!\n");
 
     int last_event = 0;
     while (1)
     {
-        // unsigned int timer_val_ok = read_timer();
-        // int elapsed(int *last_event, int period)
         elapsed(&last_event, 1000);
 
-        unsigned int timer_val_cur;
-        // timer_val_cur = read_timer();
-        // printf("10 PRINT HELLO, WORLD\n");
-        // printf("20 GOTO 10\n");
-        // printf("i: %d\n", i++);
-        // timer_val_cur = read_timer();
         get_print_status();
-        // while (timer0_value_read() != timer_val_ok) {
-        // ;
-        // }
     }
     return 0;
 }
