@@ -71,6 +71,18 @@ bss_loop:
   j bss_loop
 bss_done:
 
+  /* Load DATA */
+  la t0, _erodata
+  la t1, _fdata
+  la t2, _edata
+3:
+  lw t3, 0(t0)
+  sw t3, 0(t1)
+  /* _edata is aligned to 16 bytes. Use word-xfers. */
+  addi t0, t0, 4
+  addi t1, t1, 4
+  bltu t1, t2, 3b
+
   li a0, 0x880  //880 enable timer + external interrupt sources (until mstatus.MIE is set, they will never trigger an interrupt)
   csrw mie,a0
 
