@@ -28,60 +28,15 @@ static void rv_putchar(void *ignored, char c)
 
 static void init(void)
 {
+    init_printf(NULL, rv_putchar);
     irq_setmask(0);
     irq_setie(1);
     uart_init();
     usb_init();
     time_init();
-    init_printf(NULL, rv_putchar);
 }
 
 #ifdef CSR_USB_EP_0_OUT_EV_PENDING_ADDR
-struct usb_status
-{
-    // uint32_t out_ev_status;
-    uint32_t out_ev_pending;
-    uint32_t in_ev_status;
-    uint32_t out_last_tok;
-    uint32_t out_obuf_empty;
-    uint32_t in_ibuf_empty;
-};
-
-static struct usb_status get_status(void)
-{
-    struct usb_status s;
-    // s.out_ev_status = usb_ep_0_out_ev_status_read();
-    s.out_ev_pending = usb_ep_0_out_ev_pending_read();
-    s.in_ev_status = usb_ep_0_in_ev_status_read();
-    s.out_last_tok = usb_ep_0_out_last_tok_read();
-    s.out_obuf_empty = usb_ep_0_out_obuf_empty_read();
-    s.in_ibuf_empty = usb_ep_0_in_ibuf_empty_read();
-    return s;
-}
-
-static void get_print_status(void)
-{
-    static int loops;
-    int obufbuf_cnt = 0;
-    struct usb_status s = get_status();
-
-    // printf("i: %8d  OEP: %02x  OBE: %02x  OLT: %02x\n",
-    //         loops++,
-    //         s.out_ev_pending,
-    //         s.out_obuf_empty,
-    //         s.out_last_tok);
-
-    if (s.out_ev_pending & (1 << 1)) {
-        loops++;
-        usb_isr();
-        // for (i = 0; i < 0x20; i++) {
-        //     usb_ep_0_in_ibuf_head_write(i);
-        // }
-        // // Indicate that we respond with an ACK
-        // usb_ep_0_in_respond_write(USB_ACK);
-        // usb_ep_0_in_ev_pending_write(0xff);
-    }
-}
 #else
 static void get_print_status(void)
 {
@@ -119,21 +74,20 @@ int main(int argc, char **argv)
     (void)argv;
 
     init();
-    printf("\nStatus: %d\n", usb_ep_0_out_ev_pending_read());
-    get_print_status();
     usb_pullup_out_write(1);
     usb_ep_0_out_ev_pending_write((1 << 1));
-    printf("Status: %d\n", usb_ep_0_out_obuf_empty_read());
-    get_print_status();
+    if (usb_ep_0_out_ev_pending_read() & (1 << 1))
+        usb_isr();
 
     printf("Hello, world!\n");
 
-    int last_event = 0;
     while (1)
     {
-        elapsed(&last_event, 1000);
+        if (usb_ep_0_out_ev_pending_read() & (1 << 1))
+            usb_isr();
+        // elapsed(&last_event, 1000);
 
-        get_print_status();
+        // get_print_status();
     }
     return 0;
 }

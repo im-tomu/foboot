@@ -90,6 +90,12 @@ enum usb_pids {
   USB_PID_MDATA = 0x0f,
 };
 
+enum valenty_usb_pids {
+  VUSB_PID_IN = 0x2,
+  VUSB_PID_OUT = 0x0,
+  VUSB_PID_SETUP = 0x3,
+};
+
 struct GrainuumUSB;
 struct GrainuumState;
 struct GrainuumConfig;
@@ -153,10 +159,10 @@ typedef int (*usb_data_out_finish_t)(struct GrainuumUSB *usb,
 struct usb_packet {
   union {
     struct {
-      uint8_t pid;
+      // uint8_t pid;
       uint8_t data[GRAINUUM_PACKET_SIZE_MAX + 2]; /* Including CRC */
     } __attribute((packed, aligned(4)));
-    uint8_t raw_data[GRAINUUM_PACKET_SIZE_MAX + 3];
+    uint8_t raw_data[GRAINUUM_PACKET_SIZE_MAX + 2];
   } __attribute((packed, aligned(4)));
   uint8_t size; /* Not including pid (so may be 0) */
   /* Checksum omitted */
@@ -497,6 +503,7 @@ int grainuumDataQueued(struct GrainuumUSB *usb);
  * @api
  */
 void grainuumProcess(struct GrainuumUSB *usb,
+                     uint8_t pid,
                      const uint8_t packet[12],
                      uint32_t size);
 

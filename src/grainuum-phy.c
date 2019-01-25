@@ -165,7 +165,7 @@ int grainuumCaptureI(struct GrainuumUSB *usb, uint8_t samples[67])
     return 0;
   }
 
-  grainuumProcess(usb, obufbuf, obufbuf_cnt);
+  grainuumProcess(usb, last_tok, obufbuf, obufbuf_cnt);
 
   return 0;
 }
@@ -210,6 +210,7 @@ void grainuumInit(struct GrainuumUSB *usb,
   if (usb->initialized)
     return;
 
+  printf("Initializing USB to %08x, cfg to 0x%08x  0x%08x\n", usb, cfg, cfg->getDescriptor);
   grainuumInitPre(usb);
 
   usb->cfg = cfg;

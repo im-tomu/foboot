@@ -2,6 +2,7 @@
 #include <usb.h>
 #include <generated/csr.h>
 #include <string.h>
+#include <printf.h>
 
 #define NUM_BUFFERS 4
 #define BUFFER_SIZE 64
@@ -233,21 +234,27 @@ static int get_descriptor(struct GrainuumUSB *usb,
 {
 
   const struct usb_setup_packet *setup = packet;
-
+  printf("In get_Descriptor()\n");
   switch (setup->wValueH)
   {
   case DT_DEVICE:
+    printf("Returning device descriptor %d\n", setup->wValueL);
     return get_device_descriptor(usb, setup->wValueL, response);
 
   case DT_STRING:
+    printf("Returning string descriptor %d\n", setup->wValueL);
     return get_string_descriptor(usb, setup->wValueL, response);
 
   case DT_CONFIGURATION:
+    printf("Returning configuration descriptor %d\n", setup->wValueL);
     return get_configuration_descriptor(usb, setup->wValueL, response);
 
   case DT_HID_REPORT:
+    printf("Returning HID descriptor %d\n", setup->wValueL);
     return get_hid_report_descriptor(usb, setup->wValueL, response);
   }
+
+  printf("Returning no descriptor %d\n", setup->wValueL);
 
   return 0;
 }

@@ -30,6 +30,7 @@
  ****************************************************************************/
  #include "grainuum.h"
  #include <printf.h>
+ #include <generated/csr.h>
 
 #ifndef NULL
 #define NULL ((void *)0)
@@ -118,10 +119,10 @@ static void grainuum_state_process_tx(struct GrainuumState *state)
   }
 
   /* Pick the correct PID, DATA0 or DATA1 */
-  if (state->data_buffer & (1 << state->tok_epnum))
-    state->packet.pid = USB_PID_DATA1;
-  else
-    state->packet.pid = USB_PID_DATA0;
+  // if (state->data_buffer & (1 << state->tok_epnum))
+  //   state->packet.pid = USB_PID_DATA1;
+  // else
+  //   state->packet.pid = USB_PID_DATA0;
 
   /* If there's no data, prepare a special NULL packet */
   if ((state->data_out_left == 0) || (state->data_out_max == 0)) {
@@ -210,6 +211,7 @@ static int grainuum_state_send_data(struct GrainuumState *state,
   state->data_out_max = max;
   state->data_out = data;
 
+  grainuum_state_process_tx(state);
   return 0;
 }
 
@@ -267,6 +269,7 @@ static int grainuum_state_process_setup(struct GrainuumState *state, const uint8
       cfg->setConfigNum(usb, setup->wValue);
   }
   else {
+    printf("Going to get descriptor @ 0x%08x\n", cfg->getDescriptor);
     response_len = cfg->getDescriptor(usb, setup, &response);
   }
   grainuum_state_send_data(state, state->tok_epnum, response, response_len, setup->wLength);
@@ -308,58 +311,38 @@ static void grainuum_state_parse_data(struct GrainuumState *state,
   }
 }
 
-static inline void grainuum_state_parse_token(struct GrainuumState *state,
-                                       const uint8_t packet[2])
-{
-
-  state->tok_epnum = (((const uint16_t *)packet)[0] >> 7) & 0xf;
-  /*state->tok_addr  = (((const uint16_t *)packet)[0] >> 11) & 0x1f; // Field unused in this code*/
-}
-
 void grainuumProcess(struct GrainuumUSB *usb,
+                     uint8_t pid,
                      const uint8_t packet[GRAINUUM_PACKET_SIZE_MAX + 3],
                      uint32_t size)
 {
 
   // uint32_t size = packet[GRAINUUM_PACKET_SIZE_MAX + 3];
   struct GrainuumState *state = &usb->state;
-  switch(packet[0]) {
-  case USB_PID_SETUP:
-  printf("Setup packet!\n");
+  printf("Processing %d byte packet %x %08x (%02x)\n", size, pid, packet, packet[0]);
+  switch(pid) {
+  case VUSB_PID_SETUP:
+    printf("Setup packet!\n");
     state->packet_type = packet_type_setup;
     grainuum_state_clear_tx(state, 1);
-    grainuum_state_parse_token(state, packet + 1);
-    break;
-
-  case USB_PID_DATA0:
-    state->data_buffer |= (1 << state->tok_epnum);
-    grainuum_state_parse_data(state, packet + 1, size - 1);
-    break;
-
-  case USB_PID_DATA1:
-    state->data_buffer &= ~(1 << state->tok_epnum);
-    grainuum_state_parse_data(state, packet + 1, size - 1);
     break;
 
   case USB_PID_OUT:
-    grainuum_state_parse_token(state, packet + 1);
     state->packet_type = packet_type_out;
     state->tok_pos = 0;
     state->tok_buf = usb->cfg->getReceiveBuffer(usb, state->tok_epnum, NULL);
   break;
 
-  case USB_PID_ACK:
-    state->data_buffer ^= (1 << state->tok_epnum);
-    usbStateTransferSuccess(state);
-    if (state->data_out) {
-      grainuum_state_process_tx(state);
-    }
-    else {
-      grainuum_state_clear_tx(state, 0);
-    }
-    break;
-
   default:
+    printf("Unrecognized PID: %02x\n", pid);
     break;
   }
+
+  if (size == 0) {
+    usb_ep_0_in_respond_write(0);
+    usb_ep_0_in_ev_pending_write(0xff);
+  }
+
+  //state->data_buffer |= (1 << state->tok_epnum);
+  grainuum_state_parse_data(state, packet, size);
 }
