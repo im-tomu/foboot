@@ -1,0 +1,33 @@
+[submodule "deps/migen"]
+	path = deps/migen
+	url = https://github.com/m-labs/migen.git
+[submodule "deps/litex"]
+	path = deps/litex
+	url = https://github.com/enjoy-digital/litex.git
+[submodule "deps/litescope"]
+	path = deps/litescope
+	url = https://github.com/enjoy-digital/litescope.git
+[submodule "deps/pyserial"]
+	path = deps/pyserial
+	url = https://github.com/pyserial/pyserial.git
+[submodule "deps/liteeth"]
+	path = deps/liteeth
+	url = https://github.com/enjoy-digital/liteeth.git
+[submodule "deps/liteusb"]
+	path = deps/liteusb
+	url = https://github.com/enjoy-digital/liteusb.git
+[submodule "deps/litedram"]
+	path = deps/litedram
+	url = https://github.com/enjoy-digital/litedram.git
+[submodule "deps/litepcie"]
+	path = deps/litepcie
+	url = https://github.com/enjoy-digital/litepcie.git
+[submodule "deps/litesdcard"]
+	path = deps/litesdcard
+	url = https://github.com/enjoy-digital/litesdcard.git
+[submodule "deps/liteiclink"]
+	path = deps/liteiclink
+	url = https://github.com/enjoy-digital/liteiclink.git
+[submodule "deps/litevideo"]
+	path = deps/litevideo
+	url = https://github.com/enjoy-digital/litevideo.git
