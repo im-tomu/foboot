@@ -31,3 +31,6 @@
 [submodule "deps/litevideo"]
 	path = deps/litevideo
 	url = https://github.com/enjoy-digital/litevideo.git
+[submodule "deps/lx-socsupport"]
+	path = deps/lx-socsupport
+	url = https://github.com/xobs/lx-socsupport.git
