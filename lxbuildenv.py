@@ -170,7 +170,15 @@ def check_make(args):
     return check_cmd(args, "make", "GNU Make")
 
 def check_riscv(args):
-    return check_cmd(args, "riscv64-unknown-elf-gcc", "riscv toolchain", "download it from https://www.sifive.com/products/tools/")
+    riscv64 = check_cmd(args, "riscv64-unknown-elf-gcc", "riscv toolchain", "download it from https://www.sifive.com/products/tools/")
+    if riscv64[0] == True:
+        return riscv64
+
+    riscv32 = check_cmd(args, "riscv32-unknown-elf-gcc", "riscv toolchain", "download it from https://www.sifive.com/products/tools/")
+    if riscv32[0] == True:
+        return riscv32
+
+    return riscv64
 
 def check_yosys(args):
     return check_cmd(args, "yosys")
