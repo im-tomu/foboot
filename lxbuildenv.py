@@ -276,6 +276,18 @@ def lx_main(args):
     elif args.lx_print_deps:
         lx_print_deps()
 
+    elif args.lx_run is not None:
+        script_name=args.lx_run[0]
+        get_required_dependencies(script_name)
+
+        fixup_env(script_path, args)
+        check_submodules(script_path, args)
+
+        try:
+            sys.exit(subprocess.Popen(
+                [sys.executable] + [script_name] + args.lx_run[1:]).wait())
+        except:
+            sys.exit(1)
     elif args.init:
         if args.main is None:
             main_name = os.getcwd().split(os.path.sep)[-1] + '.py'
@@ -442,6 +454,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         '-d', '--print-deps', '--lx-print-deps', dest="lx_print_deps", help="print all possible dependencies and then exit", action="store_true"
+    )
+    parser.add_argument(
+        "--lx-verbose", help="increase verboseness of some processes", action="store_true"
+    )
+    parser.add_argument(
+        '-r', '--run', '--lx-run', dest='lx_run', help="run the given script under lxbuildenv", nargs=argparse.REMAINDER
     )
     args = parser.parse_args()
 
