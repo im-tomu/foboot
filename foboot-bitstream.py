@@ -21,6 +21,11 @@ from litex.soc.integration.builder import Builder
 from litex.soc.integration.soc_core import csr_map_update
 from litex.soc.interconnect import wishbone
 
+from valentyusb import usbcore
+from valentyusb.usbcore import io as usbio
+from valentyusb.usbcore.cpu import epmem, unififo, epfifo
+from valentyusb.usbcore.endpoint import EndpointType
+
 from lxsocsupport import up5kspram, cas, spi_flash
 
 import argparse
@@ -30,6 +35,25 @@ _io = [
         Subsignal("rx", Pins("21")),
         Subsignal("tx", Pins("13"), Misc("PULLUP")),
         IOStandard("LVCMOS33")
+    ),
+    ("usb", 0,
+        Subsignal("d_p", Pins("34")),
+        Subsignal("d_n", Pins("37")),
+        Subsignal("pullup", Pins("35")),
+        IOStandard("LVCMOS33")
+    ),
+    ("spiflash", 0,
+        Subsignal("cs_n",      Pins("16"), IOStandard("LVCMOS33")),
+        Subsignal("clk",       Pins("15"), IOStandard("LVCMOS33")),
+        Subsignal("miso",        Pins("17"), IOStandard("LVCMOS33")),
+        Subsignal("mosi",        Pins("14"), IOStandard("LVCMOS33")),
+        Subsignal("wp",      Pins("18"), IOStandard("LVCMOS33")),
+        Subsignal("hold", Pins("19"), IOStandard("LVCMOS33")),
+    ),
+    ("spiflash4x", 0,
+        Subsignal("cs_n", Pins("16"), IOStandard("LVCMOS33")),
+        Subsignal("clk",  Pins("15"), IOStandard("LVCMOS33")),
+        Subsignal("dq",   Pins("14 17 19 18"), IOStandard("LVCMOS33")),
     ),
     ("clk48", 0, Pins("44"), IOStandard("LVCMOS33"))
 ]
@@ -109,17 +133,25 @@ class RandomFirmwareROM(wishbone.SRAM):
         wishbone.SRAM.__init__(self, size, read_only=True, init=data)
 
 class Platform(LatticePlatform):
+    default_clk_name = "clk48"
+    default_clk_period = 20.833
+
+    gateware_size = 0x20000
+
     def __init__(self, toolchain="icestorm"):
         LatticePlatform.__init__(self, "ice40-up5k-sg48", _io, _connectors, toolchain="icestorm")
     def create_programmer(self):
         raise ValueError("programming is not supported")
 
-    def do_finalize(self, fragment):
-        LatticePlatform.do_finalize(self, fragment)
+    # def do_finalize(self, fragment):
+        # LatticePlatform.do_finalize(self, fragment)
 
 class BaseSoC(SoCCore):
     csr_peripherals = [
         "cpu_or_bridge",
+        "usb",
+        "usb_obuf",
+        "usb_ibuf",
     ]
     csr_map_update(SoCCore.csr_map, csr_peripherals)
 
@@ -128,7 +160,10 @@ class BaseSoC(SoCCore):
     }
     mem_map.update(SoCCore.mem_map)
 
-    gateware_size = 0x20000
+    interrupt_map = {
+        "usb": 3,
+    }
+    interrupt_map.update(SoCCore.interrupt_map)
 
     def __init__(self, platform, boot_source="random_rom", **kwargs):
         # Disable integrated RAM as we'll add it later
@@ -159,10 +194,10 @@ class BaseSoC(SoCCore):
             self.add_memory_region("rom", kwargs['cpu_reset_address'], bios_size)
         elif boot_source == "spi_rom":
             bios_size = 0x8000
-            kwargs['cpu_reset_address']=self.mem_map["spiflash"]+self.gateware_size
+            kwargs['cpu_reset_address']=self.mem_map["spiflash"]+platform.gateware_size
             self.add_memory_region("rom", kwargs['cpu_reset_address'], bios_size)
             self.add_constant("ROM_DISABLE", 1)
-            self.flash_boot_address = self.mem_map["spiflash"]+self.gateware_size+bios_size
+            self.flash_boot_address = self.mem_map["spiflash"]+platform.gateware_size+bios_size
             self.add_memory_region("user_flash",
                 self.flash_boot_address,
                 # Leave a grace area- possible one-by-off bug in add_memory_region?
@@ -170,6 +205,13 @@ class BaseSoC(SoCCore):
                 platform.spiflash_total_size - (self.flash_boot_address - self.mem_map["spiflash"]) - 0x100)
         else:
             raise ValueError("unrecognized boot_source: {}".format(boot_source))
+
+        # Add USB pads
+        usb_pads = platform.request("usb")
+        usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
+        self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, endpoints=[EndpointType.BIDIR])
+        # self.submodules.usb = epmem.MemInterface(usb_iobuf)
+        # self.submodules.usb = unififo.UsbUniFifo(usb_iobuf)
 
         # Disable final deep-sleep power down so firmware words are loaded
         # onto softcore's address bus.
