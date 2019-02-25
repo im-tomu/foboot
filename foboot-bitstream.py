@@ -82,14 +82,29 @@ class _CRG(Module):
         ]
 
 class RandomFirmwareROM(wishbone.SRAM):
+    """
+    Seed the random data with a fixed number, so different bitstreams
+    can all share firmware.
+    """
     def __init__(self, size, seed=2373):
-        import random
-        # Seed the random data with a fixed number, so different bitstreams
-        # can all share firmware.
-        random.seed(seed)
+        def xorshift32(x):
+            x = x ^ (x << 13) & 0xffffffff
+            x = x ^ (x >> 17) & 0xffffffff
+            x = x ^ (x << 5)  & 0xffffffff
+            return x & 0xffffffff
+
+        def get_rand(x):
+            out = 0
+            for i in range(32):
+                x = xorshift32(x)
+                if (x & 1) == 1:
+                    out = out | (1 << i)
+            return out & 0xffffffff
         data = []
+        seed = 1
         for d in range(int(size / 4)):
-            data.append(random.getrandbits(32))
+            seed = get_rand(seed)
+            data.append(seed)
         print("Firmware {} bytes of random data".format(size))
         wishbone.SRAM.__init__(self, size, read_only=True, init=data)
 
