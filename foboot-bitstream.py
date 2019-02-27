@@ -63,17 +63,17 @@ _connectors = []
 class _CRG(Module):
     def __init__(self, platform):
         clk12 = Signal()
-        # "0b00" Sets 48MHz HFOSC output
-        # "0b01" Sets 24MHz HFOSC output.
-        # "0b10" Sets 12MHz HFOSC output.
-        # "0b11" Sets 6MHz HFOSC output
-        self.specials += Instance(
-            "SB_HFOSC",
-            i_CLKHFEN=1,
-            i_CLKHFPU=1,
-            o_CLKHF=clk12,
-            p_CLKHF_DIV="0b10", # 12MHz
-        )
+        # # "0b00" Sets 48MHz HFOSC output
+        # # "0b01" Sets 24MHz HFOSC output.
+        # # "0b10" Sets 12MHz HFOSC output.
+        # # "0b11" Sets 6MHz HFOSC output
+        # self.specials += Instance(
+        #     "SB_HFOSC",
+        #     i_CLKHFEN=1,
+        #     i_CLKHFPU=1,
+        #     o_CLKHF=clk12,
+        #     p_CLKHF_DIV="0b10", # 12MHz
+        # )
 
         self.clock_domains.cd_sys = ClockDomain()
         self.clock_domains.cd_usb_12 = ClockDomain()
@@ -93,6 +93,18 @@ class _CRG(Module):
             self.cd_sys.rst.eq(reset_delay != 0),
             self.cd_usb_12.rst.eq(reset_delay != 0)
         ]
+
+        # Divide clk48 down to clk12, to ensure they're synchronized.
+        clk12_counter = Signal(2)
+        self.sync.usb_48 += [
+            clk12_counter.eq(clk12_counter + 1),
+        ]
+        self.specials += Instance(
+            "SB_GB",
+            i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk12_counter[1],
+            o_GLOBAL_BUFFER_OUTPUT=clk12,
+        )
+
         self.sync.por += \
             If(reset_delay != 0,
                 reset_delay.eq(reset_delay - 1)
