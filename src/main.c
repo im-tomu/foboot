@@ -23,7 +23,12 @@ void isr(void)
 static void rv_putchar(void *ignored, char c)
 {
     (void)ignored;
+    if (c == '\n')
+        uart_write('\r');
+    if (c == '\r')
+        return;
     uart_write(c);
+    // uart_sync();
 }
 
 static void init(void)
@@ -36,37 +41,21 @@ static void init(void)
     time_init();
 }
 
+static const char *usb_hw_api(void) {
 #ifdef CSR_USB_EP_0_OUT_EV_PENDING_ADDR
+    return "epfifo";
 #else
-static void get_print_status(void)
-{
-    static int loops;
-    uint32_t obe = usb_obuf_empty_read();
-    uint8_t obufbuf[128];
-    int obufbuf_cnt = 0;
-    loops++;
-
-    while (!usb_obuf_empty_read()) {
-        uint32_t obh = usb_obuf_head_read();
-        obufbuf[obufbuf_cnt++] = obh;
-        usb_obuf_head_write(1);
-    }
-    if (obufbuf_cnt) {
-        int i;
-        printf("i: %d  b: %d  --", loops, obufbuf_cnt);//obe: %d  obh: %02x\n", i, obe, obh);
-        for (i = 0; i < obufbuf_cnt; i++) {
-            printf(" %02x", obufbuf[i]);
-        }
-        printf("\n");
-    }
-    // if (!obe) {
-    //     uint32_t obh = usb_obuf_head_read();
-    //     usb_obuf_head_write(1);
-    //     if (i < 300)
-    //         printf("i: %8d  obe: %d  obh: %02x\n", i, obe, obh);
-    // }
+#ifdef CSR_USB_OBUF_EMPTY_ADDR
+    return "rawfifo";
+#else
+#ifdef CSR_USB_WHATEVER
+    return "whatever";
+#else
+    return "unrecognized hw api";
+#endif /* CSR_USB_WHATEVER */
+#endif /* CSR_USB_OBUF_EMPTY_ADDR */
+#endif /* CSR_USB_EP_0_OUT_EV_PENDING_ADDR */
 }
-#endif
 
 int main(int argc, char **argv)
 {
@@ -74,20 +63,26 @@ int main(int argc, char **argv)
     (void)argv;
 
     init();
-    usb_pullup_out_write(1);
-    usb_ep_0_out_ev_pending_write((1 << 1));
-    if (usb_ep_0_out_ev_pending_read() & (1 << 1))
-        usb_isr();
 
-    printf("Hello, world!\n");
-
+    printf("\n\nUSB API: %s\n", usb_hw_api());
+    // printf("Press any key to enable USB...\n");
+ 
+    usb_print_status();
+    // uart_read();
+    printf("Enabling USB\n");
+    usb_connect();
+    printf("USB enabled, waiting for packet...\n");
+    // usb_wait();
+    usb_print_status();
+    int last = 0;
     while (1)
     {
-        if (usb_ep_0_out_ev_pending_read() & (1 << 1))
-            usb_isr();
-        // elapsed(&last_event, 1000);
-
-        // get_print_status();
+        if (usb_irq_happened() != last) {
+            last = usb_irq_happened();
+            printf("USB %d IRQ happened\n", last);
+        }
+        // printf("x");
+        usb_print_status();
     }
     return 0;
 }
