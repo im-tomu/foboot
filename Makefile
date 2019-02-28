@@ -4,7 +4,7 @@ ADD_CFLAGS = -I$(FOMU_SDK)/include -D__vexriscv__ -march=rv32im  -mabi=ilp32
 ADD_LFLAGS = 
 SRC_DIR    = src
 
-GIT_VERSION= $(shell git describe --tags)
+GIT_VERSION := $(shell git describe --tags)
 TRGT      ?= riscv64-unknown-elf-
 CC         = $(TRGT)gcc
 CXX        = $(TRGT)g++
@@ -71,6 +71,10 @@ $(PACKAGE).dfu: $(TARGET)
 	$(QUIET) echo "  DFU      $@"
 	$(QUIET) $(COPY) $(PACKAGE).bin $@
 	$(QUIET) dfu-suffix -v 1209 -p 70b1 -a $@
+
+#$(PACKAGE).bit: $(TARGET)
+#	$(QUIET) echo "  BIT      $@"
+#	# $(QUIET) ice40-repack input/top.bin input/mem_1.init ./foboot.bin ./foboot.bit
 
 $(PACKAGE).ihex: $(TARGET)
 	$(QUIET) echo "  IHEX     $(PACKAGE).ihex"
