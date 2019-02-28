@@ -53,8 +53,8 @@ char uart_read(void)
 {
 	char c;
 
-	if(irq_getie()) {
-		while(rx_consume == rx_produce);
+	if (irq_getie()) {
+		while (rx_consume == rx_produce);
 	} else if (rx_consume == rx_produce) {
 		return 0;
 	}
@@ -74,7 +74,7 @@ void uart_write(char c)
 	unsigned int oldmask;
 	unsigned int tx_produce_next = (tx_produce + 1) & UART_RINGBUFFER_MASK_TX;
 
-	if(irq_getie()) {
+	if (irq_getie()) {
 		while(tx_produce_next == tx_consume);
 	} else if(tx_produce_next == tx_consume) {
 		return;
@@ -82,7 +82,7 @@ void uart_write(char c)
 
 	oldmask = irq_getmask();
 	irq_setmask(oldmask & ~(1 << UART_INTERRUPT));
-	if((tx_consume != tx_produce) || uart_txfull_read()) {
+	if ((tx_consume != tx_produce) || uart_txfull_read()) {
 		tx_buf[tx_produce] = c;
 		tx_produce = tx_produce_next;
 	} else {

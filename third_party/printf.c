@@ -255,8 +255,9 @@ void tfp_sprintf(char *s, char *fmt, ...)
 	va_end(va);
 }
 
- int puts(const char *s) {
-	 while (*s++)
+int puts(const char *s) {
+	while (*s++)
 		stdout_putf(stdout_putp, *s);
 	stdout_putf(stdout_putp, '\n');
- }
+	return 1;
+}
