@@ -26,7 +26,7 @@ from valentyusb.usbcore import io as usbio
 from valentyusb.usbcore.cpu import epmem, unififo, epfifo
 from valentyusb.usbcore.endpoint import EndpointType
 
-from lxsocsupport import up5kspram, cas, spi_flash
+from lxsocsupport import up5kspram, spi_flash
 
 import argparse
 
