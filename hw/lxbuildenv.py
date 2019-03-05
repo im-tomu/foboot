@@ -229,9 +229,9 @@ def check_dependencies(args, dependency_list):
         sys.exit(0)
 
 # Return True if the given tree needs to be initialized
-def check_module_recursive(root_path, depth, verbose=False):
+def check_module_recursive(root_path, depth, verbose=False, breadcrumbs=[]):
     if verbose:
-        print('git-dep: checking if "{}" requires updating...'.format(root_path))
+        print('git-dep: checking if "{}" requires updating (depth: {})...'.format(root_path, depth))
 
     # If the directory isn't a valid git repo, initialization is required
     git_dir_cmd = subprocess.Popen(["git", "rev-parse", "--show-toplevel"],
@@ -244,6 +244,12 @@ def check_module_recursive(root_path, depth, verbose=False):
             print('git-dep: missing git directory, starting update...')
         return True
     git_dir = git_stdout.decode().strip()
+
+    if git_dir in breadcrumbs:
+        if verbose:
+            print('git-dep: root path {} is not in git path'.format(root_path))
+        return True
+    breadcrumbs.append(git_dir)
 
     if not os.path.exists(git_dir + os.path.sep + '.git'):
         if verbose:
@@ -262,7 +268,7 @@ def check_module_recursive(root_path, depth, verbose=False):
         parts = line.split("=", 2)
         if parts[0].strip() == "path":
             path = parts[1].strip()
-            if check_module_recursive(git_dir + os.path.sep + path, depth + 1, verbose=verbose):
+            if check_module_recursive(git_dir + os.path.sep + path, depth + 1, verbose=verbose, breadcrumbs=breadcrumbs):
                 return True
     return False
 
