@@ -232,21 +232,37 @@ def check_dependencies(args, dependency_list):
 def check_module_recursive(root_path, depth, verbose=False):
     if verbose:
         print('git-dep: checking if "{}" requires updating...'.format(root_path))
+
     # If the directory isn't a valid git repo, initialization is required
-    if not os.path.exists(root_path + os.path.sep + '.git'):
+    git_dir_cmd = subprocess.Popen(["git", "rev-parse", "--show-toplevel"],
+                        cwd=root_path,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE)
+    (git_stdout, _) = git_dir_cmd.communicate()
+    if git_dir_cmd.wait() != 0:
+        if verbose:
+            print('git-dep: missing git directory, starting update...')
+        return True
+    git_dir = git_stdout.decode().strip()
+
+    if not os.path.exists(git_dir + os.path.sep + '.git'):
+        if verbose:
+            print('git-dep: .git not found in "{}"'.format(git_dir))
         return True
 
     # If there are no submodules, no initialization needs to be done
-    if not os.path.isfile(root_path + os.path.sep + '.gitmodules'):
+    if not os.path.isfile(git_dir + os.path.sep + '.gitmodules'):
+        if verbose:
+            print('git-dep: .gitmodules not found in "{}", so not updating'.format(git_dir))
         return False
 
     # Loop through the gitmodules to check all submodules
-    gitmodules = open(root_path + os.path.sep + '.gitmodules', 'r')
+    gitmodules = open(git_dir + os.path.sep + '.gitmodules', 'r')
     for line in gitmodules:
         parts = line.split("=", 2)
         if parts[0].strip() == "path":
             path = parts[1].strip()
-            if check_module_recursive(root_path + os.path.sep + path, depth + 1, verbose=verbose):
+            if check_module_recursive(git_dir + os.path.sep + path, depth + 1, verbose=verbose):
                 return True
     return False
 
