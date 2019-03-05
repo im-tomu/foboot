@@ -2,7 +2,10 @@
 .swp
 .swo
 *~
-/foboot.bin
-/foboot.dfu
-/foboot.ihex
-/foboot.elf
+/sw/foboot.bin
+/sw/foboot.dfu
+/sw/foboot.ihex
+/sw/foboot.elf
+build/
+__pycache__/
+.env
