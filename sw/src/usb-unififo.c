@@ -147,6 +147,8 @@ static uint8_t usb_ep0out_buffer[EP0OUT_BUFFERS][128];
 static uint8_t usb_ep0out_buffer_len[EP0OUT_BUFFERS];
 void usb_poll(void)
 {
+    // usb_isr();
+    // printf("Start byte_count: %d\n", usb_byte_count_read());
     while (usb_ep0out_rd_ptr != usb_ep0out_wr_ptr) {
         uint8_t *obuf = usb_ep0out_buffer[usb_ep0out_rd_ptr];
         uint8_t cnt = usb_ep0out_buffer_len[usb_ep0out_rd_ptr];
@@ -171,6 +173,15 @@ int irq_happened;
 
 void usb_init(void) {
     return;
+}
+
+int usb_send(struct usb_device *dev, int epnum, const void *data, int total_count) {
+    unsigned int i;
+    const uint8_t *data_bfr = data;
+    for (i = 0; i < total_count; i++) {
+        usb_ibuf_head_write(data_bfr[i]);
+    }
+    usb_arm_write(0);
 }
 
 void usb_isr(void) {
@@ -199,7 +210,6 @@ void usb_connect(void) {
 
     usb_ev_pending_write(usb_ev_pending_read());
     usb_ev_enable_write(1);
-    usb_obuf_head_write(0);
 
 	irq_setmask(irq_getmask() | (1 << USB_INTERRUPT));
 }
