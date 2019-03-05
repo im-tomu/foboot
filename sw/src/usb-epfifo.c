@@ -120,9 +120,9 @@ void usb_connect(void) {
     usb_ep_0_out_respond_write(EPF_ACK);
     usb_ep_0_in_respond_write(EPF_NAK);
 
-	usb_ep_0_out_ev_pending_write(usb_ep_0_out_ev_enable_read());
-	usb_ep_0_in_ev_pending_write(usb_ep_0_in_ev_pending_read());
-	usb_ep_0_out_ev_enable_write(USB_EV_PACKET | USB_EV_ERROR);
+    usb_ep_0_out_ev_pending_write(usb_ep_0_out_ev_enable_read());
+    usb_ep_0_in_ev_pending_write(usb_ep_0_in_ev_pending_read());
+    usb_ep_0_out_ev_enable_write(USB_EV_PACKET | USB_EV_ERROR);
     usb_ep_0_in_ev_enable_write(USB_EV_PACKET | USB_EV_ERROR);
 
 	irq_setmask(irq_getmask() | (1 << USB_INTERRUPT));
@@ -151,8 +151,6 @@ static int maybe_send_more_data(int epnum) {
     // Don't allow requeueing
     if (usb_ep_0_in_respond_read() != EPF_NAK)
         return -1;
-    // if (!usb_ep_0_in_ibuf_empty_read())
-        // return -2;
 
     int this_offset;
     current_to_send = current_length - current_offset;
@@ -163,6 +161,7 @@ static int maybe_send_more_data(int epnum) {
         usb_ep_0_in_ibuf_head_write(current_data[this_offset]);
     }
     usb_ep_0_in_respond_write(EPF_ACK);
+    usb_ep_0_out_respond_write(EPF_ACK);
     return 0;
 }
 
@@ -228,6 +227,9 @@ void usb_isr(void) {
         current_offset += current_to_send;
         maybe_send_more_data(0);
         usb_ep_0_in_ev_pending_write(ep0i_pending);
+
+        // Get ready to respond to the empty data byte
+        usb_ep_0_out_respond_write(EPF_ACK);
     }
 
     return;
