@@ -1,4 +1,4 @@
-PACKAGE    = $(notdir $(realpath .))
+PACKAGE    = foboot
 FOMU_SDK  ?= .
 ADD_CFLAGS = -I$(FOMU_SDK)/include -D__vexriscv__ -march=rv32im  -mabi=ilp32
 ADD_LFLAGS = 
