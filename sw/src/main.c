@@ -67,13 +67,12 @@ int main(int argc, char **argv)
     printf("\n\nUSB API: %s\n", usb_hw_api());
     // printf("Press any key to enable USB...\n");
  
-    usb_print_status();
+    // usb_print_status();
     // uart_read();
     printf("Enabling USB\n");
     usb_connect();
     printf("USB enabled, waiting for packet...\n");
-    // usb_wait();
-    usb_print_status();
+    // usb_print_status();
     int last = 0;
     while (1)
     {
@@ -81,8 +80,7 @@ int main(int argc, char **argv)
             last = usb_irq_happened();
             printf("USB %d IRQ happened\n", last);
         }
-        // printf("x");
-        usb_print_status();
+        usb_poll();
     }
     return 0;
 }
