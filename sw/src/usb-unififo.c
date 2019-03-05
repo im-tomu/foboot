@@ -178,10 +178,14 @@ void usb_init(void) {
 int usb_send(struct usb_device *dev, int epnum, const void *data, int total_count) {
     unsigned int i;
     const uint8_t *data_bfr = data;
+    while (!usb_ibuf_empty_read())
+        printf(".");
+    usb_arm_write(0);
     for (i = 0; i < total_count; i++) {
+        printf("Writing %02x ", data_bfr[i]);
         usb_ibuf_head_write(data_bfr[i]);
     }
-    usb_arm_write(0);
+    usb_arm_write(1);
 }
 
 void usb_isr(void) {

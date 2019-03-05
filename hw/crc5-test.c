@@ -100,14 +100,17 @@ static uint16_t make_token(uint16_t data) {
     return (reverse_byte(val >> 8) << 8) | reverse_byte(val);
 }
 
-int do_crc5(uint16_t pkt) {
+int do_crc5(uint8_t bfr[2]) {
     uint8_t pkt_flipped[2] = {
-        reverse_byte(pkt >> 8),
-        reverse_byte(pkt),
+        reverse_byte(bfr[0]),
+        reverse_byte(bfr[1]),
     };
     uint32_t data = (pkt_flipped[1] >> 5) | (pkt_flipped[0] << 3);
     uint32_t data_flipped;
     uint8_t crc;
+    uint16_t pkt;
+    ((uint8_t *)&pkt)[0] = bfr[1];
+    ((uint8_t *)&pkt)[1] = bfr[0];
     uint8_t found_crc = (pkt >> 3) & 0x1f;
 
     data_flipped = reverse_sof(data);
@@ -131,24 +134,29 @@ int do_crc5(uint16_t pkt) {
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*x))
 int main(int argc, char **argv)
 {
-    uint32_t check_bytes[] = {
-        /*
-        0xff3c,
-        0x12c5,
-        0xe17e,
-        0x19f5,
-        0x0225,
-        0x0165,
-        0x009d,
-        0x102f,
-        make_token(1013),
-        make_token(1429),
-        make_token(100),
-        */
-        0x82bc,
-        make_token(0x0483),//0x5fde,
-        0x843c,
+    // uint32_t check_bytes[] = {
+    //     /*
+    //     0xff3c,
+    //     0x12c5,
+    //     0xe17e,
+    //     0x19f5,
+    //     0x0225,
+    //     0x0165,
+    //     0x009d,
+    //     0x102f,
+    //     make_token(1013),
+    //     make_token(1429),
+    //     make_token(100),
+    //     */
+    //     0x82bc,
+    //     make_token(0x0483),//0x5fde,
+    //     0x843c,
 
+    // };
+    uint8_t check_bytes[][2] = {
+        {0x82, 0xbc},
+        {0x83, 0x44},
+        {0x84, 0x3c},
     };
 
     unsigned int i;

@@ -42,12 +42,24 @@ _io = [
         Subsignal("pullup", Pins("35")),
         IOStandard("LVCMOS33")
     ),
+    ("pmoda", 0,
+        Subsignal("p1", Pins("28"), IOStandard("LVCMOS33")),
+        Subsignal("p2", Pins("27"), IOStandard("LVCMOS33")),
+        Subsignal("p3", Pins("26"), IOStandard("LVCMOS33")),
+        Subsignal("p4", Pins("23"), IOStandard("LVCMOS33")),
+    ),
+    ("pmodb", 0,
+        Subsignal("p1", Pins("48"), IOStandard("LVCMOS33")),
+        Subsignal("p2", Pins("47"), IOStandard("LVCMOS33")),
+        Subsignal("p3", Pins("46"), IOStandard("LVCMOS33")),
+        Subsignal("p4", Pins("45"), IOStandard("LVCMOS33")),
+    ),
     ("spiflash", 0,
-        Subsignal("cs_n",      Pins("16"), IOStandard("LVCMOS33")),
-        Subsignal("clk",       Pins("15"), IOStandard("LVCMOS33")),
-        Subsignal("miso",        Pins("17"), IOStandard("LVCMOS33")),
-        Subsignal("mosi",        Pins("14"), IOStandard("LVCMOS33")),
-        Subsignal("wp",      Pins("18"), IOStandard("LVCMOS33")),
+        Subsignal("cs_n", Pins("16"), IOStandard("LVCMOS33")),
+        Subsignal("clk",  Pins("15"), IOStandard("LVCMOS33")),
+        Subsignal("miso", Pins("17"), IOStandard("LVCMOS33")),
+        Subsignal("mosi", Pins("14"), IOStandard("LVCMOS33")),
+        Subsignal("wp",   Pins("18"), IOStandard("LVCMOS33")),
         Subsignal("hold", Pins("19"), IOStandard("LVCMOS33")),
     ),
     ("spiflash4x", 0,
@@ -62,7 +74,14 @@ _connectors = []
 
 class _CRG(Module):
     def __init__(self, platform):
+        clk48_raw = platform.request("clk48")
+        clk48 = Signal()
         clk12 = Signal()
+
+        # Divide clk48 down to clk12, to ensure they're synchronized.
+        # By doing this, we avoid needing clock-domain crossing.
+        clk12_counter = Signal(2)
+
         # # "0b00" Sets 48MHz HFOSC output
         # # "0b01" Sets 24MHz HFOSC output.
         # # "0b10" Sets 12MHz HFOSC output.
@@ -77,10 +96,14 @@ class _CRG(Module):
 
         self.clock_domains.cd_sys = ClockDomain()
         self.clock_domains.cd_usb_12 = ClockDomain()
+        self.clock_domains.cd_usb_48 = ClockDomain()
+
+        platform.add_period_constraint(self.cd_usb_48.clk, 1e9/48e6)
+        platform.add_period_constraint(self.cd_sys.clk, 1e9/12e6)
+        platform.add_period_constraint(self.cd_usb_12.clk, 1e9/12e6)
+
         self.reset = Signal()
 
-        # FIXME: Use PLL, increase system clock to 32 MHz, pending nextpnr
-        # fixes.
         self.comb += self.cd_sys.clk.eq(clk12)
         self.comb += self.cd_usb_12.clk.eq(clk12)
 
@@ -94,28 +117,31 @@ class _CRG(Module):
             self.cd_usb_12.rst.eq(reset_delay != 0)
         ]
 
-        # Divide clk48 down to clk12, to ensure they're synchronized.
-        clk12_counter = Signal(2)
+        # self.specials += Instance(
+        #     "SB_GB",
+        #     i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk12_counter[1],
+        #     o_GLOBAL_BUFFER_OUTPUT=clk12,
+        # )
+        self.specials += Instance(
+            "SB_GB",
+            i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk48_raw,
+            o_GLOBAL_BUFFER_OUTPUT=clk48,
+        )
+
+        self.comb += [
+            self.cd_usb_48.clk.eq(clk48),
+        ]
+
         self.sync.usb_48 += [
             clk12_counter.eq(clk12_counter + 1),
         ]
-        self.specials += Instance(
-            "SB_GB",
-            i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk12_counter[1],
-            o_GLOBAL_BUFFER_OUTPUT=clk12,
-        )
+        self.comb += clk12.eq(clk12_counter[1])
 
         self.sync.por += \
             If(reset_delay != 0,
                 reset_delay.eq(reset_delay - 1)
             )
         self.specials += AsyncResetSynchronizer(self.cd_por, self.reset)
-
-        self.clock_domains.cd_usb_48 = ClockDomain()
-        platform.add_period_constraint(self.cd_usb_48.clk, 1e9/48e6)
-        self.comb += [
-            self.cd_usb_48.clk.eq(platform.request("clk48")),
-        ]
 
 class RandomFirmwareROM(wishbone.SRAM):
     """
@@ -183,8 +209,6 @@ class BaseSoC(SoCCore):
 
         clk_freq = int(12e6)
         self.submodules.crg = _CRG(platform)
-        platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/clk_freq)
-        platform.add_period_constraint(self.crg.cd_usb_12.clk, 1e9/clk_freq)
 
         SoCCore.__init__(self, platform, clk_freq, integrated_sram_size=0, **kwargs)
 
@@ -218,12 +242,23 @@ class BaseSoC(SoCCore):
         else:
             raise ValueError("unrecognized boot_source: {}".format(boot_source))
 
+        pmoda = platform.request("pmoda")
+        pmodb = platform.request("pmodb")
+
         # Add USB pads
         usb_pads = platform.request("usb")
-        usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
-        self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, endpoints=[EndpointType.BIDIR])
+        usb_iobuf = usbio.IoBuf(pmoda.p4, pmodb.p4, usb_pads.pullup)
+        # self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, endpoints=[EndpointType.BIDIR])
         # self.submodules.usb = epmem.MemInterface(usb_iobuf)
-        # self.submodules.usb = unififo.UsbUniFifo(usb_iobuf)
+        self.submodules.usb = unififo.UsbUniFifo(usb_iobuf)
+
+        self.comb += [
+            pmoda.p1.eq(self.crg.cd_usb_48.clk),
+            pmodb.p1.eq(self.crg.cd_usb_12.clk),
+            pmodb.p2.eq(self.usb.tx.i_bit_strobe),
+            pmoda.p2.eq(self.usb.tx.fit_dat),
+            pmodb.p3.eq(self.usb.tx.fit_oe),
+        ]
 
         # Disable final deep-sleep power down so firmware words are loaded
         # onto softcore's address bus.

@@ -224,146 +224,86 @@ static inline void uart_phy_tuning_word_write(unsigned int value) {
 
 /* usb */
 #define CSR_USB_BASE 0xe0004800
-#define CSR_USB_PULLUP_OUT_ADDR 0xe0004800
-#define CSR_USB_PULLUP_OUT_SIZE 1
-static inline unsigned char usb_pullup_out_read(void) {
+#define CSR_USB_BYTE_COUNT_ADDR 0xe0004800
+#define CSR_USB_BYTE_COUNT_SIZE 1
+static inline unsigned char usb_byte_count_read(void) {
 	unsigned char r = csr_readl(0xe0004800);
 	return r;
 }
-static inline void usb_pullup_out_write(unsigned char value) {
-	csr_writel(value, 0xe0004800);
-}
-#define CSR_USB_EP_0_OUT_EV_STATUS_ADDR 0xe0004804
-#define CSR_USB_EP_0_OUT_EV_STATUS_SIZE 1
-static inline unsigned char usb_ep_0_out_ev_status_read(void) {
+#define CSR_USB_OBUF_HEAD_ADDR 0xe0004804
+#define CSR_USB_OBUF_HEAD_SIZE 1
+static inline unsigned char usb_obuf_head_read(void) {
 	unsigned char r = csr_readl(0xe0004804);
 	return r;
 }
-static inline void usb_ep_0_out_ev_status_write(unsigned char value) {
+static inline void usb_obuf_head_write(unsigned char value) {
 	csr_writel(value, 0xe0004804);
 }
-#define CSR_USB_EP_0_OUT_EV_PENDING_ADDR 0xe0004808
-#define CSR_USB_EP_0_OUT_EV_PENDING_SIZE 1
-static inline unsigned char usb_ep_0_out_ev_pending_read(void) {
+#define CSR_USB_OBUF_EMPTY_ADDR 0xe0004808
+#define CSR_USB_OBUF_EMPTY_SIZE 1
+static inline unsigned char usb_obuf_empty_read(void) {
 	unsigned char r = csr_readl(0xe0004808);
 	return r;
 }
-static inline void usb_ep_0_out_ev_pending_write(unsigned char value) {
-	csr_writel(value, 0xe0004808);
-}
-#define CSR_USB_EP_0_OUT_EV_ENABLE_ADDR 0xe000480c
-#define CSR_USB_EP_0_OUT_EV_ENABLE_SIZE 1
-static inline unsigned char usb_ep_0_out_ev_enable_read(void) {
+#define CSR_USB_ARM_ADDR 0xe000480c
+#define CSR_USB_ARM_SIZE 1
+static inline unsigned char usb_arm_read(void) {
 	unsigned char r = csr_readl(0xe000480c);
 	return r;
 }
-static inline void usb_ep_0_out_ev_enable_write(unsigned char value) {
+static inline void usb_arm_write(unsigned char value) {
 	csr_writel(value, 0xe000480c);
 }
-#define CSR_USB_EP_0_OUT_LAST_TOK_ADDR 0xe0004810
-#define CSR_USB_EP_0_OUT_LAST_TOK_SIZE 1
-static inline unsigned char usb_ep_0_out_last_tok_read(void) {
+#define CSR_USB_IBUF_HEAD_ADDR 0xe0004810
+#define CSR_USB_IBUF_HEAD_SIZE 1
+static inline unsigned char usb_ibuf_head_read(void) {
 	unsigned char r = csr_readl(0xe0004810);
 	return r;
 }
-#define CSR_USB_EP_0_OUT_RESPOND_ADDR 0xe0004814
-#define CSR_USB_EP_0_OUT_RESPOND_SIZE 1
-static inline unsigned char usb_ep_0_out_respond_read(void) {
+static inline void usb_ibuf_head_write(unsigned char value) {
+	csr_writel(value, 0xe0004810);
+}
+#define CSR_USB_IBUF_EMPTY_ADDR 0xe0004814
+#define CSR_USB_IBUF_EMPTY_SIZE 1
+static inline unsigned char usb_ibuf_empty_read(void) {
 	unsigned char r = csr_readl(0xe0004814);
 	return r;
 }
-static inline void usb_ep_0_out_respond_write(unsigned char value) {
-	csr_writel(value, 0xe0004814);
-}
-#define CSR_USB_EP_0_OUT_DTB_ADDR 0xe0004818
-#define CSR_USB_EP_0_OUT_DTB_SIZE 1
-static inline unsigned char usb_ep_0_out_dtb_read(void) {
+#define CSR_USB_PULLUP_OUT_ADDR 0xe0004818
+#define CSR_USB_PULLUP_OUT_SIZE 1
+static inline unsigned char usb_pullup_out_read(void) {
 	unsigned char r = csr_readl(0xe0004818);
 	return r;
 }
-static inline void usb_ep_0_out_dtb_write(unsigned char value) {
+static inline void usb_pullup_out_write(unsigned char value) {
 	csr_writel(value, 0xe0004818);
 }
-#define CSR_USB_EP_0_OUT_OBUF_HEAD_ADDR 0xe000481c
-#define CSR_USB_EP_0_OUT_OBUF_HEAD_SIZE 1
-static inline unsigned char usb_ep_0_out_obuf_head_read(void) {
+#define CSR_USB_EV_STATUS_ADDR 0xe000481c
+#define CSR_USB_EV_STATUS_SIZE 1
+static inline unsigned char usb_ev_status_read(void) {
 	unsigned char r = csr_readl(0xe000481c);
 	return r;
 }
-static inline void usb_ep_0_out_obuf_head_write(unsigned char value) {
+static inline void usb_ev_status_write(unsigned char value) {
 	csr_writel(value, 0xe000481c);
 }
-#define CSR_USB_EP_0_OUT_OBUF_EMPTY_ADDR 0xe0004820
-#define CSR_USB_EP_0_OUT_OBUF_EMPTY_SIZE 1
-static inline unsigned char usb_ep_0_out_obuf_empty_read(void) {
+#define CSR_USB_EV_PENDING_ADDR 0xe0004820
+#define CSR_USB_EV_PENDING_SIZE 1
+static inline unsigned char usb_ev_pending_read(void) {
 	unsigned char r = csr_readl(0xe0004820);
 	return r;
 }
-#define CSR_USB_EP_0_IN_EV_STATUS_ADDR 0xe0004824
-#define CSR_USB_EP_0_IN_EV_STATUS_SIZE 1
-static inline unsigned char usb_ep_0_in_ev_status_read(void) {
+static inline void usb_ev_pending_write(unsigned char value) {
+	csr_writel(value, 0xe0004820);
+}
+#define CSR_USB_EV_ENABLE_ADDR 0xe0004824
+#define CSR_USB_EV_ENABLE_SIZE 1
+static inline unsigned char usb_ev_enable_read(void) {
 	unsigned char r = csr_readl(0xe0004824);
 	return r;
 }
-static inline void usb_ep_0_in_ev_status_write(unsigned char value) {
+static inline void usb_ev_enable_write(unsigned char value) {
 	csr_writel(value, 0xe0004824);
-}
-#define CSR_USB_EP_0_IN_EV_PENDING_ADDR 0xe0004828
-#define CSR_USB_EP_0_IN_EV_PENDING_SIZE 1
-static inline unsigned char usb_ep_0_in_ev_pending_read(void) {
-	unsigned char r = csr_readl(0xe0004828);
-	return r;
-}
-static inline void usb_ep_0_in_ev_pending_write(unsigned char value) {
-	csr_writel(value, 0xe0004828);
-}
-#define CSR_USB_EP_0_IN_EV_ENABLE_ADDR 0xe000482c
-#define CSR_USB_EP_0_IN_EV_ENABLE_SIZE 1
-static inline unsigned char usb_ep_0_in_ev_enable_read(void) {
-	unsigned char r = csr_readl(0xe000482c);
-	return r;
-}
-static inline void usb_ep_0_in_ev_enable_write(unsigned char value) {
-	csr_writel(value, 0xe000482c);
-}
-#define CSR_USB_EP_0_IN_LAST_TOK_ADDR 0xe0004830
-#define CSR_USB_EP_0_IN_LAST_TOK_SIZE 1
-static inline unsigned char usb_ep_0_in_last_tok_read(void) {
-	unsigned char r = csr_readl(0xe0004830);
-	return r;
-}
-#define CSR_USB_EP_0_IN_RESPOND_ADDR 0xe0004834
-#define CSR_USB_EP_0_IN_RESPOND_SIZE 1
-static inline unsigned char usb_ep_0_in_respond_read(void) {
-	unsigned char r = csr_readl(0xe0004834);
-	return r;
-}
-static inline void usb_ep_0_in_respond_write(unsigned char value) {
-	csr_writel(value, 0xe0004834);
-}
-#define CSR_USB_EP_0_IN_DTB_ADDR 0xe0004838
-#define CSR_USB_EP_0_IN_DTB_SIZE 1
-static inline unsigned char usb_ep_0_in_dtb_read(void) {
-	unsigned char r = csr_readl(0xe0004838);
-	return r;
-}
-static inline void usb_ep_0_in_dtb_write(unsigned char value) {
-	csr_writel(value, 0xe0004838);
-}
-#define CSR_USB_EP_0_IN_IBUF_HEAD_ADDR 0xe000483c
-#define CSR_USB_EP_0_IN_IBUF_HEAD_SIZE 1
-static inline unsigned char usb_ep_0_in_ibuf_head_read(void) {
-	unsigned char r = csr_readl(0xe000483c);
-	return r;
-}
-static inline void usb_ep_0_in_ibuf_head_write(unsigned char value) {
-	csr_writel(value, 0xe000483c);
-}
-#define CSR_USB_EP_0_IN_IBUF_EMPTY_ADDR 0xe0004840
-#define CSR_USB_EP_0_IN_IBUF_EMPTY_SIZE 1
-static inline unsigned char usb_ep_0_in_ibuf_empty_read(void) {
-	unsigned char r = csr_readl(0xe0004840);
-	return r;
 }
 
 /* constants */
