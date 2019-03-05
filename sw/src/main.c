@@ -28,7 +28,6 @@ static void rv_putchar(void *ignored, char c)
     if (c == '\r')
         return;
     uart_write(c);
-    // uart_sync();
 }
 
 static void init(void)
