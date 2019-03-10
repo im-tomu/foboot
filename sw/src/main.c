@@ -70,7 +70,7 @@ int main(int argc, char **argv)
     // uart_read();
     printf("Enabling USB\n");
     usb_connect();
-    printf("USB enabled, waiting for packet...\n");
+    printf("USB enabled.\n");
     // usb_print_status();
     int last = 0;
     static uint8_t bfr[12];
@@ -81,14 +81,16 @@ int main(int argc, char **argv)
             printf("USB %d IRQ happened\n", last);
         }
         usb_poll();
+        /*
         printf("Press any key to send...  ");
         uart_read();
         printf("Sending...  ");
-        bfr[0] = ~0;
-        bfr[1] = 0;
+        bfr[0] = 0;
+        bfr[1] = ~0;
         bfr[2] = 0;
-        usb_send(NULL, 0, bfr, 3);
+        usb_send(NULL, 0, bfr, 1);
         printf("Sent\n");
+        */
     }
     return 0;
 }

@@ -23,6 +23,7 @@ enum CONTROL_STATE
 #define NUM_BUFFERS 4
 #define BUFFER_SIZE 64
 #define EP_INTERVAL_MS 6
+static const char hex[] = "0123456789abcdef";
 
 enum epfifo_response {
     EPF_ACK = 0,
@@ -35,16 +36,17 @@ enum epfifo_response {
 #define USB_EV_PACKET 2
 
 void usb_connect(void) {
-    usb_pullup_out_write(1);
-
-    // By default, it wants to respond with NAK.
-    usb_ep_0_out_respond_write(EPF_ACK);
-    usb_ep_0_in_respond_write(EPF_ACK);
 
     usb_ep_0_out_ev_pending_write(usb_ep_0_out_ev_enable_read());
     usb_ep_0_in_ev_pending_write(usb_ep_0_in_ev_pending_read());
     usb_ep_0_out_ev_enable_write(USB_EV_PACKET | USB_EV_ERROR);
     usb_ep_0_in_ev_enable_write(USB_EV_PACKET | USB_EV_ERROR);
+
+    // By default, it wants to respond with NAK.
+    usb_ep_0_out_respond_write(EPF_ACK);
+    usb_ep_0_in_respond_write(EPF_ACK);
+
+    usb_pullup_out_write(1);
 
 	irq_setmask(irq_getmask() | (1 << USB_INTERRUPT));
 }
@@ -89,8 +91,18 @@ static int queue_more_data(int epnum) {
 int usb_send(struct usb_device *dev, int epnum, const void *data, int total_count) {
     (void)dev;
     // Don't allow requeueing
-    if (usb_ep_0_in_respond_read() != EPF_NAK)
+    // if (usb_ep_0_in_respond_read() != EPF_NAK)
+        // return -1;
+    if (!usb_ep_0_in_ibuf_empty_read()) {
+        printf("IBUF isn't empty.  Error? %d\n", usb_usb_transfer_error_state_read());
         return -1;
+    }
+/*
+    while (!usb_ep_0_in_ibuf_empty_read()) {
+        printf("Emptying out ibuf...\n");
+        usb_ep_0_in_ibuf_head_read();
+    }
+    */
     current_data = (uint8_t *)data;
     current_length = total_count;
     current_offset = 0;
@@ -100,10 +112,21 @@ int usb_send(struct usb_device *dev, int epnum, const void *data, int total_coun
 }
 
 void usb_isr(void) {
-    irq_count++;
-
+#if 0
     uint8_t ep0o_pending = usb_ep_0_out_ev_pending_read();
     uint8_t ep0i_pending = usb_ep_0_in_ev_pending_read();
+    while (!usb_ep_0_out_obuf_empty_read()) {
+        usb_ep_0_out_obuf_head_write(0);
+    }
+    usb_ep_0_out_respond_write(EPF_ACK);
+    usb_ep_0_in_respond_write(EPF_ACK);
+    usb_ep_0_out_ev_pending_write(ep0o_pending);
+    usb_ep_0_in_ev_pending_write(ep0i_pending);
+#else
+    irq_count++;
+    uint8_t ep0o_pending = usb_ep_0_out_ev_pending_read();
+    uint8_t ep0i_pending = usb_ep_0_in_ev_pending_read();
+    printf(">> %02x %02x <<\n", ep0o_pending, ep0i_pending);
 
     // We got an OUT or a SETUP packet.  Copy it to usb_ep0out_buffer
     // and clear the "pending" bit.
@@ -118,7 +141,16 @@ void usb_isr(void) {
         usb_ep_0_out_ev_pending_write(ep0o_pending);
 
         if (byte_count) {
-            printf("read %d bytes\n", byte_count);
+            printf("read %d bytes: [", byte_count);
+            unsigned int i;
+            for (i = 0; i < byte_count; i++) {
+                uart_write(' ');
+                uart_write(hex[(obuf[i] >> 4) & 0xf]);
+                uart_write(hex[obuf[i] & (0xf)]);
+            }
+            uart_write(' ]');
+            uart_write('\r');
+            uart_write('\n');
             usb_ep0out_buffer_len[usb_ep0out_wr_ptr] = byte_count;
             usb_ep0out_wr_ptr = (usb_ep0out_wr_ptr + 1) & (EP0OUT_BUFFERS-1);
         }
@@ -144,9 +176,10 @@ void usb_isr(void) {
                 usb_ep_0_out_respond_write(EPF_ACK);
             }
         }
+        else
+            usb_ep_0_in_respond_write(EPF_NAK);
     }
-
-    printf(">> %02x %02x <<\n", ep0o_pending, ep0i_pending);
+#endif
     return;
 }
 
@@ -165,6 +198,7 @@ int usb_ack(struct usb_device *dev, int epnum) {
 }
 
 int usb_err(struct usb_device *dev, int epnum) {
+    printf("STALLING!!!\n");
     usb_ep_0_out_respond_write(EPF_STALL);
     usb_ep_0_in_respond_write(EPF_STALL);
 }
@@ -173,9 +207,14 @@ int usb_recv(struct usb_device *dev, void *buffer, unsigned int buffer_len) {
     return;
 }
 
-static const char hex[] = "0123456789abcdef";
 
 void usb_poll(void) {
+    static int last_error_count;
+    int this_error_count = usb_usb_transfer_error_state_read();
+    if (last_error_count != this_error_count) {
+        printf("USB TRANSFER ERROR STATE # %d!! WaitHand? %d  WaitData? %d  PID: %02x (was: %02x, full: %02x)\n", this_error_count, usb_dbg_lwh_read(), usb_dbg_lwd_read(), usb_usb_transfer_o_pid_read(), usb_usb_transfer_error_pid_read(), usb_dbg_lfp_read());
+        last_error_count = this_error_count;
+    }
     // If some data was received, then process it.
     if (usb_ep0out_rd_ptr != usb_ep0out_wr_ptr) {
         const struct usb_setup_request *request = (const struct usb_setup_request *)(usb_ep0out_buffer[usb_ep0out_rd_ptr]);
@@ -184,6 +223,10 @@ void usb_poll(void) {
         usb_ep0out_buffer_len[usb_ep0out_rd_ptr] = 0;
         usb_ep0out_rd_ptr = (usb_ep0out_rd_ptr + 1) & (EP0OUT_BUFFERS-1);
     }
+
+    if ((usb_ep_0_in_respond_read() == EPF_NAK) && (current_data))
+        queue_more_data(0);
+
     // Cancel any pending transfers
     if ((control_state == IN_DATA) && usb_ep_0_in_ibuf_empty_read()) {
         printf("state is IN_DATA but ibuf is empty?\n");
@@ -192,9 +235,12 @@ void usb_poll(void) {
         usb_ep_0_out_obuf_head_write(0);
         control_state = WAIT_SETUP;
     }
-    if (!usb_ep_0_out_obuf_empty_read()) {
-        printf("obuf not empty\n");
-    }
+    // if (!usb_ep_0_out_obuf_empty_read()) {
+    //     printf("FATAL: obuf not empty, and pending is %d\n", usb_ep_0_out_ev_pending_read());
+    //     printf("HALT");
+    //     while (1)
+    //         ;
+    // }
     // if (!usb_ep_0_in_ibuf_empty_read()) {
         // usb_ep_0_in_ibuf_head_write(0);
     // }
