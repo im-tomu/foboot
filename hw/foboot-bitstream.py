@@ -207,6 +207,15 @@ class Platform(LatticePlatform):
 
     def __init__(self, toolchain="icestorm"):
         LatticePlatform.__init__(self, "ice40-up5k-sg48", _io, _connectors, toolchain="icestorm")
+        # Add "-relut -dffe_min_ce_use 4" to the synth_ice40 command.
+        # The "-reult" adds an additional LUT pass to pack more stuff in,
+        # and the "-dffe_min_ce_use 4" flag prevents Yosys from generating a
+        # Clock Enable signal for a LUT that has fewer than 4 flip-flops.
+        # This increases density, and lets us use the FPGA more efficiently.
+        for i in range(len(self.toolchain.nextpnr_yosys_template)):
+            entry = self.toolchain.nextpnr_yosys_template[i]
+            if "synth_ice40" in entry:
+                self.toolchain.nextpnr_yosys_template[i] = entry + " -relut -dffe_min_ce_use 4"
     def create_programmer(self):
         raise ValueError("programming is not supported")
 
