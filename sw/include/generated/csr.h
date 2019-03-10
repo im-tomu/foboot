@@ -365,42 +365,6 @@ static inline unsigned char usb_ep_0_in_ibuf_empty_read(void) {
 	unsigned char r = csr_readl(0xe0004840);
 	return r;
 }
-#define CSR_USB_USB_TRANSFER_O_PID_ADDR 0xe0004844
-#define CSR_USB_USB_TRANSFER_O_PID_SIZE 1
-static inline unsigned char usb_usb_transfer_o_pid_read(void) {
-	unsigned char r = csr_readl(0xe0004844);
-	return r;
-}
-#define CSR_USB_USB_TRANSFER_ERROR_STATE_ADDR 0xe0004848
-#define CSR_USB_USB_TRANSFER_ERROR_STATE_SIZE 1
-static inline unsigned char usb_usb_transfer_error_state_read(void) {
-	unsigned char r = csr_readl(0xe0004848);
-	return r;
-}
-#define CSR_USB_USB_TRANSFER_ERROR_PID_ADDR 0xe000484c
-#define CSR_USB_USB_TRANSFER_ERROR_PID_SIZE 1
-static inline unsigned char usb_usb_transfer_error_pid_read(void) {
-	unsigned char r = csr_readl(0xe000484c);
-	return r;
-}
-#define CSR_USB_DBG_LWH_ADDR 0xe0004850
-#define CSR_USB_DBG_LWH_SIZE 1
-static inline unsigned char usb_dbg_lwh_read(void) {
-	unsigned char r = csr_readl(0xe0004850);
-	return r;
-}
-#define CSR_USB_DBG_LWD_ADDR 0xe0004854
-#define CSR_USB_DBG_LWD_SIZE 1
-static inline unsigned char usb_dbg_lwd_read(void) {
-	unsigned char r = csr_readl(0xe0004854);
-	return r;
-}
-#define CSR_USB_DBG_LFP_ADDR 0xe0004858
-#define CSR_USB_DBG_LFP_SIZE 1
-static inline unsigned char usb_dbg_lfp_read(void) {
-	unsigned char r = csr_readl(0xe0004858);
-	return r;
-}
 
 /* constants */
 #define NMI_INTERRUPT 0
