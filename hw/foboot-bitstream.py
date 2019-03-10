@@ -280,23 +280,23 @@ class BaseSoC(SoCCore):
         else:
             raise ValueError("unrecognized boot_source: {}".format(boot_source))
 
-        pmoda = platform.request("pmoda")
-        pmodb = platform.request("pmodb")
+        # pmoda = platform.request("pmoda")
+        # pmodb = platform.request("pmodb")
 
         # Add USB pads
         usb_pads = platform.request("usb")
-        usb_iobuf = usbio.IoBuf(pmoda.p4, pmodb.p4, usb_pads.pullup)
-        # self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, endpoints=[EndpointType.BIDIR])
+        usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
+        self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, endpoints=[EndpointType.BIDIR])
         # self.submodules.usb = epmem.MemInterface(usb_iobuf)
-        self.submodules.usb = unififo.UsbUniFifo(usb_iobuf)
+        # self.submodules.usb = unififo.UsbUniFifo(usb_iobuf)
 
-        self.comb += [
-            pmoda.p1.eq(self.crg.cd_usb_48.clk),
-            pmodb.p1.eq(self.crg.cd_usb_12.clk),
-            pmodb.p2.eq(self.usb.tx.i_bit_strobe),
-            pmoda.p2.eq(self.usb.tx.fit_dat),
-            pmodb.p3.eq(self.usb.tx.fit_oe),
-        ]
+        # self.comb += [
+        #     pmoda.p1.eq(self.crg.cd_usb_48.clk),
+        #     pmodb.p1.eq(self.crg.cd_usb_12.clk),
+        #     pmodb.p2.eq(self.usb.tx.i_bit_strobe),
+        #     pmoda.p2.eq(self.usb.tx.fit_dat),
+        #     pmodb.p3.eq(self.usb.tx.fit_oe),
+        # ]
 
         # Disable final deep-sleep power down so firmware words are loaded
         # onto softcore's address bus.
