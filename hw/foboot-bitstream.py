@@ -132,6 +132,7 @@ class _CRG(Module):
             i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk12_raw,
             o_GLOBAL_BUFFER_OUTPUT=clk12,
         )
+        platform.add_period_constraint(clk12_raw, 1e9/12e6)
 
         self.specials += Instance(
             "SB_PLL40_CORE",
