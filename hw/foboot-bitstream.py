@@ -121,13 +121,7 @@ class _CRG(Module):
             # self.cd_usb_48_raw.rst.eq(reset_delay != 0),
         ]
 
-        clk48_in = Signal()
         self.comb += self.cd_usb_48_raw.clk.eq(clk48_raw)
-        self.specials += Instance(
-            "SB_GB",
-            i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk48_raw,
-            o_GLOBAL_BUFFER_OUTPUT=clk48_in,
-        )
         self.comb += self.cd_usb_48.clk.eq(clk48)
 
         self.sync.usb_48_raw += clk12_counter.eq(clk12_counter + 1)
