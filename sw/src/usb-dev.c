@@ -102,8 +102,9 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
                 }
                 goto send;
             }
+            i++;
         }
-        printf("%s:%d couldn't find descriptor (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
+        printf("%s:%d couldn't find descriptor %04x (%d / %d)\n", __FILE__, __LINE__, setup->wValue, setup->wIndex, setup->wValue);
         usb_err(dev, 0);
         return;
 
@@ -236,7 +237,8 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
 
 send:
     if (data && datalen) {
-        printf("%s:%d sending %d bytes from %08x\n", __FILE__, __LINE__, datalen, data);
+        if (datalen > setup->wLength)
+            datalen = setup->wLength;
         usb_send(dev, 0, data, datalen);
     }
     else
