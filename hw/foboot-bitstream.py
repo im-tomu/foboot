@@ -104,6 +104,8 @@ class _CRG(Module):
         platform.add_period_constraint(self.cd_usb_48_raw.clk, 1e9/48e6)
         platform.add_period_constraint(self.cd_sys.clk, 1e9/12e6)
         platform.add_period_constraint(self.cd_usb_12.clk, 1e9/12e6)
+        platform.add_period_constraint(clk48, 1e9/48e6)
+        platform.add_period_constraint(clk48_raw, 1e9/48e6)
 
         self.reset = Signal()
 
