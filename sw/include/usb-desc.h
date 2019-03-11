@@ -61,7 +61,7 @@ struct usb_string_descriptor_struct {
 #define DEVICE_VER                0x0101    // Bootloader version
 #define MANUFACTURER_NAME         u"Kosagi"
 #define MANUFACTURER_NAME_LEN     sizeof(MANUFACTURER_NAME)
-#define PRODUCT_NAME              u"Tomu Bootloader (0) " GIT_VERSION
+#define PRODUCT_NAME              u"Fomu Bootloader (0) " GIT_VERSION
 #define PRODUCT_NAME_LEN          sizeof(PRODUCT_NAME)
 #define EP0_SIZE                  64
 #define NUM_INTERFACE             1
