@@ -1,4 +1,3 @@
-#include <grainuum.h>
 #include <usb.h>
 #include <irq.h>
 #include <generated/csr.h>
@@ -12,6 +11,7 @@
 enum CONTROL_STATE
 {
     WAIT_SETUP,
+    IN_SETUP,
     IN_DATA,
     OUT_DATA,
     LAST_IN_DATA,
@@ -19,6 +19,11 @@ enum CONTROL_STATE
     WAIT_STATUS_OUT,
     STALLED,
 } control_state;
+
+// Note that our PIDs only have the lower nybble.
+enum USB_PID {
+    USB_PID_SETUP = 3,
+};
 
 #define NUM_BUFFERS 4
 #define BUFFER_SIZE 64
@@ -129,17 +134,6 @@ int usb_send(struct usb_device *dev, int epnum, const void *data, int total_coun
 }
 
 void usb_isr(void) {
-#if 0
-    uint8_t ep0o_pending = usb_ep_0_out_ev_pending_read();
-    uint8_t ep0i_pending = usb_ep_0_in_ev_pending_read();
-    while (!usb_ep_0_out_obuf_empty_read()) {
-        usb_ep_0_out_obuf_head_write(0);
-    }
-    usb_ep_0_out_respond_write(EPF_ACK);
-    usb_ep_0_in_respond_write(EPF_ACK);
-    usb_ep_0_out_ev_pending_write(ep0o_pending);
-    usb_ep_0_in_ev_pending_write(ep0i_pending);
-#else
     irq_count++;
     uint8_t ep0o_pending = usb_ep_0_out_ev_pending_read();
     uint8_t ep0i_pending = usb_ep_0_in_ev_pending_read();
@@ -161,10 +155,11 @@ void usb_isr(void) {
         usb_ep0out_buffer_len[usb_ep0out_wr_ptr] = byte_count;
         usb_ep0out_wr_ptr = (usb_ep0out_wr_ptr + 1) & (EP0OUT_BUFFERS-1);
 
-        if (last_tok == 3 /*USB_PID_SETUP*/) {
+        if (last_tok == USB_PID_SETUP) {
             current_offset = 0;
             current_length = 0;
             current_data = NULL;
+            control_state = IN_SETUP;
         }
     }
 
@@ -174,21 +169,21 @@ void usb_isr(void) {
         current_offset += current_to_send;
         queue_more_data(0);
         usb_ep_0_in_ev_pending_write(ep0i_pending);
+        usb_ep_0_out_respond_write(EPF_ACK);
 
-        // Get ready to respond with an empty data byte
-        if (current_offset >= current_length) {
-            current_offset = 0;
-            current_length = 0;
-            current_data = NULL;
-            if (control_state == IN_DATA) {
-                usb_ep_0_out_respond_write(EPF_ACK);
-            }
-            usb_ep_0_out_respond_write(EPF_ACK);
-        }
-        else
-            usb_ep_0_in_respond_write(EPF_NAK);
+        // // Get ready to respond with an empty data byte
+        // if (current_offset >= current_length) {
+        //     current_offset = 0;
+        //     current_length = 0;
+        //     current_data = NULL;
+        //     if (control_state == IN_DATA) {
+        //         usb_ep_0_out_respond_write(EPF_ACK);
+        //     }
+        //     usb_ep_0_out_respond_write(EPF_ACK);
+        // }
+        // else
+        usb_ep_0_in_respond_write(EPF_NAK);
     }
-#endif
     return;
 }
 
@@ -202,11 +197,15 @@ int usb_irq_happened(void) {
 }
 
 int usb_ack(struct usb_device *dev, int epnum) {
+    (void)dev;
+    (void)epnum;
     usb_ep_0_out_respond_write(EPF_ACK);
     usb_ep_0_in_respond_write(EPF_ACK);
 }
 
 int usb_err(struct usb_device *dev, int epnum) {
+    (void)dev;
+    (void)epnum;
     printf("STALLING!!!\n");
     usb_ep_0_out_respond_write(EPF_STALL);
     usb_ep_0_in_respond_write(EPF_STALL);
@@ -229,7 +228,9 @@ void usb_poll(void) {
         const struct usb_setup_request *request = (const struct usb_setup_request *)(usb_ep0out_buffer[usb_ep0out_rd_ptr]);
         const uint8_t *obuf = (const struct usb_setup_request *)(usb_ep0out_buffer[usb_ep0out_rd_ptr]);
 
-        if (usb_ep0out_last_tok[usb_ep0out_rd_ptr] == 3) {
+        if (usb_ep0out_last_tok[usb_ep0out_rd_ptr] == USB_PID_SETUP) {
+            // usb_ep_0_out_dtb_write(1);
+            // usb_ep_0_in_dtb_write(1);
             usb_setup(NULL, request);
         }
 
