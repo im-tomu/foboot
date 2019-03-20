@@ -20,6 +20,7 @@ from litex.soc.integration import SoCCore
 from litex.soc.integration.builder import Builder
 from litex.soc.integration.soc_core import csr_map_update
 from litex.soc.interconnect import wishbone
+from litex.soc.cores.spi import SPIMaster
 
 from valentyusb import usbcore
 from valentyusb.usbcore import io as usbio
@@ -215,7 +216,7 @@ class Platform(LatticePlatform):
         for i in range(len(self.toolchain.nextpnr_yosys_template)):
             entry = self.toolchain.nextpnr_yosys_template[i]
             if "synth_ice40" in entry:
-                self.toolchain.nextpnr_yosys_template[i] = entry + " -relut -dffe_min_ce_use 4"
+                self.toolchain.nextpnr_yosys_template[i] = entry + " -dsp -relut -dffe_min_ce_use 4"
     def create_programmer(self):
         raise ValueError("programming is not supported")
 
@@ -228,6 +229,7 @@ class BaseSoC(SoCCore):
         "usb",
         "usb_obuf",
         "usb_ibuf",
+        "spi",
     ]
     csr_map_update(SoCCore.csr_map, csr_peripherals)
 
@@ -241,7 +243,7 @@ class BaseSoC(SoCCore):
     }
     interrupt_map.update(SoCCore.interrupt_map)
 
-    def __init__(self, platform, boot_source="random_rom", **kwargs):
+    def __init__(self, platform, boot_source="random_rom", debug=False, **kwargs):
         # Disable integrated RAM as we'll add it later
         self.integrated_sram_size = 0
 
@@ -249,6 +251,10 @@ class BaseSoC(SoCCore):
         self.submodules.crg = _CRG(platform)
 
         SoCCore.__init__(self, platform, clk_freq, integrated_sram_size=0, **kwargs)
+        self.cpu.use_external_variant("vexriscv-2-stage-with-debug.v")
+
+        if debug:
+            self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x10)
 
         # SPRAM- UP5K has single port RAM, might as well use it as SRAM to
         # free up scarce block RAM.
@@ -282,6 +288,9 @@ class BaseSoC(SoCCore):
 
         # pmoda = platform.request("pmoda")
         # pmodb = platform.request("pmodb")
+
+        spi_pads = platform.request("spiflash")
+        self.submodules.spi = SPIMaster(spi_pads)
 
         # Add USB pads
         usb_pads = platform.request("usb")
@@ -318,6 +327,9 @@ def main():
     parser.add_argument(
         "--spi", help="boot from spi", action="store_true"
     )
+    parser.add_argument(
+        "--with-debug", help="enable debug support", action="store_true"
+    )
     (args, rest) = parser.parse_known_args()
 
     if args.rand:
@@ -329,8 +341,16 @@ def main():
     elif args.spi:
         boot_source = "spi_rom"
         compile_software = False
+    # if args.with_debug:
+    #     cpu_variant = "debug"
+    #     debug = True
+    # else:
+    #     cpu_variant = "min"
+    #     debug = False
+    cpu_variant = "debug"
+    debug = True
 
-    soc = BaseSoC(platform, cpu_type="vexriscv", cpu_variant="min", boot_source=boot_source)
+    soc = BaseSoC(platform, cpu_type="vexriscv", cpu_variant=cpu_variant, debug=debug, boot_source=boot_source)
     builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv", compile_software=compile_software)
     vns = builder.build()
     soc.do_exit(vns)
