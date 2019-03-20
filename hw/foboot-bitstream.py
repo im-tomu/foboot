@@ -250,9 +250,9 @@ class BaseSoC(SoCCore):
         self.submodules.crg = _CRG(platform)
 
         SoCCore.__init__(self, platform, clk_freq, integrated_sram_size=0, **kwargs)
-        self.cpu.use_external_variant("vexriscv-2-stage-with-debug.v")
 
         if debug:
+            self.cpu.use_external_variant("vexriscv-2-stage-with-debug.v")
             self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x10)
 
         # SPRAM- UP5K has single port RAM, might as well use it as SRAM to
@@ -331,6 +331,8 @@ def main():
     )
     (args, rest) = parser.parse_known_args()
 
+    debug = False
+    cpu_variant = "min"
     if args.rand:
         boot_source="random_rom"
         compile_software=False
@@ -340,14 +342,12 @@ def main():
     elif args.spi:
         boot_source = "spi_rom"
         compile_software = False
-    # if args.with_debug:
-    #     cpu_variant = "debug"
-    #     debug = True
-    # else:
-    #     cpu_variant = "min"
-    #     debug = False
-    cpu_variant = "debug"
-    debug = True
+    if args.with_debug:
+        cpu_variant = "debug"
+        debug = True
+    else:
+        cpu_variant = "min"
+        debug = False
 
     soc = BaseSoC(platform, cpu_type="vexriscv", cpu_variant=cpu_variant, debug=debug, boot_source=boot_source)
     builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv", compile_software=compile_software)
