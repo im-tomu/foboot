@@ -197,7 +197,6 @@ class RandomFirmwareROM(wishbone.SRAM):
         for d in range(int(size / 4)):
             seed = get_rand(seed)
             data.append(seed)
-        print("Firmware {} bytes of random data".format(size))
         wishbone.SRAM.__init__(self, size, read_only=True, init=data)
 
 class Platform(LatticePlatform):
