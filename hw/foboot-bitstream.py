@@ -285,9 +285,6 @@ class BaseSoC(SoCCore):
         else:
             raise ValueError("unrecognized boot_source: {}".format(boot_source))
 
-        # pmoda = platform.request("pmoda")
-        # pmodb = platform.request("pmodb")
-
         spi_pads = platform.request("spiflash")
         self.submodules.spi = SPIMaster(spi_pads)
 
@@ -297,14 +294,6 @@ class BaseSoC(SoCCore):
         self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, endpoints=[EndpointType.BIDIR])
         # self.submodules.usb = epmem.MemInterface(usb_iobuf)
         # self.submodules.usb = unififo.UsbUniFifo(usb_iobuf)
-
-        # self.comb += [
-        #     pmoda.p1.eq(self.crg.cd_usb_48.clk),
-        #     pmodb.p1.eq(self.crg.cd_usb_12.clk),
-        #     pmodb.p2.eq(self.usb.tx.i_bit_strobe),
-        #     pmoda.p2.eq(self.usb.tx.fit_dat),
-        #     pmodb.p3.eq(self.usb.tx.fit_oe),
-        # ]
 
         # Disable final deep-sleep power down so firmware words are loaded
         # onto softcore's address bus.
