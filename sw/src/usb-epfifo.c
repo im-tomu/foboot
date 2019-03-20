@@ -67,9 +67,9 @@ __attribute__((aligned(4)))
 static uint8_t usb_ep0out_buffer[EP0OUT_BUFFERS][128];
 static uint8_t usb_ep0out_buffer_len[EP0OUT_BUFFERS];
 static uint8_t usb_ep0out_last_tok[EP0OUT_BUFFERS];
-uint8_t usb_ep0out_wr_ptr;
-uint8_t usb_ep0out_rd_ptr;
-int max_byte_length = 64;
+static uint8_t usb_ep0out_wr_ptr;
+static uint8_t usb_ep0out_rd_ptr;
+static const int max_byte_length = 64;
 
 static const uint8_t *current_data;
 static int current_length;
