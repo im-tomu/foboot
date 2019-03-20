@@ -118,7 +118,7 @@ class _CRG(Module):
             self.cd_por.clk.eq(self.cd_sys.clk),
             self.cd_sys.rst.eq(reset_delay != 0),
             self.cd_usb_12.rst.eq(reset_delay != 0),
-            # self.cd_usb_48.rst.eq(reset_delay != 0),
+            self.cd_usb_48.rst.eq(reset_delay != 0),
             # self.cd_usb_48_raw.rst.eq(reset_delay != 0),
         ]
 
