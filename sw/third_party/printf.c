@@ -256,8 +256,13 @@ void tfp_sprintf(char *s, char *fmt, ...)
 }
 
 int puts(const char *s) {
-	while (*s++)
-		stdout_putf(stdout_putp, *s);
+	puts_noendl(s);
 	stdout_putf(stdout_putp, '\n');
+	return 1;
+}
+
+int puts_noendl(const char *s) {
+	while (*s)
+		stdout_putf(stdout_putp, *s++);
 	return 1;
 }
