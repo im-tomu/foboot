@@ -54,93 +54,30 @@ static inline unsigned int ctrl_bus_errors_read(void) {
 	return r;
 }
 
-/* spi */
-#define CSR_SPI_BASE 0xe0006000
-#define CSR_SPI_CONFIG_ADDR 0xe0006000
-#define CSR_SPI_CONFIG_SIZE 4
-static inline unsigned int spi_config_read(void) {
-	unsigned int r = csr_readl(0xe0006000);
-	r <<= 8;
-	r |= csr_readl(0xe0006004);
-	r <<= 8;
-	r |= csr_readl(0xe0006008);
-	r <<= 8;
-	r |= csr_readl(0xe000600c);
+/* picospi */
+#define CSR_PICOSPI_BASE 0xe0005000
+#define CSR_PICOSPI_DO_ADDR 0xe0005000
+#define CSR_PICOSPI_DO_SIZE 1
+static inline unsigned char picospi_do_read(void) {
+	unsigned char r = csr_readl(0xe0005000);
 	return r;
 }
-static inline void spi_config_write(unsigned int value) {
-	csr_writel(value >> 24, 0xe0006000);
-	csr_writel(value >> 16, 0xe0006004);
-	csr_writel(value >> 8, 0xe0006008);
-	csr_writel(value, 0xe000600c);
+static inline void picospi_do_write(unsigned char value) {
+	csr_writel(value, 0xe0005000);
 }
-#define CSR_SPI_XFER_ADDR 0xe0006010
-#define CSR_SPI_XFER_SIZE 4
-static inline unsigned int spi_xfer_read(void) {
-	unsigned int r = csr_readl(0xe0006010);
-	r <<= 8;
-	r |= csr_readl(0xe0006014);
-	r <<= 8;
-	r |= csr_readl(0xe0006018);
-	r <<= 8;
-	r |= csr_readl(0xe000601c);
+#define CSR_PICOSPI_OE_ADDR 0xe0005004
+#define CSR_PICOSPI_OE_SIZE 1
+static inline unsigned char picospi_oe_read(void) {
+	unsigned char r = csr_readl(0xe0005004);
 	return r;
 }
-static inline void spi_xfer_write(unsigned int value) {
-	csr_writel(value >> 24, 0xe0006010);
-	csr_writel(value >> 16, 0xe0006014);
-	csr_writel(value >> 8, 0xe0006018);
-	csr_writel(value, 0xe000601c);
+static inline void picospi_oe_write(unsigned char value) {
+	csr_writel(value, 0xe0005004);
 }
-#define CSR_SPI_START_ADDR 0xe0006020
-#define CSR_SPI_START_SIZE 1
-static inline unsigned char spi_start_read(void) {
-	unsigned char r = csr_readl(0xe0006020);
-	return r;
-}
-static inline void spi_start_write(unsigned char value) {
-	csr_writel(value, 0xe0006020);
-}
-#define CSR_SPI_ACTIVE_ADDR 0xe0006024
-#define CSR_SPI_ACTIVE_SIZE 1
-static inline unsigned char spi_active_read(void) {
-	unsigned char r = csr_readl(0xe0006024);
-	return r;
-}
-#define CSR_SPI_PENDING_ADDR 0xe0006028
-#define CSR_SPI_PENDING_SIZE 1
-static inline unsigned char spi_pending_read(void) {
-	unsigned char r = csr_readl(0xe0006028);
-	return r;
-}
-#define CSR_SPI_MOSI_DATA_ADDR 0xe000602c
-#define CSR_SPI_MOSI_DATA_SIZE 4
-static inline unsigned int spi_mosi_data_read(void) {
-	unsigned int r = csr_readl(0xe000602c);
-	r <<= 8;
-	r |= csr_readl(0xe0006030);
-	r <<= 8;
-	r |= csr_readl(0xe0006034);
-	r <<= 8;
-	r |= csr_readl(0xe0006038);
-	return r;
-}
-static inline void spi_mosi_data_write(unsigned int value) {
-	csr_writel(value >> 24, 0xe000602c);
-	csr_writel(value >> 16, 0xe0006030);
-	csr_writel(value >> 8, 0xe0006034);
-	csr_writel(value, 0xe0006038);
-}
-#define CSR_SPI_MISO_DATA_ADDR 0xe000603c
-#define CSR_SPI_MISO_DATA_SIZE 4
-static inline unsigned int spi_miso_data_read(void) {
-	unsigned int r = csr_readl(0xe000603c);
-	r <<= 8;
-	r |= csr_readl(0xe0006040);
-	r <<= 8;
-	r |= csr_readl(0xe0006044);
-	r <<= 8;
-	r |= csr_readl(0xe0006048);
+#define CSR_PICOSPI_DI_ADDR 0xe0005008
+#define CSR_PICOSPI_DI_SIZE 1
+static inline unsigned char picospi_di_read(void) {
+	unsigned char r = csr_readl(0xe0005008);
 	return r;
 }
 

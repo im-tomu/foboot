@@ -6,12 +6,14 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <stdlib.h>
+#include <printf.h>
 
 #include "spi.h"
+#include "spi-gpio.h"
 
-#define gpioSetMode(pin, mode)
-#define gpioWrite(pin, val)
-#define gpioRead(pin)
+#define fprintf(...) do {} while(0)
+
+#define SPI_ONLY_SINGLE
 
 enum ff_spi_quirks {
 	// There is no separate "Write SR 2" command.  Instead,
@@ -53,15 +55,17 @@ static void spi_get_id(struct ff_spi *spi);
 static void spi_set_state(struct ff_spi *spi, enum spi_state state) {
 	if (spi->state == state)
 		return;
-
+#ifndef SPI_ONLY_SINGLE
 	switch (state) {
 	case SS_SINGLE:
+#endif
 		gpioSetMode(spi->pins.clk, PI_OUTPUT); // CLK
 		gpioSetMode(spi->pins.cs, PI_OUTPUT); // CE0#
 		gpioSetMode(spi->pins.mosi, PI_OUTPUT); // MOSI
 		gpioSetMode(spi->pins.miso, PI_INPUT); // MISO
 		gpioSetMode(spi->pins.hold, PI_OUTPUT);
 		gpioSetMode(spi->pins.wp, PI_OUTPUT);
+#ifndef SPI_ONLY_SINGLE
 		break;
 
 	case SS_DUAL_RX:
@@ -113,7 +117,7 @@ static void spi_set_state(struct ff_spi *spi, enum spi_state state) {
 		fprintf(stderr, "Unrecognized spi state\n");
 		return;
 	}
-
+#endif
 	spi->state = state;
 }
 
@@ -140,7 +144,7 @@ void spiEnd(struct ff_spi *spi) {
 static uint8_t spiXfer(struct ff_spi *spi, uint8_t out) {
 	int bit;
 	uint8_t in = 0;
-#if 0
+
 	for (bit = 7; bit >= 0; bit--) {
 		if (out & (1 << bit)) {
 			gpioWrite(spi->pins.mosi, 1);
@@ -154,7 +158,7 @@ static uint8_t spiXfer(struct ff_spi *spi, uint8_t out) {
 		gpioWrite(spi->pins.clk, 0);
 		spiPause(spi);
 	}
-#endif
+
 	return in;
 }
 
@@ -169,7 +173,7 @@ static uint8_t spiSingleRx(struct ff_spi *spi) {
 }
 
 static void spiDualTx(struct ff_spi *spi, uint8_t out) {
-#if 0
+
 	int bit;
 	spi_set_state(spi, SS_DUAL_TX);
 	for (bit = 7; bit >= 0; bit -= 2) {
@@ -191,11 +195,9 @@ static void spiDualTx(struct ff_spi *spi, uint8_t out) {
 		gpioWrite(spi->pins.clk, 0);
 		spiPause(spi);
 	}
-#endif
 }
 
 static void spiQuadTx(struct ff_spi *spi, uint8_t out) {
-#if 0
 	int bit;
 	spi_set_state(spi, SS_QUAD_TX);
 	for (bit = 7; bit >= 0; bit -= 4) {
@@ -231,11 +233,9 @@ static void spiQuadTx(struct ff_spi *spi, uint8_t out) {
 		gpioWrite(spi->pins.clk, 0);
 		spiPause(spi);
 	}
-#endif
 }
 
 static uint8_t spiDualRx(struct ff_spi *spi) {
-#if 0
 	int bit;
 	uint8_t in = 0;
 
@@ -267,7 +267,6 @@ static uint8_t spiQuadRx(struct ff_spi *spi) {
 		spiPause(spi);
 	}
 	return in;
-#endif
 }
 
 int spiTx(struct ff_spi *spi, uint8_t word) {
@@ -481,7 +480,7 @@ struct spi_id spiId(struct ff_spi *spi) {
 }
 
 static void spi_decode_id(struct ff_spi *spi) {
-
+#if 0
 	spi->id.manufacturer = "unknown";
 	spi->id.model = "unknown";
 	spi->id.capacity = "unknown";
@@ -506,12 +505,12 @@ static void spi_decode_id(struct ff_spi *spi) {
 			spi->id.bytes = 1 * 1024 * 1024;
 		}
 	}
-
+#endif
 	return;
 }
 
 static void spi_get_id(struct ff_spi *spi) {
-	memset(&spi->id, 0xff, sizeof(spi->id));
+	// memset(&spi->id, 0xff, sizeof(spi->id));
 
 	spiBegin(spi);
 	spiCommand(spi, 0x90);	// Read manufacturer ID
@@ -568,9 +567,11 @@ int spiSetType(struct ff_spi *spi, enum spi_type type) {
 	if (spi->type == type)
 		return 0;
 
+#ifndef SPI_ONLY_SINGLE
 	switch (type) {
 
 	case ST_SINGLE:
+#endif
 		if (spi->type == ST_QPI) {
 			spiBegin(spi);
 			spiCommand(spi, 0xff);	// Exit QPI Mode
@@ -578,6 +579,7 @@ int spiSetType(struct ff_spi *spi, enum spi_type type) {
 		}
 		spi->type = type;
 		spi_set_state(spi, SS_SINGLE);
+#ifndef SPI_ONLY_SINGLE
 		break;
 
 	case ST_DUAL:
@@ -619,6 +621,7 @@ int spiSetType(struct ff_spi *spi, enum spi_type type) {
 		fprintf(stderr, "Unrecognized SPI type: %d\n", type);
 		return 1;
 	}
+#endif
 	return 0;
 }
 
@@ -649,12 +652,12 @@ int spiRead(struct ff_spi *spi, uint32_t addr, uint8_t *data, unsigned int count
 	spiCommand(spi, 0x00);
 	for (i = 0; i < count; i++) {
 		if ((i & 0x3fff) == 0) {
-			printf("\rReading @ %06x / %06x", i, count);
+			// printf("\rReading @ %06x / %06x", i, count);
 			fflush(stdout);
 		}
 		data[i] = spiRx(spi);
 	}
-	printf("\rReading @ %06x / %06x Done\n", i, count);
+	// printf("\rReading @ %06x / %06x Done\n", i, count);
 
 	spiEnd(spi);
 	return 0;
@@ -668,6 +671,43 @@ static int spi_wait_for_not_busy(struct ff_spi *spi) {
 		sr1 = spiReadStatus(spi, 1);
 	} while (sr1 & (1 << 0));
 	return 0;
+}
+
+int spiIsBusy(struct ff_spi *spi) {
+  return spiReadStatus(spi, 1) & (1 << 0);
+}
+
+int spiBeginErase(struct ff_spi *spi, uint32_t erase_addr) {
+	spiBegin(spi);
+	spiCommand(spi, 0x52);
+	spiCommand(spi, erase_addr >> 16);
+	spiCommand(spi, erase_addr >> 8);
+	spiCommand(spi, erase_addr >> 0);
+	spiEnd(spi);
+}
+
+int spiBeginWrite(struct ff_spi *spi, uint32_t addr, const void *v_data, unsigned int count) {
+	uint8_t write_cmd = 0x02;
+	const uint8_t *data = v_data;
+	unsigned int i;
+
+	// Enable Write-Enable Latch (WEL)
+	spiBegin(spi);
+	spiCommand(spi, 0x06);
+	spiEnd(spi);
+
+	// uint8_t sr1 = spiReadStatus(spi, 1);
+	// if (!(sr1 & (1 << 1)))
+	// 	fprintf(stderr, "error: write-enable latch (WEL) not set, write will probably fail\n");
+
+	spiBegin(spi);
+	spiCommand(spi, write_cmd);
+	spiCommand(spi, addr >> 16);
+	spiCommand(spi, addr >> 8);
+	spiCommand(spi, addr >> 0);
+	for (i = 0; (i < count) && (i < 256); i++)
+		spiTx(spi, *data++);
+	spiEnd(spi);
 }
 
 void spiSwapTxRx(struct ff_spi *spi) {
@@ -691,7 +731,7 @@ int spiWrite(struct ff_spi *spi, uint32_t addr, const uint8_t *data, unsigned in
 	// Erase all applicable blocks
 	uint32_t erase_addr;
 	for (erase_addr = 0; erase_addr < count; erase_addr += 32768) {
-		printf("\rErasing @ %06x / %06x", erase_addr, count);
+		// printf("\rErasing @ %06x / %06x", erase_addr, count);
 		fflush(stdout);
 
 		spiBegin(spi);
@@ -728,7 +768,7 @@ int spiWrite(struct ff_spi *spi, uint32_t addr, const uint8_t *data, unsigned in
 
 	int total = count;
 	while (count) {
-		printf("\rProgramming @ %06x / %06x", addr, total);
+		// printf("\rProgramming @ %06x / %06x", addr, total);
 		fflush(stdout);
 		spiBegin(spi);
 		spiCommand(spi, 0x06);
@@ -750,8 +790,8 @@ int spiWrite(struct ff_spi *spi, uint32_t addr, const uint8_t *data, unsigned in
 		addr += i;
 		spi_wait_for_not_busy(spi);
 	}
-	printf("\rProgramming @ %06x / %06x", addr, total);
-	printf("  Done\n");
+	// printf("\rProgramming @ %06x / %06x", addr, total);
+	// printf("  Done\n");
 	return 0;
 }
 
@@ -771,7 +811,8 @@ uint8_t spiReset(struct ff_spi *spi) {
 	spiCommand(spi, 0x99); // "Reset Device" command
 	spiEnd(spi);
 
-	usleep(30);
+#pragma warn "Sleep for 30 ms here"
+	// usleep(30);
 
 	spiBegin(spi);
 	spiCommand(spi, 0xab); // "Resume from Deep Power-Down" command
@@ -807,9 +848,10 @@ int spiInit(struct ff_spi *spi) {
 }
 
 struct ff_spi *spiAlloc(void) {
-	struct ff_spi *spi = (struct ff_spi *)malloc(sizeof(struct ff_spi));
-	memset(spi, 0, sizeof(*spi));
-	return spi;
+	static struct ff_spi spi;
+	// struct ff_spi *spi = (struct ff_spi *)malloc(sizeof(struct ff_spi));
+	// memset(&spi, 0, sizeof(spi));
+	return &spi;
 }
 
 void spiSetPin(struct ff_spi *spi, enum spi_pin pin, int val) {
@@ -845,7 +887,7 @@ void spiFree(struct ff_spi **spi) {
 	if (!*spi)
 		return;
 
-        spi_set_state(*spi, SS_HARDWARE);
-	free(*spi);
-	*spi = NULL;
+	spi_set_state(*spi, SS_HARDWARE);
+	// free(*spi);
+	// *spi = NULL;
 }

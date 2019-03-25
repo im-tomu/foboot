@@ -29,6 +29,8 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
     case 0x0900: // SET_CONFIGURATION
         usb_configuration = setup->wValue;
         break;
+    case 0x0b01: // SET_INTERFACE
+        break;
     case 0x0880: // GET_CONFIGURATION
         reply_buffer[0] = usb_configuration;
         datalen = 1;
@@ -43,7 +45,7 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
     case 0x0082: // GET_STATUS (endpoint)
         if (setup->wIndex > 0)
         {
-            printf("get_status (setup->wIndex: %d)\n", setup->wIndex);
+            // printf("get_status (setup->wIndex: %d)\n", setup->wIndex);
             usb_err(dev, 0);
             return;
         }
@@ -60,7 +62,7 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
         if (setup->wIndex > 0 || setup->wValue != 0)
         {
             // TODO: do we need to handle IN vs OUT here?
-            printf("%s:%d clear feature (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
+            // printf("%s:%d clear feature (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
             usb_err(dev, 0);
             return;
         }
@@ -72,7 +74,7 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
         if (setup->wIndex > 0 || setup->wValue != 0)
         {
             // TODO: do we need to handle IN vs OUT here?
-            printf("%s:%d clear feature (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
+            // printf("%s:%d clear feature (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
             usb_err(dev, 0);
             return;
         }
@@ -103,10 +105,10 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
                 goto send;
             }
         }
-        printf("%s:%d couldn't find descriptor %04x (%d / %d)\n", __FILE__, __LINE__, setup->wValue, setup->wIndex, setup->wValue);
+        // printf("%s:%d couldn't find descriptor %04x (%d / %d)\n", __FILE__, __LINE__, setup->wValue, setup->wIndex, setup->wValue);
         usb_err(dev, 0);
         return;
-
+#if 0
     case (MSFT_VENDOR_CODE << 8) | 0xC0: // Get Microsoft descriptor
     case (MSFT_VENDOR_CODE << 8) | 0xC1:
         if (setup->wIndex == 0x0004)
@@ -116,7 +118,7 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
             datalen = MSFT_WCID_LEN;
             break;
         }
-        printf("%s:%d couldn't find microsoft descriptor (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
+        // printf("%s:%d couldn't find microsoft descriptor (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
         usb_err(dev, 0);
         return;
 
@@ -131,14 +133,15 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
                 break;
             }
         }
-        printf("%s:%d couldn't find webusb descriptor (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
+        // printf("%s:%d couldn't find webusb descriptor (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
         usb_err(dev, 0);
         return;
+#endif
 
     case 0x0121: // DFU_DNLOAD
         if (setup->wIndex > 0)
         {
-            printf("%s:%d dfu download descriptor index invalid (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
+            // printf("%s:%d dfu download descriptor index invalid (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
             usb_err(dev, 0);
             return;
         }
@@ -162,7 +165,7 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
     case 0x03a1: // DFU_GETSTATUS
         if (setup->wIndex > 0)
         {
-            printf("%s:%d err (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
+            // printf("%s:%d err (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
             usb_err(dev, 0);
             return;
         }
@@ -174,7 +177,7 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
         }
         else
         {
-            printf("%s:%d err (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
+            // printf("%s:%d err (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
             usb_err(dev, 0);
             return;
         }
@@ -183,7 +186,7 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
     case 0x0421: // DFU_CLRSTATUS
         if (setup->wIndex > 0)
         {
-            printf("%s:%d err (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
+            // printf("%s:%d err (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
             usb_err(dev, 0);
             return;
         }
@@ -193,7 +196,7 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
         }
         else
         {
-            printf("%s:%d err (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
+            // printf("%s:%d err (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
             usb_err(dev, 0);
             return;
         }
@@ -201,7 +204,7 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
     case 0x05a1: // DFU_GETSTATE
         if (setup->wIndex > 0)
         {
-            printf("%s:%d err (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
+            // printf("%s:%d err (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
             usb_err(dev, 0);
             return;
         }
@@ -213,7 +216,7 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
     case 0x0621: // DFU_ABORT
         if (setup->wIndex > 0)
         {
-            printf("%s:%d err (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
+            // printf("%s:%d err (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
             usb_err(dev, 0);
             return;
         }
@@ -223,13 +226,13 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
         }
         else
         {
-            printf("%s:%d err (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
+            // printf("%s:%d err (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
             usb_err(dev, 0);
             return;
         }
 
     default:
-        printf("%s:%d unrecognized request type (%04x) value: %02x index: %02x\n", __FILE__, __LINE__, setup->wRequestAndType, setup->wIndex, setup->wValue);
+        // printf("%s:%d unrecognized request type (%04x) value: %02x index: %02x\n", __FILE__, __LINE__, setup->wRequestAndType, setup->wIndex, setup->wValue);
         usb_err(dev, 0);
         return;
     }

@@ -26,7 +26,7 @@ uint32_t tb_first_free_address(void) {
 }
 
 uint32_t tb_config_hash(const struct toboot_configuration *cfg) {
-    return XXH32(cfg, sizeof(*cfg) - 4, TOBOOT_HASH_SEED);
+    return 0;//XXH32(cfg, sizeof(*cfg) - 4, TOBOOT_HASH_SEED);
 }
 
 void tb_sign_config(struct toboot_configuration *cfg) {

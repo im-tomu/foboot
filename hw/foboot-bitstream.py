@@ -14,13 +14,16 @@ import lxbuildenv
 #from migen import *
 from migen import Module, Signal, Instance, ClockDomain, If
 from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.fhdl.specials import TSTriple
+from migen.fhdl.structure import ClockSignal, ResetSignal, Replicate, Cat
+
 from litex.build.lattice.platform import LatticePlatform
 from litex.build.generic_platform import Pins, IOStandard, Misc, Subsignal
 from litex.soc.integration import SoCCore
 from litex.soc.integration.builder import Builder
 from litex.soc.integration.soc_core import csr_map_update
 from litex.soc.interconnect import wishbone
-from litex.soc.cores.spi import SPIMaster
+from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
 
 from valentyusb import usbcore
 from valentyusb.usbcore import io as usbio
@@ -222,13 +225,108 @@ class Platform(LatticePlatform):
     # def do_finalize(self, fragment):
         # LatticePlatform.do_finalize(self, fragment)
 
+class PicoSoCSpi(Module, AutoCSR):
+    def __init__(self, platform, pads):
+        self.reset = Signal()
+        self.rdata = Signal(32)
+        self.addr = Signal(24)
+        self.ready = Signal()
+        self.valid = Signal()
+
+        self.flash_csb = Signal()
+        self.flash_clk = Signal()
+
+        cfgreg_we = Signal(4)
+        cfgreg_di = Signal(32)
+        cfgreg_do = Signal(32)
+
+        mosi_pad = TSTriple()
+        miso_pad = TSTriple()
+        cs_n_pad = TSTriple()
+        clk_pad  = TSTriple()
+        wp_pad   = TSTriple()
+        hold_pad = TSTriple()
+
+        self.do = CSRStorage(size=6)
+        self.oe = CSRStorage(size=6)
+        self.di = CSRStatus(size=6)
+        # self.cfg = CSRStorage(size=8)
+
+        # cfg_remapped = Cat(self.cfg.storage[0:7], Signal(7), self.cfg.storage[7])
+
+        self.comb += self.reset.eq(0)
+        # self.comb += [
+        #     cfgreg_di.eq(Cat(self.do.storage, Replicate(2, 0), # Attach "DO" to lower 6 bits
+        #                      self.oe.storage, Replicate(4, 0), # Attach "OE" to bits 8-11
+        #                      cfg_remapped)),
+        #     cfgreg_we.eq(Cat(self.do.re, self.oe.re, self.cfg.re, self.cfg.re)),
+        #     self.di.status.eq(cfgreg_do),
+        #     clk_pad.oe.eq(~self.reset),
+        #     cs_n_pad.oe.eq(~self.reset),
+        # ]
+        
+        self.specials += mosi_pad.get_tristate(pads.mosi)
+        self.specials += miso_pad.get_tristate(pads.miso)
+        self.specials += cs_n_pad.get_tristate(pads.cs_n)
+        self.specials += clk_pad.get_tristate(pads.clk)
+        self.specials += wp_pad.get_tristate(pads.wp)
+        self.specials += hold_pad.get_tristate(pads.hold)
+
+        self.comb += [
+            mosi_pad.oe.eq(self.oe.storage[0]),
+            miso_pad.oe.eq(self.oe.storage[1]),
+            wp_pad.oe.eq(self.oe.storage[2]),
+            hold_pad.oe.eq(self.oe.storage[3]),
+            clk_pad.oe.eq(self.oe.storage[4]),
+            cs_n_pad.oe.eq(self.oe.storage[5]),
+
+            mosi_pad.o.eq(self.do.storage[0]),
+            miso_pad.o.eq(self.do.storage[1]),
+            wp_pad.o.eq(self.do.storage[2]),
+            hold_pad.o.eq(self.do.storage[3]),
+            clk_pad.o.eq(self.do.storage[4]),
+            cs_n_pad.o.eq(self.do.storage[5]),
+
+            self.di.status.eq(Cat(mosi_pad.i, miso_pad.i, wp_pad.i, hold_pad.i, clk_pad.i, cs_n_pad.i)),
+        ]
+        # self.specials += Instance("spimemio", 
+        #     o_flash_io0_oe = mosi_pad.oe,
+        #     o_flash_io1_oe = miso_pad.oe,
+        #     o_flash_io2_oe = wp_pad.oe,
+        #     o_flash_io3_oe = hold_pad.oe,
+
+        #     o_flash_io0_do = mosi_pad.o,
+        #     o_flash_io1_do = miso_pad.o,
+        #     o_flash_io2_do = wp_pad.o,
+        #     o_flash_io3_do = hold_pad.o,
+
+        #     i_flash_io0_di = mosi_pad.i,
+        #     i_flash_io1_di = miso_pad.i,
+        #     i_flash_io2_di = wp_pad.i,
+        #     i_flash_io3_di = hold_pad.i,
+
+        #     i_resetn = ResetSignal() | self.reset,
+        #     i_clk = ClockSignal(),
+
+        #     i_valid = self.valid,
+        #     o_ready = self.ready,
+        #     i_addr = self.addr,
+        #     o_rdata = self.rdata,
+
+	    #     i_cfgreg_we = cfgreg_we,
+        #     i_cfgreg_di = cfgreg_di,
+	    #     o_cfgreg_do = cfgreg_do,
+
+        #     o_flash_csb = self.flash_csb,
+        #     o_flash_clk = self.flash_clk,
+        # )
+        # platform.add_source("spimemio.v")
+
 class BaseSoC(SoCCore):
     csr_peripherals = [
         "cpu_or_bridge",
         "usb",
-        "usb_obuf",
-        "usb_ibuf",
-        "spi",
+        "picospi",
     ]
     csr_map_update(SoCCore.csr_map, csr_peripherals)
 
@@ -285,8 +383,9 @@ class BaseSoC(SoCCore):
         else:
             raise ValueError("unrecognized boot_source: {}".format(boot_source))
 
+        # Add SPI Flash module, based on PicoSoC
         spi_pads = platform.request("spiflash")
-        self.submodules.spi = SPIMaster(spi_pads)
+        self.submodules.picospi = PicoSoCSpi(platform, spi_pads)
 
         # Add USB pads
         usb_pads = platform.request("usb")

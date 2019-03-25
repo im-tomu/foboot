@@ -28,7 +28,7 @@ enum USB_PID {
 #define NUM_BUFFERS 4
 #define BUFFER_SIZE 64
 #define EP_INTERVAL_MS 6
-static const char hex[] = "0123456789abcdef";
+//static const char hex[] = "0123456789abcdef";
 
 enum epfifo_response {
     EPF_ACK = 0,
@@ -119,16 +119,16 @@ int usb_send(struct usb_device *dev, int epnum, const void *data, int total_coun
     control_state = IN_DATA;
     queue_more_data(epnum);
 
-    printf("Sending %d bytes to EP%d: [", total_count, epnum);
-    int i;
-    const uint8_t *u8data = data;
-    for (i = 0; i < total_count; i++) {
-        if (i)
-            printf(" ");
+    // printf("Sending %d bytes to EP%d: [", total_count, epnum);
+    // int i;
+    // const uint8_t *u8data = data;
+    // for (i = 0; i < total_count; i++) {
+    //     if (i)
+    //         printf(" ");
 
-        printf("%02x", u8data[i] & 0xff);
-    }
-    printf("]\n");
+    //     printf("%02x", u8data[i] & 0xff);
+    // }
+    // printf("]\n");
 
     return 0;
 }
@@ -206,7 +206,7 @@ int usb_ack(struct usb_device *dev, int epnum) {
 int usb_err(struct usb_device *dev, int epnum) {
     (void)dev;
     (void)epnum;
-    printf("STALLING!!!\n");
+    puts("STALLING!!!");
     usb_ep_0_out_respond_write(EPF_STALL);
     usb_ep_0_in_respond_write(EPF_STALL);
 }
@@ -235,6 +235,7 @@ void usb_poll(void) {
         }
 
         int byte_count = usb_ep0out_buffer_len[usb_ep0out_rd_ptr];
+        /*
         if (byte_count) {
             printf("read %d %02x bytes: [", byte_count, usb_ep0out_last_tok[usb_ep0out_rd_ptr]);
             unsigned int i;
@@ -251,6 +252,7 @@ void usb_poll(void) {
         else {
             printf("read no bytes\n");
         }
+        */
         usb_ep0out_buffer_len[usb_ep0out_rd_ptr] = 0;
         usb_ep0out_rd_ptr = (usb_ep0out_rd_ptr + 1) & (EP0OUT_BUFFERS-1);
     }
@@ -280,6 +282,7 @@ void usb_poll(void) {
     // usb_ack(NULL, 0);
 }
 
+#if 0
 void usb_print_status(void) {
     while (usb_ep0out_rd_ptr != usb_ep0out_wr_ptr) {
         // printf("current_data: 0x%08x\n", current_data);
@@ -302,5 +305,6 @@ void usb_print_status(void) {
         usb_ep0out_rd_ptr = (usb_ep0out_rd_ptr + 1) & (EP0OUT_BUFFERS-1);
     }
 }
+#endif
 
 #endif /* CSR_USB_EP_0_OUT_EV_PENDING_ADDR */
