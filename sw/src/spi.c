@@ -7,11 +7,37 @@
 #include <string.h>
 #include <stdlib.h>
 #include <printf.h>
+#include <generated/csr.h>
 
 #include "spi.h"
-#include "spi-gpio.h"
 
 #define fprintf(...) do {} while(0)
+
+static uint8_t do_mirror;
+static uint8_t oe_mirror;
+
+#define PI_OUTPUT 1
+#define PI_INPUT 0
+#define PI_ALT0 PI_INPUT
+static void gpioSetMode(int pin, int mode) {
+    if (mode)
+        oe_mirror |= 1 << pin;
+    else
+        oe_mirror &= ~(1 << pin);
+    picospi_oe_write(oe_mirror);
+}
+
+static void gpioWrite(int pin, int val) {
+    if (val)
+        do_mirror |= 1 << pin;
+    else
+        do_mirror &= ~(1 << pin);
+    picospi_do_write(do_mirror);
+}
+
+static int gpioRead(int pin) {
+    return !!(picospi_di_read() & (1 << pin));
+}
 
 #define SPI_ONLY_SINGLE
 
@@ -53,6 +79,7 @@ struct ff_spi {
 static void spi_get_id(struct ff_spi *spi);
 
 static void spi_set_state(struct ff_spi *spi, enum spi_state state) {
+	return;
 	if (spi->state == state)
 		return;
 #ifndef SPI_ONLY_SINGLE
@@ -317,13 +344,17 @@ uint8_t spiCommandRx(struct ff_spi *spi) {
 
 uint8_t spiReadStatus(struct ff_spi *spi, uint8_t sr) {
 	uint8_t val = 0xff;
+	(void)sr;
 
+#if 0
 	switch (sr) {
 	case 1:
+#endif
 		spiBegin(spi);
 		spiCommand(spi, 0x05);
 		val = spiCommandRx(spi);
 		spiEnd(spi);
+#if 0
 		break;
 
 	case 2:
@@ -344,7 +375,7 @@ uint8_t spiReadStatus(struct ff_spi *spi, uint8_t sr) {
 		fprintf(stderr, "unrecognized status register: %d\n", sr);
 		break;
 	}
-
+#endif
 	return val;
 }
 
@@ -510,6 +541,7 @@ static void spi_decode_id(struct ff_spi *spi) {
 }
 
 static void spi_get_id(struct ff_spi *spi) {
+#if 0
 	// memset(&spi->id, 0xff, sizeof(spi->id));
 
 	spiBegin(spi);
@@ -550,6 +582,7 @@ static void spi_get_id(struct ff_spi *spi) {
 
 	spi_decode_id(spi);
 	return;
+#endif
 }
 
 void spiOverrideSize(struct ff_spi *spi, uint32_t size) {
@@ -678,12 +711,18 @@ int spiIsBusy(struct ff_spi *spi) {
 }
 
 int spiBeginErase(struct ff_spi *spi, uint32_t erase_addr) {
+	// Enable Write-Enable Latch (WEL)
+	spiBegin(spi);
+	spiCommand(spi, 0x06);
+	spiEnd(spi);
+
 	spiBegin(spi);
 	spiCommand(spi, 0x52);
 	spiCommand(spi, erase_addr >> 16);
 	spiCommand(spi, erase_addr >> 8);
 	spiCommand(spi, erase_addr >> 0);
 	spiEnd(spi);
+	return 0;
 }
 
 int spiBeginWrite(struct ff_spi *spi, uint32_t addr, const void *v_data, unsigned int count) {
@@ -708,6 +747,8 @@ int spiBeginWrite(struct ff_spi *spi, uint32_t addr, const void *v_data, unsigne
 	for (i = 0; (i < count) && (i < 256); i++)
 		spiTx(spi, *data++);
 	spiEnd(spi);
+
+	return 0;
 }
 
 void spiSwapTxRx(struct ff_spi *spi) {
@@ -836,6 +877,13 @@ int spiInit(struct ff_spi *spi) {
 
 	// Disable WP
 	gpioWrite(spi->pins.wp, 1);
+
+	gpioSetMode(spi->pins.clk, PI_OUTPUT); // CLK
+	gpioSetMode(spi->pins.cs, PI_OUTPUT); // CE0#
+	gpioSetMode(spi->pins.mosi, PI_OUTPUT); // MOSI
+	gpioSetMode(spi->pins.miso, PI_INPUT); // MISO
+	gpioSetMode(spi->pins.hold, PI_OUTPUT);
+	gpioSetMode(spi->pins.wp, PI_OUTPUT);
 
 	spi_get_id(spi);
 

@@ -20,15 +20,14 @@ enum CONTROL_STATE
     STALLED,
 } control_state;
 
-// Note that our PIDs only have the lower nybble.
+// Note that our PIDs are only bits 2 and 3 of the token,
+// since all other bits are effectively redundant at this point.
 enum USB_PID {
+    USB_PID_OUT   = 0,
+    USB_PID_SOF   = 1,
+    USB_PID_IN    = 2,
     USB_PID_SETUP = 3,
 };
-
-#define NUM_BUFFERS 4
-#define BUFFER_SIZE 64
-#define EP_INTERVAL_MS 6
-//static const char hex[] = "0123456789abcdef";
 
 enum epfifo_response {
     EPF_ACK = 0,
@@ -60,15 +59,15 @@ void usb_init(void) {
     return;
 }
 
-volatile int irq_count = 0;
+static volatile int irq_count = 0;
 
-#define EP0OUT_BUFFERS 4
+#define EP0OUT_BUFFERS 8
 __attribute__((aligned(4)))
-static uint8_t usb_ep0out_buffer[EP0OUT_BUFFERS][128];
+static uint8_t usb_ep0out_buffer[EP0OUT_BUFFERS][256];
 static uint8_t usb_ep0out_buffer_len[EP0OUT_BUFFERS];
 static uint8_t usb_ep0out_last_tok[EP0OUT_BUFFERS];
-static uint8_t usb_ep0out_wr_ptr;
-static uint8_t usb_ep0out_rd_ptr;
+static volatile uint8_t usb_ep0out_wr_ptr;
+static volatile uint8_t usb_ep0out_rd_ptr;
 static const int max_byte_length = 64;
 
 static const uint8_t *current_data;
@@ -104,31 +103,14 @@ static int queue_more_data(int epnum) {
 
 int usb_send(struct usb_device *dev, int epnum, const void *data, int total_count) {
     (void)dev;
-    // Don't allow requeueing
-    // if (usb_ep_0_in_respond_read() != EPF_NAK)
-        // return -1;
-    // if (!usb_ep_0_in_ibuf_empty_read()) {
-    //     printf("IBUF isn't empty.\n");
-    //     return -1;
-    // }
 
-
+    while (current_data || current_length)
+        ;
     current_data = (uint8_t *)data;
     current_length = total_count;
     current_offset = 0;
     control_state = IN_DATA;
     queue_more_data(epnum);
-
-    // printf("Sending %d bytes to EP%d: [", total_count, epnum);
-    // int i;
-    // const uint8_t *u8data = data;
-    // for (i = 0; i < total_count; i++) {
-    //     if (i)
-    //         printf(" ");
-
-    //     printf("%02x", u8data[i] & 0xff);
-    // }
-    // printf("]\n");
 
     return 0;
 }
@@ -137,7 +119,6 @@ void usb_isr(void) {
     irq_count++;
     uint8_t ep0o_pending = usb_ep_0_out_ev_pending_read();
     uint8_t ep0i_pending = usb_ep_0_in_ev_pending_read();
-    // printf(">> %02x %02x <<\n", ep0o_pending, ep0i_pending);
 
     // We got an OUT or a SETUP packet.  Copy it to usb_ep0out_buffer
     // and clear the "pending" bit.
@@ -171,17 +152,6 @@ void usb_isr(void) {
         usb_ep_0_in_ev_pending_write(ep0i_pending);
         usb_ep_0_out_respond_write(EPF_ACK);
 
-        // // Get ready to respond with an empty data byte
-        // if (current_offset >= current_length) {
-        //     current_offset = 0;
-        //     current_length = 0;
-        //     current_data = NULL;
-        //     if (control_state == IN_DATA) {
-        //         usb_ep_0_out_respond_write(EPF_ACK);
-        //     }
-        //     usb_ep_0_out_respond_write(EPF_ACK);
-        // }
-        // else
         usb_ep_0_in_respond_write(EPF_NAK);
     }
     return;
@@ -201,110 +171,68 @@ int usb_ack(struct usb_device *dev, int epnum) {
     (void)epnum;
     usb_ep_0_out_respond_write(EPF_ACK);
     usb_ep_0_in_respond_write(EPF_ACK);
+    return 0;
 }
 
 int usb_err(struct usb_device *dev, int epnum) {
     (void)dev;
     (void)epnum;
-    puts("STALLING!!!");
     usb_ep_0_out_respond_write(EPF_STALL);
     usb_ep_0_in_respond_write(EPF_STALL);
+    return 0;
 }
+
+// int puts_noendl(const char *s);
+// static void print_eptype(void) {
+//     switch (usb_ep0out_last_tok[usb_ep0out_rd_ptr]) {
+//     case 0: puts("O"); break;
+//     // case 1: puts("SOF"); break;
+//     // case 2: puts("IN"); break;
+//     case 3: puts("S"); break;
+//     }
+// }
 
 int usb_recv(struct usb_device *dev, void *buffer, unsigned int buffer_len) {
-    return;
+    (void)dev;
+
+    // Set the OUT response to ACK, since we are in a position to receive data now.
+    usb_ep_0_out_respond_write(EPF_ACK);
+    while (1) {
+        if (usb_ep0out_rd_ptr != usb_ep0out_wr_ptr) {
+            if (usb_ep0out_last_tok[usb_ep0out_rd_ptr] == USB_PID_OUT) {
+                unsigned int ep0_buffer_len = usb_ep0out_buffer_len[usb_ep0out_rd_ptr];
+                if (ep0_buffer_len < buffer_len)
+                    buffer_len = ep0_buffer_len;
+                usb_ep0out_buffer_len[usb_ep0out_rd_ptr] = 0;
+                memcpy(buffer, &usb_ep0out_buffer[usb_ep0out_rd_ptr], buffer_len);
+                usb_ep0out_rd_ptr = (usb_ep0out_rd_ptr + 1) & (EP0OUT_BUFFERS-1);
+                return buffer_len;
+            }
+            usb_ep0out_rd_ptr = (usb_ep0out_rd_ptr + 1) & (EP0OUT_BUFFERS-1);
+        }
+    }
+    return 0;
 }
 
-
 void usb_poll(void) {
-    // static int last_error_count;
-    // int this_error_count = usb_usb_transfer_error_state_read();
-    // if (last_error_count != this_error_count) {
-    //     printf("USB TRANSFER ERROR STATE # %d!! WaitHand? %d  WaitData? %d  PID: %02x (was: %02x, full: %02x)\n", this_error_count, usb_dbg_lwh_read(), usb_dbg_lwd_read(), usb_usb_transfer_o_pid_read(), usb_usb_transfer_error_pid_read(), usb_dbg_lfp_read());
-    //     last_error_count = this_error_count;
-    // }
     // If some data was received, then process it.
     if (usb_ep0out_rd_ptr != usb_ep0out_wr_ptr) {
         const struct usb_setup_request *request = (const struct usb_setup_request *)(usb_ep0out_buffer[usb_ep0out_rd_ptr]);
-        const uint8_t *obuf = (const struct usb_setup_request *)(usb_ep0out_buffer[usb_ep0out_rd_ptr]);
+        // unsigned int len = usb_ep0out_buffer_len[usb_ep0out_rd_ptr];
+        uint8_t last_tok = usb_ep0out_last_tok[usb_ep0out_rd_ptr];
 
-        if (usb_ep0out_last_tok[usb_ep0out_rd_ptr] == USB_PID_SETUP) {
-            // usb_ep_0_out_dtb_write(1);
-            // usb_ep_0_in_dtb_write(1);
-            usb_setup(NULL, request);
-        }
-
-        int byte_count = usb_ep0out_buffer_len[usb_ep0out_rd_ptr];
-        /*
-        if (byte_count) {
-            printf("read %d %02x bytes: [", byte_count, usb_ep0out_last_tok[usb_ep0out_rd_ptr]);
-            unsigned int i;
-            for (i = 0; i < byte_count; i++) {
-                if (i)
-                    uart_write(' ');
-                uart_write(hex[(obuf[i] >> 4) & 0xf]);
-                uart_write(hex[obuf[i] & (0xf)]);
-            }
-            uart_write(']');
-            uart_write('\r');
-            uart_write('\n');
-        }
-        else {
-            printf("read no bytes\n");
-        }
-        */
         usb_ep0out_buffer_len[usb_ep0out_rd_ptr] = 0;
         usb_ep0out_rd_ptr = (usb_ep0out_rd_ptr + 1) & (EP0OUT_BUFFERS-1);
+
+        if (last_tok == USB_PID_SETUP) {
+            usb_setup(NULL, request);
+        }
     }
 
     if ((usb_ep_0_in_respond_read() == EPF_NAK) && (current_data)) {
         current_offset += current_to_send;
         queue_more_data(0);
     }
-
-    // Cancel any pending transfers
-    // if ((control_state == IN_DATA) && usb_ep_0_in_ibuf_empty_read()) {
-    //     printf("state is IN_DATA but ibuf is empty?\n");
-    //     usb_ack(NULL, 0);
-    //     printf("and obuf_empty_read(): %d\n", usb_ep_0_out_obuf_empty_read());
-    //     usb_ep_0_out_obuf_head_write(0);
-    //     control_state = WAIT_SETUP;
-    // }
-    // if (!usb_ep_0_out_obuf_empty_read()) {
-    //     printf("FATAL: obuf not empty, and pending is %d\n", usb_ep_0_out_ev_pending_read());
-    //     printf("HALT");
-    //     while (1)
-    //         ;
-    // }
-    // if (!usb_ep_0_in_ibuf_empty_read()) {
-        // usb_ep_0_in_ibuf_head_write(0);
-    // }
-    // usb_ack(NULL, 0);
 }
-
-#if 0
-void usb_print_status(void) {
-    while (usb_ep0out_rd_ptr != usb_ep0out_wr_ptr) {
-        // printf("current_data: 0x%08x\n", current_data);
-        // printf("current_length: %d\n", current_length);
-        // printf("current_offset: %d\n", current_offset);
-        // printf("current_to_send: %d\n", current_to_send);
-        uint8_t *obuf = usb_ep0out_buffer[usb_ep0out_rd_ptr];
-        uint8_t cnt = usb_ep0out_buffer_len[usb_ep0out_rd_ptr];
-        unsigned int i;
-        if (cnt) {
-            for (i = 0; i < cnt; i++) {
-                uart_write(' ');
-                uart_write(hex[(obuf[i+1] >> 4) & 0xf]);
-                uart_write(hex[obuf[i+1] & (0xf)]);
-            }
-            uart_write('\r');
-            uart_write('\n');
-        }
-        usb_ep0out_buffer_len[usb_ep0out_rd_ptr] = 0;
-        usb_ep0out_rd_ptr = (usb_ep0out_rd_ptr + 1) & (EP0OUT_BUFFERS-1);
-    }
-}
-#endif
 
 #endif /* CSR_USB_EP_0_OUT_EV_PENDING_ADDR */

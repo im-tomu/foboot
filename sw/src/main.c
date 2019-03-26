@@ -40,6 +40,7 @@ static void init(void)
     irq_setie(1);
     uart_init();
     usb_init();
+    dfu_init();
     time_init();
 
     spi = spiAlloc();
@@ -56,6 +57,7 @@ static void init(void)
     spiInit(spi);
 }
 
+#if 0
 static const char *usb_hw_api(void) {
 #ifdef CSR_USB_EP_0_OUT_EV_PENDING_ADDR
     return "epfifo";
@@ -71,6 +73,7 @@ static const char *usb_hw_api(void) {
 #endif /* CSR_USB_OBUF_EMPTY_ADDR */
 #endif /* CSR_USB_EP_0_OUT_EV_PENDING_ADDR */
 }
+#endif
 
 int main(int argc, char **argv)
 {
@@ -129,10 +132,10 @@ int main(int argc, char **argv)
     int last = 0;
     while (1)
     {
-        if (usb_irq_happened() != last) {
-            last = usb_irq_happened();
-            // printf("USB %d IRQ happened\n", last);
-        }
+        // if (usb_irq_happened() != last) {
+        //     last = usb_irq_happened();
+        //     // printf("USB %d IRQ happened\n", last);
+        // }
         usb_poll();
         /*
         printf("Press any key to send...  ");

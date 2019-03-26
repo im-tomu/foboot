@@ -28,7 +28,8 @@
 #include <toboot-internal.h>
 #include <dfu.h>
 
-#define BLOCK_SIZE 32768 // bytes
+#define BLOCK_SIZE 32768 // Erase block size (in bytes)
+#define PAGE_SIZE 256 // Number of bytes we can write
 
 #include <spi.h>
 extern struct ff_spi *spi; // Defined in main.c
@@ -72,7 +73,7 @@ static struct toboot_state {
 
 static dfu_state_t dfu_state = dfuIDLE;
 static dfu_status_t dfu_status = OK;
-static unsigned dfu_poll_timeout = 100;
+static unsigned dfu_poll_timeout = 1;
 
 static uint32_t dfu_buffer[DFU_TRANSFER_SIZE/4];
 static uint32_t dfu_buffer_offset;
@@ -84,10 +85,6 @@ static uint32_t dfu_target_address;
 static void set_state(dfu_state_t new_state, dfu_status_t new_status) {
     dfu_state = new_state;
     dfu_status = new_status;
-}
-
-bool fl_is_idle(void) {
-    return fl_state == flsIDLE;
 }
 
 static bool ftfl_busy()
@@ -106,12 +103,15 @@ static void ftfl_busy_wait()
 static void ftfl_begin_erase_sector(uint32_t address)
 {
     ftfl_busy_wait();
-    spiBeginErase(spi, address);
+    // Only erase if it's on the page boundry.
+    if ((address & ~(PAGE_SIZE - 1) ) == address)
+        spiBeginErase(spi, address);
+    fl_state = flsERASING;
 }
 
 static void ftfl_write_more_bytes(void)
 {
-    uint32_t bytes_to_write = 256;
+    uint32_t bytes_to_write = PAGE_SIZE;
     if (dfu_bytes_remaining < bytes_to_write)
         bytes_to_write = dfu_bytes_remaining;
     ftfl_busy_wait();
@@ -165,30 +165,30 @@ static uint32_t address_for_block(unsigned blockNum)
     return starting_offset + (blockNum * BLOCK_SIZE);
 }
 
-// If requested, erase sectors before loading new code.
-static void pre_clear_next_block(void) {
-#pragma warning "Support for sector erasing has been disabled"
-#if 0
-    // If there is another sector to clear, do that.
-    while (++tb_state.clear_current < 64) {
-        if (tb_state.clear_current < 32) {
-            if ((tb_state.clear_lo & (1 << tb_state.clear_current))) {
-                ftfl_begin_erase_sector(tb_state.clear_current * 1024);
-                return;
-            }
-        }
-        else if (tb_state.clear_current < 64) {
-            if ((tb_state.clear_hi & (1 << (tb_state.clear_current & 31)))) {
-                ftfl_begin_erase_sector(tb_state.clear_current * 1024);
-                return;
-            }
-        }
-    }
-#endif
-    // No more sectors to clear, continue with programming
-    tb_state.state = tbsLOADING;
-    ftfl_begin_erase_sector(tb_state.next_addr);
-}
+// // If requested, erase sectors before loading new code.
+// static void pre_clear_next_block(void) {
+// #pragma warning "Support for sector erasing has been disabled"
+// #if 0
+//     // If there is another sector to clear, do that.
+//     while (++tb_state.clear_current < 64) {
+//         if (tb_state.clear_current < 32) {
+//             if ((tb_state.clear_lo & (1 << tb_state.clear_current))) {
+//                 ftfl_begin_erase_sector(tb_state.clear_current * 1024);
+//                 return;
+//             }
+//         }
+//         else if (tb_state.clear_current < 64) {
+//             if ((tb_state.clear_hi & (1 << (tb_state.clear_current & 31)))) {
+//                 ftfl_begin_erase_sector(tb_state.clear_current * 1024);
+//                 return;
+//             }
+//         }
+//     }
+// #endif
+//     // No more sectors to clear, continue with programming
+//     tb_state.state = tbsLOADING;
+//     ftfl_begin_erase_sector(tb_state.next_addr);
+// }
 
 void dfu_init(void)
 {
@@ -201,9 +201,9 @@ uint8_t dfu_getstate(void)
 }
 
 bool dfu_download(unsigned blockNum, unsigned blockLength,
-    unsigned packetOffset, unsigned packetLength, const uint8_t *data)
+                  unsigned packetOffset, unsigned packetLength, const uint8_t *data)
 {
-    uint32_t i;
+    // uint32_t i;
 
     if (packetOffset + packetLength > DFU_TRANSFER_SIZE ||
         packetOffset + packetLength > blockLength) {
@@ -227,7 +227,7 @@ bool dfu_download(unsigned blockNum, unsigned blockLength,
         return false;
     }
 
-    if (ftfl_busy() || fl_state != flsIDLE) {
+    if (ftfl_busy() || (fl_state != flsIDLE)) {
         // Flash controller shouldn't be busy now!
         set_state(dfuERROR, errUNKNOWN);
         return false;       
@@ -244,6 +244,7 @@ bool dfu_download(unsigned blockNum, unsigned blockLength,
     fl_current_addr = address_for_block(blockNum);
     dfu_bytes_remaining = blockLength;
 
+#if 0
     // If it's the first block, figure out what we need to do in terms of erasing
     // data and programming the new file.
     if (blockNum == 0) {
@@ -310,7 +311,8 @@ bool dfu_download(unsigned blockNum, unsigned blockLength,
         }
     }
     else
-        ftfl_begin_erase_sector(fl_current_addr);
+#endif
+    ftfl_begin_erase_sector(fl_current_addr);
 
     set_state(dfuDNLOAD_SYNC, OK);
     return true;
@@ -320,38 +322,33 @@ static void fl_state_poll(void)
 {
     // Try to advance the state of our own flash programming state machine.
 
-    int spi_is_busy = spiIsBusy(spi);
+    if (spiIsBusy(spi))
+        return;
 
     switch (fl_state) {
 
-        case flsIDLE:
-            break;
+    case flsIDLE:
+        break;
 
-        case flsERASING:
-            if (spi_is_busy)
-                break;
+    case flsERASING:
+        // // If we're still pre-clearing, continue with that.
+        // if (tb_state.state == tbsCLEARING) {
+        //     pre_clear_next_block();
+        // }
+        // // Done! Move on to programming the sector.
+        // else {
+        fl_state = flsPROGRAMMING;
+        ftfl_begin_program_section(fl_current_addr);
+        // }
+        break;
 
-            // If we're still pre-clearing, continue with that.
-            if (tb_state.state == tbsCLEARING) {
-                pre_clear_next_block();
-            }
-            // Done! Move on to programming the sector.
-            else {
-                fl_state = flsPROGRAMMING;
-                ftfl_begin_program_section(fl_current_addr);
-            }
-            break;
-
-        case flsPROGRAMMING:
-            if (spi_is_busy)
-                break;
-
-            // Program more blocks, if applicable
-            if (dfu_bytes_remaining)
-                ftfl_write_more_bytes();
-            else
-                fl_state = flsIDLE;
-            break;
+    case flsPROGRAMMING:
+        // Program more blocks, if applicable
+        if (dfu_bytes_remaining)
+            ftfl_write_more_bytes();
+        else
+            fl_state = flsIDLE;
+        break;
     }
 }
 
@@ -367,9 +364,9 @@ bool dfu_getstatus(uint8_t status[8])
             if (dfu_state == dfuERROR) {
                 // An error occurred inside fl_state_poll();
             } else if (fl_state == flsIDLE) {
-                dfu_state = dfuDNLOAD_IDLE;
+                set_state(dfuDNLOAD_IDLE, OK);
             } else {
-                dfu_state = dfuDNBUSY;
+                set_state(dfuDNBUSY, OK);
             }
             break;
 

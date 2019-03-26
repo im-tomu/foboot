@@ -1,11 +1,12 @@
+#include <unistd.h>
 #include "toboot-api.h"
 #include "toboot-internal.h"
 
-#define XXH_NO_LONG_LONG
-#define XXH_FORCE_ALIGN_CHECK 0
-#define XXH_FORCE_NATIVE_FORMAT 0
-#define XXH_PRIVATE_API
-#include "xxhash.h"
+// #define XXH_NO_LONG_LONG
+// #define XXH_FORCE_ALIGN_CHECK 0
+// #define XXH_FORCE_NATIVE_FORMAT 0
+// #define XXH_PRIVATE_API
+// #include "xxhash.h"
 
 static const struct toboot_configuration *current_config = NULL;
 
@@ -119,7 +120,7 @@ uint32_t tb_generation(const struct toboot_configuration *cfg) {
         return 0;
     return cfg->reserved_gen;
 }
-
+/*
 __attribute__ ((used, section(".toboot_configuration"))) struct toboot_configuration toboot_configuration = {
     .magic = TOBOOT_V2_MAGIC,
 
@@ -136,3 +137,4 @@ __attribute__ ((used, section(".toboot_configuration"))) struct toboot_configura
     .erase_mask_hi = 0,
     .reserved_hash = 0,
 };
+*/
