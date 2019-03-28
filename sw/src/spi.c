@@ -24,7 +24,7 @@ static void gpioSetMode(int pin, int mode) {
         oe_mirror |= 1 << pin;
     else
         oe_mirror &= ~(1 << pin);
-    picospi_oe_write(oe_mirror);
+    bbspi_oe_write(oe_mirror);
 }
 
 static void gpioWrite(int pin, int val) {
@@ -32,11 +32,11 @@ static void gpioWrite(int pin, int val) {
         do_mirror |= 1 << pin;
     else
         do_mirror &= ~(1 << pin);
-    picospi_do_write(do_mirror);
+    bbspi_do_write(do_mirror);
 }
 
 static int gpioRead(int pin) {
-    return !!(picospi_di_read() & (1 << pin));
+    return !!(bbspi_di_read() & (1 << pin));
 }
 
 #define SPI_ONLY_SINGLE

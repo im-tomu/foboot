@@ -12,6 +12,33 @@ extern uint32_t csr_readl(uint32_t addr);
 #include <hw/common.h>
 #endif /* ! CSR_ACCESSORS_DEFINED */
 
+/* bbspi */
+#define CSR_BBSPI_BASE 0xe0005000
+#define CSR_BBSPI_DO_ADDR 0xe0005000
+#define CSR_BBSPI_DO_SIZE 1
+static inline unsigned char bbspi_do_read(void) {
+	unsigned char r = csr_readl(0xe0005000);
+	return r;
+}
+static inline void bbspi_do_write(unsigned char value) {
+	csr_writel(value, 0xe0005000);
+}
+#define CSR_BBSPI_OE_ADDR 0xe0005004
+#define CSR_BBSPI_OE_SIZE 1
+static inline unsigned char bbspi_oe_read(void) {
+	unsigned char r = csr_readl(0xe0005004);
+	return r;
+}
+static inline void bbspi_oe_write(unsigned char value) {
+	csr_writel(value, 0xe0005004);
+}
+#define CSR_BBSPI_DI_ADDR 0xe0005008
+#define CSR_BBSPI_DI_SIZE 1
+static inline unsigned char bbspi_di_read(void) {
+	unsigned char r = csr_readl(0xe0005008);
+	return r;
+}
+
 /* ctrl */
 #define CSR_CTRL_BASE 0xe0000000
 #define CSR_CTRL_RESET_ADDR 0xe0000000
@@ -54,31 +81,16 @@ static inline unsigned int ctrl_bus_errors_read(void) {
 	return r;
 }
 
-/* picospi */
-#define CSR_PICOSPI_BASE 0xe0005000
-#define CSR_PICOSPI_DO_ADDR 0xe0005000
-#define CSR_PICOSPI_DO_SIZE 1
-static inline unsigned char picospi_do_read(void) {
-	unsigned char r = csr_readl(0xe0005000);
+/* reboot */
+#define CSR_REBOOT_BASE 0xe0005800
+#define CSR_REBOOT_CTRL_ADDR 0xe0005800
+#define CSR_REBOOT_CTRL_SIZE 1
+static inline unsigned char reboot_ctrl_read(void) {
+	unsigned char r = csr_readl(0xe0005800);
 	return r;
 }
-static inline void picospi_do_write(unsigned char value) {
-	csr_writel(value, 0xe0005000);
-}
-#define CSR_PICOSPI_OE_ADDR 0xe0005004
-#define CSR_PICOSPI_OE_SIZE 1
-static inline unsigned char picospi_oe_read(void) {
-	unsigned char r = csr_readl(0xe0005004);
-	return r;
-}
-static inline void picospi_oe_write(unsigned char value) {
-	csr_writel(value, 0xe0005004);
-}
-#define CSR_PICOSPI_DI_ADDR 0xe0005008
-#define CSR_PICOSPI_DI_SIZE 1
-static inline unsigned char picospi_di_read(void) {
-	unsigned char r = csr_readl(0xe0005008);
-	return r;
+static inline void reboot_ctrl_write(unsigned char value) {
+	csr_writel(value, 0xe0005800);
 }
 
 /* timer0 */
@@ -175,78 +187,6 @@ static inline unsigned char timer0_ev_enable_read(void) {
 }
 static inline void timer0_ev_enable_write(unsigned char value) {
 	csr_writel(value, 0xe0002840);
-}
-
-/* uart */
-#define CSR_UART_BASE 0xe0001800
-#define CSR_UART_RXTX_ADDR 0xe0001800
-#define CSR_UART_RXTX_SIZE 1
-static inline unsigned char uart_rxtx_read(void) {
-	unsigned char r = csr_readl(0xe0001800);
-	return r;
-}
-static inline void uart_rxtx_write(unsigned char value) {
-	csr_writel(value, 0xe0001800);
-}
-#define CSR_UART_TXFULL_ADDR 0xe0001804
-#define CSR_UART_TXFULL_SIZE 1
-static inline unsigned char uart_txfull_read(void) {
-	unsigned char r = csr_readl(0xe0001804);
-	return r;
-}
-#define CSR_UART_RXEMPTY_ADDR 0xe0001808
-#define CSR_UART_RXEMPTY_SIZE 1
-static inline unsigned char uart_rxempty_read(void) {
-	unsigned char r = csr_readl(0xe0001808);
-	return r;
-}
-#define CSR_UART_EV_STATUS_ADDR 0xe000180c
-#define CSR_UART_EV_STATUS_SIZE 1
-static inline unsigned char uart_ev_status_read(void) {
-	unsigned char r = csr_readl(0xe000180c);
-	return r;
-}
-static inline void uart_ev_status_write(unsigned char value) {
-	csr_writel(value, 0xe000180c);
-}
-#define CSR_UART_EV_PENDING_ADDR 0xe0001810
-#define CSR_UART_EV_PENDING_SIZE 1
-static inline unsigned char uart_ev_pending_read(void) {
-	unsigned char r = csr_readl(0xe0001810);
-	return r;
-}
-static inline void uart_ev_pending_write(unsigned char value) {
-	csr_writel(value, 0xe0001810);
-}
-#define CSR_UART_EV_ENABLE_ADDR 0xe0001814
-#define CSR_UART_EV_ENABLE_SIZE 1
-static inline unsigned char uart_ev_enable_read(void) {
-	unsigned char r = csr_readl(0xe0001814);
-	return r;
-}
-static inline void uart_ev_enable_write(unsigned char value) {
-	csr_writel(value, 0xe0001814);
-}
-
-/* uart_phy */
-#define CSR_UART_PHY_BASE 0xe0001000
-#define CSR_UART_PHY_TUNING_WORD_ADDR 0xe0001000
-#define CSR_UART_PHY_TUNING_WORD_SIZE 4
-static inline unsigned int uart_phy_tuning_word_read(void) {
-	unsigned int r = csr_readl(0xe0001000);
-	r <<= 8;
-	r |= csr_readl(0xe0001004);
-	r <<= 8;
-	r |= csr_readl(0xe0001008);
-	r <<= 8;
-	r |= csr_readl(0xe000100c);
-	return r;
-}
-static inline void uart_phy_tuning_word_write(unsigned int value) {
-	csr_writel(value >> 24, 0xe0001000);
-	csr_writel(value >> 16, 0xe0001004);
-	csr_writel(value >> 8, 0xe0001008);
-	csr_writel(value, 0xe000100c);
 }
 
 /* usb */

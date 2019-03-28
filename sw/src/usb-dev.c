@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <usb.h>
 #include <dfu.h>
-
+#include <system.h>
 #include <printf.h>
 
 #include <usb-desc.h>
@@ -10,7 +10,7 @@
 static uint8_t reply_buffer[8];
 static uint8_t usb_configuration = 0;
 #define USB_MAX_PACKET_SIZE 64
-static uint8_t rx_buffer[USB_MAX_PACKET_SIZE];
+static uint32_t rx_buffer[USB_MAX_PACKET_SIZE/4];
 
 void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
 {
@@ -167,20 +167,37 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
         int bytes_remaining = setup->wLength;
         int ep0_rx_offset = 0;
         while (bytes_remaining > 0) {
+
             // Fill the buffer, or if there is enough space transfer the whole packet.
             unsigned int len = setup->wLength;
             if (len > sizeof(rx_buffer))
                 len = sizeof(rx_buffer);
+            unsigned int i;
+            for (i = 0; i < sizeof(rx_buffer)/4; i++)
+                rx_buffer[i] = 0xffffffff;
 
             // Receive DATA packets (which are automatically ACKed)
-            usb_recv(dev, rx_buffer, len);
+            len = usb_recv(dev, (void *)rx_buffer, len);
 
             // Append the data to the download buffer.
-            dfu_download(setup->wValue, setup->wLength, ep0_rx_offset, len, rx_buffer);
+            dfu_download(setup->wValue, setup->wLength, ep0_rx_offset, len, (void *)rx_buffer);
 
             bytes_remaining -= len;
             ep0_rx_offset += len;
         }
+        return;
+
+    case 0x0021: // DFU_DETACH
+        // Send the "ACK" packet and wait for it
+        // to be received.
+        usb_ack(dev, 0);
+        usb_wait_for_send_done(dev);
+        usb_disconnect();
+
+        // Issue a reboot
+        reboot_to_image(1);
+        while (1)
+           ;
         return;
 
     case 0x03a1: // DFU_GETSTATUS

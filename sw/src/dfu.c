@@ -73,7 +73,7 @@ static struct toboot_state {
 
 static dfu_state_t dfu_state = dfuIDLE;
 static dfu_status_t dfu_status = OK;
-static unsigned dfu_poll_timeout = 1;
+static unsigned dfu_poll_timeout_ms = 100;
 
 static uint32_t dfu_buffer[DFU_TRANSFER_SIZE/4];
 static uint32_t dfu_buffer_offset;
@@ -200,10 +200,18 @@ uint8_t dfu_getstate(void)
     return dfu_state;
 }
 
+unsigned last_blockNum;
+unsigned last_blockLength;
+unsigned last_packetOffset;
+unsigned last_packetLength;
 bool dfu_download(unsigned blockNum, unsigned blockLength,
                   unsigned packetOffset, unsigned packetLength, const uint8_t *data)
 {
     // uint32_t i;
+    last_packetLength = packetLength;
+    last_packetOffset = packetOffset;
+    last_blockLength = blockLength;
+    last_blockNum = blockNum;
 
     if (packetOffset + packetLength > DFU_TRANSFER_SIZE ||
         packetOffset + packetLength > blockLength) {
@@ -374,13 +382,13 @@ bool dfu_getstatus(uint8_t status[8])
             // Ready to reboot. The main thread will take care of this. Also let the DFU tool
             // know to leave us alone until this happens.
             dfu_state = dfuMANIFEST;
-            dfu_poll_timeout = 10;
+            dfu_poll_timeout_ms = 10;
             break;
 
         case dfuMANIFEST:
             // Perform the reboot
             dfu_state = dfuMANIFEST_WAIT_RESET;
-            dfu_poll_timeout = 1000;
+            dfu_poll_timeout_ms = 1000;
             break;
 
         default:
@@ -388,9 +396,9 @@ bool dfu_getstatus(uint8_t status[8])
     }
 
     status[0] = dfu_status;
-    status[1] = dfu_poll_timeout;
-    status[2] = dfu_poll_timeout >> 8;
-    status[3] = dfu_poll_timeout >> 16;
+    status[1] = dfu_poll_timeout_ms;
+    status[2] = dfu_poll_timeout_ms >> 8;
+    status[3] = dfu_poll_timeout_ms >> 16;
     status[4] = dfu_state;
     status[5] = 0;  // iString
 

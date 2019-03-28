@@ -4,6 +4,7 @@
 #include <string.h>
 #include <printf.h>
 #include <uart.h>
+#include <usb.h>
 
 #ifdef CSR_USB_EP_0_OUT_EV_PENDING_ADDR
 
@@ -39,6 +40,10 @@ enum epfifo_response {
 #define USB_EV_ERROR 1
 #define USB_EV_PACKET 2
 
+void usb_disconnect(void) {
+    usb_pullup_out_write(0);
+}
+
 void usb_connect(void) {
 
     usb_ep_0_out_ev_pending_write(usb_ep_0_out_ev_enable_read());
@@ -56,6 +61,7 @@ void usb_connect(void) {
 }
 
 void usb_init(void) {
+    usb_pullup_out_write(0);
     return;
 }
 
@@ -115,6 +121,14 @@ int usb_send(struct usb_device *dev, int epnum, const void *data, int total_coun
     return 0;
 }
 
+int usb_wait_for_send_done(struct usb_device *dev) {
+    while (current_data && current_length)
+        usb_poll(dev);
+    while (usb_ep_0_in_respond_read() == EPF_ACK)
+        ;
+    return 0;
+}
+
 void usb_isr(void) {
     irq_count++;
     uint8_t ep0o_pending = usb_ep_0_out_ev_pending_read();
@@ -133,7 +147,7 @@ void usb_isr(void) {
             usb_ep_0_out_obuf_head_write(0);
         }
         usb_ep_0_out_ev_pending_write(ep0o_pending);
-        usb_ep0out_buffer_len[usb_ep0out_wr_ptr] = byte_count;
+        usb_ep0out_buffer_len[usb_ep0out_wr_ptr] = byte_count - 2 /* Strip off CRC16 */;
         usb_ep0out_wr_ptr = (usb_ep0out_wr_ptr + 1) & (EP0OUT_BUFFERS-1);
 
         if (last_tok == USB_PID_SETUP) {
@@ -154,6 +168,7 @@ void usb_isr(void) {
 
         usb_ep_0_in_respond_write(EPF_NAK);
     }
+    
     return;
 }
 
@@ -214,7 +229,8 @@ int usb_recv(struct usb_device *dev, void *buffer, unsigned int buffer_len) {
     return 0;
 }
 
-void usb_poll(void) {
+void usb_poll(struct usb_device *dev) {
+    (void)dev;
     // If some data was received, then process it.
     if (usb_ep0out_rd_ptr != usb_ep0out_wr_ptr) {
         const struct usb_setup_request *request = (const struct usb_setup_request *)(usb_ep0out_buffer[usb_ep0out_rd_ptr]);

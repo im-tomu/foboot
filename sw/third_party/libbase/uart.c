@@ -3,6 +3,7 @@
 #include <generated/csr.h>
 #include <hw/flags.h>
 
+#ifdef CSR_UART_BASE
 /*
  * Buffer sizes must be a power of 2 so that modulos can be computed
  * with logical AND.
@@ -108,3 +109,7 @@ void uart_sync(void)
 {
 	while(tx_consume != tx_produce);
 }
+#else /* !CSR_UART_BASE */
+void uart_init(void) {}
+void uart_isr(void) {}
+#endif
