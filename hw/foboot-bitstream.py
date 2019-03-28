@@ -77,95 +77,130 @@ _io = [
 _connectors = []
 
 class _CRG(Module):
-    def __init__(self, platform):
-        clk48_raw = platform.request("clk48")
-        clk12_raw = Signal()
-        clk48 = Signal()
-        clk12 = Signal()
+    def __init__(self, platform, use_pll=False):
+        if use_pll:
+            clk48_raw = platform.request("clk48")
+            clk12_raw = Signal()
+            clk48 = Signal()
+            clk12 = Signal()
 
-        # Divide clk48 down to clk12, to ensure they're synchronized.
-        # By doing this, we avoid needing clock-domain crossing.
-        clk12_counter = Signal(2)
+            # Divide clk48 down to clk12, to ensure they're synchronized.
+            # By doing this, we avoid needing clock-domain crossing.
+            clk12_counter = Signal(2)
 
-        # # "0b00" Sets 48MHz HFOSC output
-        # # "0b01" Sets 24MHz HFOSC output.
-        # # "0b10" Sets 12MHz HFOSC output.
-        # # "0b11" Sets 6MHz HFOSC output
-        # self.specials += Instance(
-        #     "SB_HFOSC",
-        #     i_CLKHFEN=1,
-        #     i_CLKHFPU=1,
-        #     o_CLKHF=clk12,
-        #     p_CLKHF_DIV="0b10", # 12MHz
-        # )
 
-        self.clock_domains.cd_sys = ClockDomain()
-        self.clock_domains.cd_usb_12 = ClockDomain()
-        self.clock_domains.cd_usb_48 = ClockDomain()
-        self.clock_domains.cd_usb_48_raw = ClockDomain()
+            self.clock_domains.cd_sys = ClockDomain()
+            self.clock_domains.cd_usb_12 = ClockDomain()
+            self.clock_domains.cd_usb_48 = ClockDomain()
+            self.clock_domains.cd_usb_48_raw = ClockDomain()
 
-        platform.add_period_constraint(self.cd_usb_48.clk, 1e9/48e6)
-        platform.add_period_constraint(self.cd_usb_48_raw.clk, 1e9/48e6)
-        platform.add_period_constraint(self.cd_sys.clk, 1e9/12e6)
-        platform.add_period_constraint(self.cd_usb_12.clk, 1e9/12e6)
-        platform.add_period_constraint(clk48, 1e9/48e6)
-        platform.add_period_constraint(clk48_raw, 1e9/48e6)
+            platform.add_period_constraint(self.cd_usb_48.clk, 1e9/48e6)
+            platform.add_period_constraint(self.cd_usb_48_raw.clk, 1e9/48e6)
+            platform.add_period_constraint(self.cd_sys.clk, 1e9/12e6)
+            platform.add_period_constraint(self.cd_usb_12.clk, 1e9/12e6)
+            platform.add_period_constraint(clk48, 1e9/48e6)
+            platform.add_period_constraint(clk48_raw, 1e9/48e6)
 
-        self.reset = Signal()
+            self.reset = Signal()
 
-        # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
-        # reset.
-        self.clock_domains.cd_por = ClockDomain()
-        reset_delay = Signal(12, reset=4095)
-        self.comb += [
-            self.cd_por.clk.eq(self.cd_sys.clk),
-            self.cd_sys.rst.eq(reset_delay != 0),
-            self.cd_usb_12.rst.eq(reset_delay != 0),
-            self.cd_usb_48.rst.eq(reset_delay != 0),
-            # self.cd_usb_48_raw.rst.eq(reset_delay != 0),
-        ]
+            # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
+            # reset.
+            self.clock_domains.cd_por = ClockDomain()
+            reset_delay = Signal(10, reset=1023)
+            self.comb += [
+                self.cd_por.clk.eq(self.cd_sys.clk),
+                self.cd_sys.rst.eq(reset_delay != 0),
+                self.cd_usb_12.rst.eq(reset_delay != 0),
+                self.cd_usb_48.rst.eq(reset_delay != 0),
+                # self.cd_usb_48_raw.rst.eq(reset_delay != 0),
+            ]
 
-        self.comb += self.cd_usb_48_raw.clk.eq(clk48_raw)
-        self.comb += self.cd_usb_48.clk.eq(clk48)
+            self.comb += self.cd_usb_48_raw.clk.eq(clk48_raw)
+            self.comb += self.cd_usb_48.clk.eq(clk48)
 
-        self.sync.usb_48_raw += clk12_counter.eq(clk12_counter + 1)
+            self.sync.usb_48_raw += clk12_counter.eq(clk12_counter + 1)
 
-        self.comb += clk12_raw.eq(clk12_counter[1])
-        self.specials += Instance(
-            "SB_GB",
-            i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk12_raw,
-            o_GLOBAL_BUFFER_OUTPUT=clk12,
-        )
-        platform.add_period_constraint(clk12_raw, 1e9/12e6)
+            self.comb += clk12_raw.eq(clk12_counter[1])
+            self.specials += Instance(
+                "SB_GB",
+                i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk12_raw,
+                o_GLOBAL_BUFFER_OUTPUT=clk12,
+            )
+            platform.add_period_constraint(clk12_raw, 1e9/12e6)
 
-        self.specials += Instance(
-            "SB_PLL40_CORE",
-            # Parameters
-            p_DIVR = 0,
-            p_DIVF = 3,
-            p_DIVQ = 2,
-            p_FILTER_RANGE = 1,
-            p_FEEDBACK_PATH = "PHASE_AND_DELAY",
-            p_DELAY_ADJUSTMENT_MODE_FEEDBACK = "FIXED",
-            p_FDA_FEEDBACK = 15,
-            p_DELAY_ADJUSTMENT_MODE_RELATIVE = "FIXED",
-            p_FDA_RELATIVE = 0,
-            p_SHIFTREG_DIV_MODE = 1,
-            p_PLLOUT_SELECT = "SHIFTREG_0deg",
-            p_ENABLE_ICEGATE = 0,
-            # IO
-            i_REFERENCECLK = clk12,
-            # o_PLLOUTCORE = clk12,
-            o_PLLOUTGLOBAL = clk48,
-            #i_EXTFEEDBACK,
-            #i_DYNAMICDELAY,
-            #o_LOCK,
-            i_BYPASS = 0,
-            i_RESETB = 1,
-            #i_LATCHINPUTVALUE,
-            #o_SDO,
-            #i_SDI,
-        )
+            self.specials += Instance(
+                "SB_PLL40_CORE",
+                # Parameters
+                p_DIVR = 0,
+                p_DIVF = 3,
+                p_DIVQ = 2,
+                p_FILTER_RANGE = 1,
+                p_FEEDBACK_PATH = "PHASE_AND_DELAY",
+                p_DELAY_ADJUSTMENT_MODE_FEEDBACK = "FIXED",
+                p_FDA_FEEDBACK = 15,
+                p_DELAY_ADJUSTMENT_MODE_RELATIVE = "FIXED",
+                p_FDA_RELATIVE = 0,
+                p_SHIFTREG_DIV_MODE = 1,
+                p_PLLOUT_SELECT = "SHIFTREG_0deg",
+                p_ENABLE_ICEGATE = 0,
+                # IO
+                i_REFERENCECLK = clk12,
+                # o_PLLOUTCORE = clk12,
+                o_PLLOUTGLOBAL = clk48,
+                #i_EXTFEEDBACK,
+                #i_DYNAMICDELAY,
+                #o_LOCK,
+                i_BYPASS = 0,
+                i_RESETB = 1,
+                #i_LATCHINPUTVALUE,
+                #o_SDO,
+                #i_SDI,
+            )
+        else:
+            clk48_raw = platform.request("clk48")
+            clk12_raw = Signal()
+            clk48 = Signal()
+            clk12 = Signal()
+
+            self.clock_domains.cd_sys = ClockDomain()
+            self.clock_domains.cd_usb_12 = ClockDomain()
+            self.clock_domains.cd_usb_48 = ClockDomain()
+
+            platform.add_period_constraint(self.cd_usb_48.clk, 1e9/48e6)
+            platform.add_period_constraint(self.cd_sys.clk, 1e9/12e6)
+            platform.add_period_constraint(self.cd_usb_12.clk, 1e9/12e6)
+            platform.add_period_constraint(clk48, 1e9/48e6)
+
+            self.reset = Signal()
+
+            # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
+            # reset.
+            self.clock_domains.cd_por = ClockDomain()
+            reset_delay = Signal(10, reset=1023)
+            self.comb += [
+                self.cd_por.clk.eq(self.cd_sys.clk),
+                self.cd_sys.rst.eq(reset_delay != 0),
+                self.cd_usb_12.rst.eq(reset_delay != 0),
+                # self.cd_usb_48.rst.eq(reset_delay != 0),
+            ]
+
+            self.specials += Instance(
+                "SB_GB",
+                i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk48_raw,
+                o_GLOBAL_BUFFER_OUTPUT=clk48,
+            )
+            self.comb += self.cd_usb_48.clk.eq(clk48)
+
+            clk12_counter = Signal(2)
+            self.sync.usb_48 += clk12_counter.eq(clk12_counter + 1)
+
+            self.comb += clk12_raw.eq(clk12_counter[1])
+            platform.add_period_constraint(clk12_raw, 1e9/12e6)
+            self.specials += Instance(
+                "SB_GB",
+                i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk12_raw,
+                o_GLOBAL_BUFFER_OUTPUT=clk12,
+            )
 
         self.comb += self.cd_sys.clk.eq(clk12)
         self.comb += self.cd_usb_12.clk.eq(clk12)
@@ -202,6 +237,13 @@ class RandomFirmwareROM(wishbone.SRAM):
             data.append(seed)
         wishbone.SRAM.__init__(self, size, read_only=True, init=data)
 
+class FirmwareROM(wishbone.SRAM):
+    def __init__(self, size, filename):
+        data = []
+        with open(filename, 'rb') as inp:
+            data = inp.read()
+        wishbone.SRAM.__init__(self, size, read_only=True, init=data)
+
 class Platform(LatticePlatform):
     default_clk_name = "clk48"
     default_clk_period = 20.833
@@ -210,35 +252,43 @@ class Platform(LatticePlatform):
 
     def __init__(self, toolchain="icestorm"):
         LatticePlatform.__init__(self, "ice40-up5k-sg48", _io, _connectors, toolchain="icestorm")
-        # Add "-relut -dffe_min_ce_use 4" to the synth_ice40 command.
-        # The "-reult" adds an additional LUT pass to pack more stuff in,
-        # and the "-dffe_min_ce_use 4" flag prevents Yosys from generating a
-        # Clock Enable signal for a LUT that has fewer than 4 flip-flops.
-        # This increases density, and lets us use the FPGA more efficiently.
-        for i in range(len(self.toolchain.nextpnr_yosys_template)):
-            entry = self.toolchain.nextpnr_yosys_template[i]
-            if "synth_ice40" in entry:
-                self.toolchain.nextpnr_yosys_template[i] = entry + " -dsp -relut -dffe_min_ce_use 4"
+
     def create_programmer(self):
         raise ValueError("programming is not supported")
 
     # def do_finalize(self, fragment):
         # LatticePlatform.do_finalize(self, fragment)
 
-class PicoSoCSpi(Module, AutoCSR):
+class SBWarmBoot(Module, AutoCSR):
+    def __init__(self):
+        self.ctrl = CSRStorage(size=8)
+        do_reset = Signal()
+        self.comb += [
+            # "Reset Key" is 0xac
+            do_reset.eq(self.ctrl.storage[2] & self.ctrl.storage[3] & ~self.ctrl.storage[4]
+                      & self.ctrl.storage[5] & ~self.ctrl.storage[6] & self.ctrl.storage[7])
+        ]
+        self.specials += Instance("SB_WARMBOOT",
+            i_BOOT=do_reset,
+            i_S0 = self.ctrl.storage[0],
+            i_S1 = self.ctrl.storage[1]
+        )
+
+
+class BBSpi(Module, AutoCSR):
     def __init__(self, platform, pads):
         self.reset = Signal()
-        self.rdata = Signal(32)
-        self.addr = Signal(24)
-        self.ready = Signal()
-        self.valid = Signal()
+        # self.rdata = Signal(32)
+        # self.addr = Signal(24)
+        # self.ready = Signal()
+        # self.valid = Signal()
 
-        self.flash_csb = Signal()
-        self.flash_clk = Signal()
+        # self.flash_csb = Signal()
+        # self.flash_clk = Signal()
 
-        cfgreg_we = Signal(4)
-        cfgreg_di = Signal(32)
-        cfgreg_do = Signal(32)
+        # cfgreg_we = Signal(4)
+        # cfgreg_di = Signal(32)
+        # cfgreg_do = Signal(32)
 
         mosi_pad = TSTriple()
         miso_pad = TSTriple()
@@ -254,7 +304,7 @@ class PicoSoCSpi(Module, AutoCSR):
 
         # cfg_remapped = Cat(self.cfg.storage[0:7], Signal(7), self.cfg.storage[7])
 
-        self.comb += self.reset.eq(0)
+        # self.comb += self.reset.eq(0)
         # self.comb += [
         #     cfgreg_di.eq(Cat(self.do.storage, Replicate(2, 0), # Attach "DO" to lower 6 bits
         #                      self.oe.storage, Replicate(4, 0), # Attach "OE" to bits 8-11
@@ -326,7 +376,8 @@ class BaseSoC(SoCCore):
     csr_peripherals = [
         "cpu_or_bridge",
         "usb",
-        "picospi",
+        "bbspi",
+        "reboot",
     ]
     csr_map_update(SoCCore.csr_map, csr_peripherals)
 
@@ -340,18 +391,21 @@ class BaseSoC(SoCCore):
     }
     interrupt_map.update(SoCCore.interrupt_map)
 
-    def __init__(self, platform, boot_source="random_rom", debug=False, **kwargs):
+    def __init__(self, platform, boot_source="random_rom", debug=False, bios_file=None, use_pll=True, **kwargs):
         # Disable integrated RAM as we'll add it later
         self.integrated_sram_size = 0
 
         clk_freq = int(12e6)
-        self.submodules.crg = _CRG(platform)
+        self.submodules.crg = _CRG(platform, use_pll)
 
-        SoCCore.__init__(self, platform, clk_freq, integrated_sram_size=0, **kwargs)
+        SoCCore.__init__(self, platform, clk_freq, integrated_sram_size=0, with_uart=False, **kwargs)
 
         if debug:
-            self.cpu.use_external_variant("vexriscv-2-stage-with-debug.v")
+            from litex.soc.cores.uart import UARTWishboneBridge
+            self.cpu.use_external_variant("2-stage-1024-cache-debug.v")
             self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x10)
+            self.submodules.uart_bridge = UARTWishboneBridge(platform.request("serial"), clk_freq, baudrate=115200)
+            self.add_wb_master(self.uart_bridge.wishbone)
 
         # SPRAM- UP5K has single port RAM, might as well use it as SRAM to
         # free up scarce block RAM.
@@ -367,8 +421,15 @@ class BaseSoC(SoCCore):
             self.register_rom(self.random_rom.bus, bios_size)
         elif boot_source == "bios_rom":
             kwargs['cpu_reset_address']=0
-            bios_size = 0x2000
-            self.add_memory_region("rom", kwargs['cpu_reset_address'], bios_size)
+            if bios_file is None:
+                bios_size = 0x2000
+                self.add_memory_region("rom", kwargs['cpu_reset_address'], bios_size)
+            else:
+                bios_size = 0x2000
+                self.submodules.firmware_rom = FirmwareROM(bios_size, bios_file)
+                self.add_constant("ROM_DISABLE", 1)
+                self.register_rom(self.firmware_rom.bus, bios_size)
+
         elif boot_source == "spi_rom":
             bios_size = 0x8000
             kwargs['cpu_reset_address']=self.mem_map["spiflash"]+platform.gateware_size
@@ -383,9 +444,11 @@ class BaseSoC(SoCCore):
         else:
             raise ValueError("unrecognized boot_source: {}".format(boot_source))
 
-        # Add SPI Flash module, based on PicoSoC
+        # Add a simple bit-banged SPI Flash module
         spi_pads = platform.request("spiflash")
-        self.submodules.picospi = PicoSoCSpi(platform, spi_pads)
+        self.submodules.bbspi = BBSpi(platform, spi_pads)
+
+        self.submodules.reboot = SBWarmBoot()
 
         # Add USB pads
         usb_pads = platform.request("usb")
@@ -394,50 +457,127 @@ class BaseSoC(SoCCore):
         # self.submodules.usb = epmem.MemInterface(usb_iobuf)
         # self.submodules.usb = unififo.UsbUniFifo(usb_iobuf)
 
+        # Add "-relut -dffe_min_ce_use 4" to the synth_ice40 command.
+        # The "-reult" adds an additional LUT pass to pack more stuff in,
+        # and the "-dffe_min_ce_use 4" flag prevents Yosys from generating a
+        # Clock Enable signal for a LUT that has fewer than 4 flip-flops.
+        # This increases density, and lets us use the FPGA more efficiently.
+        platform.toolchain.nextpnr_yosys_template[2] += " -dsp -relut -dffe_min_ce_use 5"
+
         # Disable final deep-sleep power down so firmware words are loaded
         # onto softcore's address bus.
         platform.toolchain.build_template[3] = "icepack -s {build_name}.txt {build_name}.bin"
         platform.toolchain.nextpnr_build_template[2] = "icepack -s {build_name}.txt {build_name}.bin"
 
+        # # Add a "Multiboot" variant
+        # platform.toolchain.nextpnr_build_template[3] = "icepack -s {build_name}.txt {build_name}-multi.bin"
+
+def make_multiboot_header(filename, boot_offsets=[128]):
+    """
+    ICE40 allows you to program the SB_WARMBOOT state machine by adding the following
+    values to the bitstream, before any given image:
+
+    [7e aa 99 7e]       Sync Header
+    [92 00 k0]          Boot mode (k = 1 for cold boot, 0 for warmboot)
+    [44 03 o1 o2 o3]    Boot address
+    [82 00 00]          Bank offset
+    [01 08]             Reboot
+
+    Note that in ICE40, the second nybble indicates the number of remaining bytes
+    (with the exception of the sync header)
+    """
+    with open(filename, 'wb') as output:
+        for offset in boot_offsets:
+            # Sync Header
+            output.write(bytes([0x7e, 0xaa, 0x99, 0x7e]))
+
+            # Boot mode
+            output.write(bytes([0x92, 0x00, 0x00]))
+
+            # Boot address
+            output.write(bytes([0x44, 0x03,
+                    (offset >> 16) & 0xff,
+                    (offset >> 8)  & 0xff,
+                    (offset >> 0)  & 0xff]))
+
+            # Bank offset
+            output.write(bytes([0x82, 0x00, 0x00]))
+
+            # Reboot command
+            output.write(bytes([0x01, 0x08]))
+
+            for x in range(17, 32):
+                output.write(bytes([0]))
+
 def main():
+    # make_multiboot_header("multiboot", [128, 262144, 524288, 524288*2])
+    # import sys
+    # sys.exit(0)
     platform = Platform()
 
     parser = argparse.ArgumentParser(
-        description="Build Fomu Main Gateware",
-        add_help=False)
+        description="Build Fomu Main Gateware")
     parser.add_argument(
-        "--bios", help="use bios as boot source", action="store_true"
+        "--boot-source", choices=["spi", "rand", "bios"], default="rand"
     )
     parser.add_argument(
-        "--rand", help="use random data as boot source", action="store_false"
-    )
-    parser.add_argument(
-        "--spi", help="boot from spi", action="store_true"
+        "--bios", help="use specified file as a BIOS, rather than building one"
     )
     parser.add_argument(
         "--with-debug", help="enable debug support", action="store_true"
     )
-    (args, rest) = parser.parse_known_args()
+    parser.add_argument(
+        "--no-pll", help="disable pll (possibly improving timing)", action="store_false"
+    )
+    parser.add_argument(
+        "--export-random-rom-file", help="Generate a random ROM file and save it to a file"
+    )
+    args = parser.parse_args()
 
-    debug = False
-    cpu_variant = "min"
-    if args.rand:
-        boot_source="random_rom"
-        compile_software=False
-    elif args.bios:
-        boot_source="bios_rom"
-        compile_software=True
-    elif args.spi:
+    if args.export_random_rom_file is not None:
+        size = 0x2000
+        def xorshift32(x):
+            x = x ^ (x << 13) & 0xffffffff
+            x = x ^ (x >> 17) & 0xffffffff
+            x = x ^ (x << 5)  & 0xffffffff
+            return x & 0xffffffff
+
+        def get_rand(x):
+            out = 0
+            for i in range(32):
+                x = xorshift32(x)
+                if (x & 1) == 1:
+                    out = out | (1 << i)
+            return out & 0xffffffff
+        seed = 1
+        with open(args.export_random_rom_file, "w", newline="\n") as output:
+            for d in range(int(size / 4)):
+                seed = get_rand(seed)
+                print("{:08x}".format(seed), file=output)
+        return 0
+
+    bios_file = None
+    compile_software = False
+    if args.boot_source == "rand":
+        boot_source = "random_rom"
+    elif args.boot_source == "bios":
+        boot_source = "bios_rom"
+        if args.bios is not None:
+            bios_file = args.bios
+        else:
+            compile_software = True
+    elif args.boot_source == "spi":
         boot_source = "spi_rom"
-        compile_software = False
+
+    cpu_variant = "min"
+    debug = False
     if args.with_debug:
         cpu_variant = "debug"
         debug = True
-    else:
-        cpu_variant = "min"
-        debug = False
 
-    soc = BaseSoC(platform, cpu_type="vexriscv", cpu_variant=cpu_variant, debug=debug, boot_source=boot_source)
+    soc = BaseSoC(platform, cpu_type="vexriscv", cpu_variant=cpu_variant,
+                            debug=debug, boot_source=boot_source,
+                            bios_file=bios_file, use_pll=not args.no_pll)
     builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv", compile_software=compile_software)
     vns = builder.build()
     soc.do_exit(vns)
