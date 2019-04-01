@@ -34,7 +34,7 @@ from lxsocsupport import up5kspram, spi_flash
 
 import argparse
 
-_io = [
+_io_evt = [
     ("serial", 0,
         Subsignal("rx", Pins("21")),
         Subsignal("tx", Pins("13"), Misc("PULLUP")),
@@ -73,11 +73,38 @@ _io = [
     ),
     ("clk48", 0, Pins("44"), IOStandard("LVCMOS33"))
 ]
+_io_dvt = [
+    ("serial", 0,
+        Subsignal("rx", Pins("C3")),
+        Subsignal("tx", Pins("B3"), Misc("PULLUP")),
+        IOStandard("LVCMOS33")
+    ),
+    ("usb", 0,
+        Subsignal("d_p", Pins("A1")),
+        Subsignal("d_n", Pins("A2")),
+        Subsignal("pullup", Pins("A4")),
+        IOStandard("LVCMOS33")
+    ),
+    ("spiflash", 0,
+        Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
+        Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
+        Subsignal("miso", Pins("E1"), IOStandard("LVCMOS33")),
+        Subsignal("mosi", Pins("F1"), IOStandard("LVCMOS33")),
+        Subsignal("wp",   Pins("F2"), IOStandard("LVCMOS33")),
+        Subsignal("hold", Pins("B1"), IOStandard("LVCMOS33")),
+    ),
+    ("spiflash4x", 0,
+        Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
+        Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
+        Subsignal("dq",   Pins("E1 F1 F2 B1"), IOStandard("LVCMOS33")),
+    ),
+    ("clk48", 0, Pins("F4"), IOStandard("LVCMOS33"))
+]
 
 _connectors = []
 
 class _CRG(Module):
-    def __init__(self, platform, use_pll=False):
+    def __init__(self, platform, use_pll):
         if use_pll:
             clk48_raw = platform.request("clk48")
             clk12_raw = Signal()
@@ -250,28 +277,30 @@ class Platform(LatticePlatform):
 
     gateware_size = 0x20000
 
-    def __init__(self, toolchain="icestorm"):
-        LatticePlatform.__init__(self, "ice40-up5k-sg48", _io, _connectors, toolchain="icestorm")
+    def __init__(self, revision=None, toolchain="icestorm"):
+        if revision == "evt":
+            LatticePlatform.__init__(self, "ice40-up5k-sg48", _io_evt, _connectors, toolchain="icestorm")
+        elif revision == "dvt":
+            LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io_dvt, _connectors, toolchain="icestorm")
+        else:
+            raise ValueError("Unrecognized reivsion: {}.  Known values: evt, dvt".format(revision))
 
     def create_programmer(self):
         raise ValueError("programming is not supported")
 
-    # def do_finalize(self, fragment):
-        # LatticePlatform.do_finalize(self, fragment)
-
 class SBWarmBoot(Module, AutoCSR):
     def __init__(self):
-        self.ctrl = CSRStorage(size=8)
-        do_reset = Signal()
-        self.comb += [
-            # "Reset Key" is 0xac
-            do_reset.eq(self.ctrl.storage[2] & self.ctrl.storage[3] & ~self.ctrl.storage[4]
-                      & self.ctrl.storage[5] & ~self.ctrl.storage[6] & self.ctrl.storage[7])
-        ]
+        self.ctrl = CSRStorage(size=3)
+        # do_reset = Signal()
+        # self.comb += [
+        #     # "Reset Key" is 0xac
+        #     do_reset.eq(self.ctrl.storage[2] & self.ctrl.storage[3] & ~self.ctrl.storage[4]
+        #               & self.ctrl.storage[5] & ~self.ctrl.storage[6] & self.ctrl.storage[7])
+        # ]
         self.specials += Instance("SB_WARMBOOT",
-            i_BOOT=do_reset,
-            i_S0 = self.ctrl.storage[0],
-            i_S1 = self.ctrl.storage[1]
+            i_S0   = self.ctrl.storage[0],
+            i_S1   = self.ctrl.storage[1],
+            i_BOOT = self.ctrl.storage[2] & self.ctrl.re,
         )
 
 
@@ -396,16 +425,18 @@ class BaseSoC(SoCCore):
         self.integrated_sram_size = 0
 
         clk_freq = int(12e6)
-        self.submodules.crg = _CRG(platform, use_pll)
+        self.submodules.crg = _CRG(platform, use_pll=use_pll)
 
         SoCCore.__init__(self, platform, clk_freq, integrated_sram_size=0, with_uart=False, **kwargs)
 
         if debug:
-            from litex.soc.cores.uart import UARTWishboneBridge
             self.cpu.use_external_variant("2-stage-1024-cache-debug.v")
+            from litex.soc.cores.uart import UARTWishboneBridge
             self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x10)
             self.submodules.uart_bridge = UARTWishboneBridge(platform.request("serial"), clk_freq, baudrate=115200)
             self.add_wb_master(self.uart_bridge.wishbone)
+        else:
+            self.cpu.use_external_variant("2-stage-1024-cache.v")
 
         # SPRAM- UP5K has single port RAM, might as well use it as SRAM to
         # free up scarce block RAM.
@@ -510,15 +541,15 @@ def make_multiboot_header(filename, boot_offsets=[128]):
                 output.write(bytes([0]))
 
 def main():
-    # make_multiboot_header("multiboot", [128, 262144, 524288, 524288*2])
-    # import sys
-    # sys.exit(0)
-    platform = Platform()
-
     parser = argparse.ArgumentParser(
         description="Build Fomu Main Gateware")
     parser.add_argument(
-        "--boot-source", choices=["spi", "rand", "bios"], default="rand"
+        "--boot-source", choices=["spi", "rand", "bios"], default="rand",
+        help="where to have the CPU obtain its executable code from"
+    )
+    parser.add_argument(
+        "--revision", choices=["dvt", "evt"], required=True,
+        help="build foboot for a particular hardware revision"
     )
     parser.add_argument(
         "--bios", help="use specified file as a BIOS, rather than building one"
@@ -575,9 +606,10 @@ def main():
         cpu_variant = "debug"
         debug = True
 
+    platform = Platform(revision=args.revision)
     soc = BaseSoC(platform, cpu_type="vexriscv", cpu_variant=cpu_variant,
                             debug=debug, boot_source=boot_source,
-                            bios_file=bios_file, use_pll=not args.no_pll)
+                            bios_file=bios_file, use_pll=args.no_pll)
     builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv", compile_software=compile_software)
     vns = builder.build()
     soc.do_exit(vns)
