@@ -58,6 +58,11 @@ _io_evt = [
         Subsignal("p3", Pins("46"), IOStandard("LVCMOS33")),
         Subsignal("p4", Pins("45"), IOStandard("LVCMOS33")),
     ),
+    ("led", 0,
+        Subsignal("rgb0", Pins("39"), IOStandard("LVCMOS33")),
+        Subsignal("rgb1", Pins("40"), IOStandard("LVCMOS33")),
+        Subsignal("rgb2", Pins("41"), IOStandard("LVCMOS33")),
+    ),
     ("spiflash", 0,
         Subsignal("cs_n", Pins("16"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("15"), IOStandard("LVCMOS33")),
@@ -84,6 +89,11 @@ _io_dvt = [
         Subsignal("d_n", Pins("A2")),
         Subsignal("pullup", Pins("A4")),
         IOStandard("LVCMOS33")
+    ),
+    ("led", 0,
+        Subsignal("rgb0", Pins("A5"), IOStandard("LVCMOS33")),
+        Subsignal("rgb1", Pins("B5"), IOStandard("LVCMOS33")),
+        Subsignal("rgb2", Pins("C5"), IOStandard("LVCMOS33")),
     ),
     ("spiflash", 0,
         Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
@@ -133,7 +143,7 @@ class _CRG(Module):
             # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
             # reset.
             self.clock_domains.cd_por = ClockDomain()
-            reset_delay = Signal(10, reset=1023)
+            reset_delay = Signal(14, reset=4095)
             self.comb += [
                 self.cd_por.clk.eq(self.cd_sys.clk),
                 self.cd_sys.rst.eq(reset_delay != 0),
@@ -203,7 +213,7 @@ class _CRG(Module):
             # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
             # reset.
             self.clock_domains.cd_por = ClockDomain()
-            reset_delay = Signal(10, reset=1023)
+            reset_delay = Signal(13, reset=4095)
             self.comb += [
                 self.cd_por.clk.eq(self.cd_sys.clk),
                 self.cd_sys.rst.eq(reset_delay != 0),
@@ -288,19 +298,67 @@ class Platform(LatticePlatform):
     def create_programmer(self):
         raise ValueError("programming is not supported")
 
+class SBLED(Module, AutoCSR):
+    def __init__(self, pads):
+        rgba_pwm = Signal(3)
+
+        self.dat = CSRStorage(8)
+        self.addr = CSRStorage(4)
+        self.ctrl = CSRStorage(4)
+
+        self.specials += Instance("SB_RGBA_DRV",
+            i_CURREN = self.ctrl.storage[1],
+            i_RGBLEDEN = self.ctrl.storage[2],
+            i_RGB0PWM = rgba_pwm[0],
+            i_RGB1PWM = rgba_pwm[1],
+            i_RGB2PWM = rgba_pwm[2],
+            o_RGB0 = pads.rgb0,
+            o_RGB1 = pads.rgb1,
+            o_RGB2 = pads.rgb2,
+            p_CURRENT_MODE = "0b1",
+            p_RGB0_CURRENT = "0b000011",
+            p_RGB1_CURRENT = "0b000001",
+            p_RGB2_CURRENT = "0b000011",
+        )
+
+        self.specials += Instance("SB_LEDDA_IP",
+            i_LEDDCS = self.dat.re,
+            i_LEDDCLK = ClockSignal(),
+            i_LEDDDAT7 = self.dat.storage[7],
+            i_LEDDDAT6 = self.dat.storage[6],
+            i_LEDDDAT5 = self.dat.storage[5],
+            i_LEDDDAT4 = self.dat.storage[4],
+            i_LEDDDAT3 = self.dat.storage[3],
+            i_LEDDDAT2 = self.dat.storage[2],
+            i_LEDDDAT1 = self.dat.storage[1],
+            i_LEDDDAT0 = self.dat.storage[0],
+            i_LEDDADDR3 = self.addr.storage[3],
+            i_LEDDADDR2 = self.addr.storage[2],
+            i_LEDDADDR1 = self.addr.storage[1],
+            i_LEDDADDR0 = self.addr.storage[0],
+            i_LEDDDEN = self.dat.re,
+            i_LEDDEXE = self.ctrl.storage[0],
+            # o_LEDDON = led_is_on, # Indicates whether LED is on or not
+            # i_LEDDRST = ResetSignal(), # This port doesn't actually exist
+            o_PWMOUT0 = rgba_pwm[0], 
+            o_PWMOUT1 = rgba_pwm[1], 
+            o_PWMOUT2 = rgba_pwm[2],
+            o_LEDDON = Signal(), 
+        )
+
 class SBWarmBoot(Module, AutoCSR):
     def __init__(self):
-        self.ctrl = CSRStorage(size=3)
-        # do_reset = Signal()
-        # self.comb += [
-        #     # "Reset Key" is 0xac
-        #     do_reset.eq(self.ctrl.storage[2] & self.ctrl.storage[3] & ~self.ctrl.storage[4]
-        #               & self.ctrl.storage[5] & ~self.ctrl.storage[6] & self.ctrl.storage[7])
-        # ]
+        self.ctrl = CSRStorage(size=8)
+        do_reset = Signal()
+        self.comb += [
+            # "Reset Key" is 0xac
+            do_reset.eq(self.ctrl.storage[2] & self.ctrl.storage[3] & ~self.ctrl.storage[4]
+                      & self.ctrl.storage[5] & ~self.ctrl.storage[6] & self.ctrl.storage[7])
+        ]
         self.specials += Instance("SB_WARMBOOT",
             i_S0   = self.ctrl.storage[0],
             i_S1   = self.ctrl.storage[1],
-            i_BOOT = self.ctrl.storage[2] & self.ctrl.re,
+            i_BOOT = do_reset,
         )
 
 
@@ -407,6 +465,7 @@ class BaseSoC(SoCCore):
         "usb",
         "bbspi",
         "reboot",
+        "rgb",
     ]
     csr_map_update(SoCCore.csr_map, csr_peripherals)
 
@@ -480,6 +539,8 @@ class BaseSoC(SoCCore):
         self.submodules.bbspi = BBSpi(platform, spi_pads)
 
         self.submodules.reboot = SBWarmBoot()
+
+        self.submodules.rgb = SBLED(platform.request("led"))
 
         # Add USB pads
         usb_pads = platform.request("usb")
