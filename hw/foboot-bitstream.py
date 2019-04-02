@@ -420,7 +420,7 @@ class BaseSoC(SoCCore):
     }
     interrupt_map.update(SoCCore.interrupt_map)
 
-    def __init__(self, platform, boot_source="random_rom", debug=False, bios_file=None, use_pll=True, **kwargs):
+    def __init__(self, platform, boot_source="rand", debug=False, bios_file=None, use_pll=True, **kwargs):
         # Disable integrated RAM as we'll add it later
         self.integrated_sram_size = 0
 
@@ -444,13 +444,13 @@ class BaseSoC(SoCCore):
         self.submodules.spram = up5kspram.Up5kSPRAM(size=spram_size)
         self.register_mem("sram", 0x10000000, self.spram.bus, spram_size)
 
-        if boot_source == "random_rom":
+        if boot_source == "rand":
             kwargs['cpu_reset_address']=0
             bios_size = 0x2000
             self.submodules.random_rom = RandomFirmwareROM(bios_size)
             self.add_constant("ROM_DISABLE", 1)
             self.register_rom(self.random_rom.bus, bios_size)
-        elif boot_source == "bios_rom":
+        elif boot_source == "bios":
             kwargs['cpu_reset_address']=0
             if bios_file is None:
                 bios_size = 0x2000
@@ -461,7 +461,7 @@ class BaseSoC(SoCCore):
                 self.add_constant("ROM_DISABLE", 1)
                 self.register_rom(self.firmware_rom.bus, bios_size)
 
-        elif boot_source == "spi_rom":
+        elif boot_source == "spi":
             bios_size = 0x8000
             kwargs['cpu_reset_address']=self.mem_map["spiflash"]+platform.gateware_size
             self.add_memory_region("rom", kwargs['cpu_reset_address'], bios_size)
@@ -587,18 +587,9 @@ def main():
                 print("{:08x}".format(seed), file=output)
         return 0
 
-    bios_file = None
     compile_software = False
-    if args.boot_source == "rand":
-        boot_source = "random_rom"
-    elif args.boot_source == "bios":
-        boot_source = "bios_rom"
-        if args.bios is not None:
-            bios_file = args.bios
-        else:
-            compile_software = True
-    elif args.boot_source == "spi":
-        boot_source = "spi_rom"
+    if args.boot_source == "bios" and args.bios is None:
+        compile_software = True
 
     cpu_variant = "min"
     debug = False
@@ -608,8 +599,8 @@ def main():
 
     platform = Platform(revision=args.revision)
     soc = BaseSoC(platform, cpu_type="vexriscv", cpu_variant=cpu_variant,
-                            debug=debug, boot_source=boot_source,
-                            bios_file=bios_file, use_pll=args.no_pll)
+                            debug=debug, boot_source=args.boot_source,
+                            bios_file=args.bios, use_pll=args.no_pll)
     builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv", compile_software=compile_software)
     vns = builder.build()
     soc.do_exit(vns)
