@@ -5,6 +5,7 @@
 #include <usb.h>
 #include <time.h>
 #include <dfu.h>
+#include <rgb.h>
 #include <spi.h>
 #include <generated/csr.h>
 
@@ -48,6 +49,7 @@ static void init(void)
     usb_init();
     dfu_init();
     time_init();
+    rgb_init();
 
     spi = spiAlloc();
     spiSetPin(spi, SP_MOSI, 0);
@@ -89,11 +91,9 @@ int main(int argc, char **argv)
     init();
 
     usb_connect();
-    int i;
     while (1)
     {
         usb_poll(NULL);
-        i++;
 
     //     if (i > 200)
             // reboot_ctrl_write(0xac);
