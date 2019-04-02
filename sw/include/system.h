@@ -64,7 +64,7 @@ __attribute__((noreturn)) static inline void reboot(void) {
 }
 
 __attribute__((noreturn)) static inline void reboot_to_image(uint8_t image_index) {
-	reboot_ctrl_write(0xac | image_index);
+	reboot_ctrl_write(0xac | (image_index & 3) << 0);
 	while (1);
 }
 #endif /* __SYSTEM_H */
