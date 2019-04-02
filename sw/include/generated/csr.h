@@ -93,6 +93,36 @@ static inline void reboot_ctrl_write(unsigned char value) {
 	csr_writel(value, 0xe0005800);
 }
 
+/* rgb */
+#define CSR_RGB_BASE 0xe0006000
+#define CSR_RGB_DAT_ADDR 0xe0006000
+#define CSR_RGB_DAT_SIZE 1
+static inline unsigned char rgb_dat_read(void) {
+	unsigned char r = csr_readl(0xe0006000);
+	return r;
+}
+static inline void rgb_dat_write(unsigned char value) {
+	csr_writel(value, 0xe0006000);
+}
+#define CSR_RGB_ADDR_ADDR 0xe0006004
+#define CSR_RGB_ADDR_SIZE 1
+static inline unsigned char rgb_addr_read(void) {
+	unsigned char r = csr_readl(0xe0006004);
+	return r;
+}
+static inline void rgb_addr_write(unsigned char value) {
+	csr_writel(value, 0xe0006004);
+}
+#define CSR_RGB_CTRL_ADDR 0xe0006008
+#define CSR_RGB_CTRL_SIZE 1
+static inline unsigned char rgb_ctrl_read(void) {
+	unsigned char r = csr_readl(0xe0006008);
+	return r;
+}
+static inline void rgb_ctrl_write(unsigned char value) {
+	csr_writel(value, 0xe0006008);
+}
+
 /* timer0 */
 #define CSR_TIMER0_BASE 0xe0002800
 #define CSR_TIMER0_LOAD_ADDR 0xe0002800
