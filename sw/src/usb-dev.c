@@ -112,7 +112,7 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
         // printf("%s:%d couldn't find descriptor %04x (%d / %d)\n", __FILE__, __LINE__, setup->wValue, setup->wIndex, setup->wValue);
         usb_err(dev, 0);
         return;
-#if 0
+#if 1
     case (MSFT_VENDOR_CODE << 8) | 0xC0: // Get Microsoft descriptor
     case (MSFT_VENDOR_CODE << 8) | 0xC1:
         if (setup->wIndex == 0x0004)

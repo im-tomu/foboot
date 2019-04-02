@@ -223,7 +223,7 @@ const usb_descriptor_list_t usb_descriptor_list[] = {
     {0x0300, 0, (const uint8_t *)&string0},
     {0x0301, 0, (const uint8_t *)&usb_string_manufacturer_name},
     {0x0302, 0, (const uint8_t *)&usb_string_product_name},
-    // {0x03EE, 0, (const uint8_t *)&usb_string_microsoft},
-    // {0x0F00, sizeof(full_bos), (const uint8_t *)&full_bos},
+    {0x03EE, 0, (const uint8_t *)&usb_string_microsoft},
+    {0x0F00, sizeof(full_bos), (const uint8_t *)&full_bos},
     {0, 0, NULL}
 };
