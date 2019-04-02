@@ -41,6 +41,9 @@ enum epfifo_response {
 #define USB_EV_PACKET 2
 
 void usb_disconnect(void) {
+    usb_ep_0_out_ev_enable_write(0);
+    usb_ep_0_in_ev_enable_write(0);
+    irq_setmask(irq_getmask() & ~(1 << USB_INTERRUPT));
     usb_pullup_out_write(0);
 }
 
