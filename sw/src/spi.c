@@ -32,11 +32,15 @@ static void gpioWrite(int pin, int val) {
         do_mirror |= 1 << pin;
     else
         do_mirror &= ~(1 << pin);
-    bbspi_do_write(do_mirror);
+    // bbspi_do_write(do_mirror);
 }
 
 static int gpioRead(int pin) {
     return !!(bbspi_di_read() & (1 << pin));
+}
+
+static void gpioSync(void) {
+    bbspi_do_write(do_mirror);
 }
 
 #define SPI_ONLY_SINGLE
@@ -161,11 +165,13 @@ void spiBegin(struct ff_spi *spi) {
 		gpioWrite(spi->pins.hold, 1);
 	}
 	gpioWrite(spi->pins.cs, 0);
+	gpioSync();
 }
 
 void spiEnd(struct ff_spi *spi) {
 	(void)spi;
 	gpioWrite(spi->pins.cs, 1);
+	gpioSync();
 }
 
 static uint8_t spiXfer(struct ff_spi *spi, uint8_t out) {

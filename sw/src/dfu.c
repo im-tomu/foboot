@@ -73,7 +73,7 @@ static struct toboot_state {
 
 static dfu_state_t dfu_state = dfuIDLE;
 static dfu_status_t dfu_status = OK;
-static unsigned dfu_poll_timeout_ms = 100;
+static unsigned dfu_poll_timeout_ms = 1;
 
 static uint32_t dfu_buffer[DFU_TRANSFER_SIZE/4];
 static uint32_t dfu_buffer_offset;
