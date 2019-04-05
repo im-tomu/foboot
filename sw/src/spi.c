@@ -154,6 +154,7 @@ static void spi_set_state(struct ff_spi *spi, enum spi_state state) {
 
 void spiPause(struct ff_spi *spi) {
 	(void)spi;
+	gpioSync();
 //	usleep(1);
 	return;
 }
@@ -165,13 +166,11 @@ void spiBegin(struct ff_spi *spi) {
 		gpioWrite(spi->pins.hold, 1);
 	}
 	gpioWrite(spi->pins.cs, 0);
-	gpioSync();
 }
 
 void spiEnd(struct ff_spi *spi) {
 	(void)spi;
 	gpioWrite(spi->pins.cs, 1);
-	gpioSync();
 }
 
 static uint8_t spiXfer(struct ff_spi *spi, uint8_t out) {
@@ -517,39 +516,31 @@ struct spi_id spiId(struct ff_spi *spi) {
 }
 
 static void spi_decode_id(struct ff_spi *spi) {
-#if 0
-	spi->id.manufacturer = "unknown";
-	spi->id.model = "unknown";
-	spi->id.capacity = "unknown";
 	spi->id.bytes = -1; // unknown
 
 	if (spi->id.manufacturer_id == 0xef) {
-		spi->id.manufacturer = "Winbond";
+		// spi->id.manufacturer = "Winbond";
 		if ((spi->id.memory_type == 0x70)
 		 && (spi->id.memory_size == 0x18)) {
-			spi->id.model = "W25Q128JV";
-			spi->id.capacity = "128 Mbit";
+			// spi->id.model = "W25Q128JV";
+			// spi->id.capacity = "128 Mbit";
 			spi->id.bytes = 16 * 1024 * 1024;
 		}
 	}
 
 	if (spi->id.manufacturer_id == 0x1f) {
-		spi->id.manufacturer = "Adesto";
+		// spi->id.manufacturer = "Adesto";
 		 if ((spi->id.memory_type == 0x86)
 		  && (spi->id.memory_size == 0x01)) {
-			spi->id.model = "AT25SF161";
-			spi->id.capacity = "16 Mbit";
+			// spi->id.model = "AT25SF161";
+			// spi->id.capacity = "16 Mbit";
 			spi->id.bytes = 1 * 1024 * 1024;
 		}
 	}
-#endif
 	return;
 }
 
 static void spi_get_id(struct ff_spi *spi) {
-#if 0
-	// memset(&spi->id, 0xff, sizeof(spi->id));
-
 	spiBegin(spi);
 	spiCommand(spi, 0x90);	// Read manufacturer ID
 	spiCommand(spi, 0x00);  // Dummy byte 1
@@ -588,7 +579,6 @@ static void spi_get_id(struct ff_spi *spi) {
 
 	spi_decode_id(spi);
 	return;
-#endif
 }
 
 void spiOverrideSize(struct ff_spi *spi, uint32_t size) {
@@ -813,9 +803,7 @@ int spiWrite(struct ff_spi *spi, uint32_t addr, const uint8_t *data, unsigned in
 		return 1;
 	}
 
-	int total = count;
 	while (count) {
-		// printf("\rProgramming @ %06x / %06x", addr, total);
 		fflush(stdout);
 		spiBegin(spi);
 		spiCommand(spi, 0x06);
@@ -837,8 +825,6 @@ int spiWrite(struct ff_spi *spi, uint32_t addr, const uint8_t *data, unsigned in
 		addr += i;
 		spi_wait_for_not_busy(spi);
 	}
-	// printf("\rProgramming @ %06x / %06x", addr, total);
-	// printf("  Done\n");
 	return 0;
 }
 
