@@ -168,8 +168,6 @@ void usb_isr(void) {
         queue_more_data(0);
         usb_ep_0_in_ev_pending_write(ep0i_pending);
         usb_ep_0_out_respond_write(EPF_ACK);
-
-        usb_ep_0_in_respond_write(EPF_NAK);
     }
     
     return;
