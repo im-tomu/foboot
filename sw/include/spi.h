@@ -70,7 +70,8 @@ void spiWriteSecurity(struct ff_spi *spi, uint8_t sr, uint8_t security[256]);
 int spiSetType(struct ff_spi *spi, enum spi_type type);
 int spiRead(struct ff_spi *spi, uint32_t addr, uint8_t *data, unsigned int count);
 int spiIsBusy(struct ff_spi *spi);
-int spiBeginErase(struct ff_spi *spi, uint32_t erase_addr);
+int spiBeginErase32(struct ff_spi *spi, uint32_t erase_addr);
+int spiBeginErase64(struct ff_spi *spi, uint32_t erase_addr);
 int spiBeginWrite(struct ff_spi *spi, uint32_t addr, const void *data, unsigned int count);
 
 struct spi_id spiId(struct ff_spi *spi);

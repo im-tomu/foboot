@@ -32,7 +32,7 @@ static void gpioWrite(int pin, int val) {
         do_mirror |= 1 << pin;
     else
         do_mirror &= ~(1 << pin);
-    // bbspi_do_write(do_mirror);
+    bbspi_do_write(do_mirror);
 }
 
 static int gpioRead(int pin) {
@@ -40,7 +40,7 @@ static int gpioRead(int pin) {
 }
 
 static void gpioSync(void) {
-    bbspi_do_write(do_mirror);
+    // bbspi_do_write(do_mirror);
 }
 
 #define SPI_ONLY_SINGLE
@@ -703,10 +703,10 @@ static int spi_wait_for_not_busy(struct ff_spi *spi) {
 }
 
 int spiIsBusy(struct ff_spi *spi) {
-  return spiReadStatus(spi, 1) & (1 << 0);
+  	return spiReadStatus(spi, 1) & (1 << 0);
 }
 
-int spiBeginErase(struct ff_spi *spi, uint32_t erase_addr) {
+int spiBeginErase32(struct ff_spi *spi, uint32_t erase_addr) {
 	// Enable Write-Enable Latch (WEL)
 	spiBegin(spi);
 	spiCommand(spi, 0x06);
@@ -714,6 +714,21 @@ int spiBeginErase(struct ff_spi *spi, uint32_t erase_addr) {
 
 	spiBegin(spi);
 	spiCommand(spi, 0x52);
+	spiCommand(spi, erase_addr >> 16);
+	spiCommand(spi, erase_addr >> 8);
+	spiCommand(spi, erase_addr >> 0);
+	spiEnd(spi);
+	return 0;
+}
+
+int spiBeginErase64(struct ff_spi *spi, uint32_t erase_addr) {
+	// Enable Write-Enable Latch (WEL)
+	spiBegin(spi);
+	spiCommand(spi, 0x06);
+	spiEnd(spi);
+
+	spiBegin(spi);
+	spiCommand(spi, 0xD8);
 	spiCommand(spi, erase_addr >> 16);
 	spiCommand(spi, erase_addr >> 8);
 	spiCommand(spi, erase_addr >> 0);
