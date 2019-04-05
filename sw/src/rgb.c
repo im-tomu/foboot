@@ -23,7 +23,7 @@ enum led_registers {
     if (rgb_mode == x) \
         return; \
     rgb_mode = x; \
-    /* Toggle LEDD_EXE to force the mode to switch */
+    /* Toggle LEDD_EXE to force the mode to switch */ \
     rgb_ctrl_write(           (1 << 1) | (1 << 2)); \
     rgb_ctrl_write((1 << 0) | (1 << 1) | (1 << 2)); \
 } while(0)
