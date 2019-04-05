@@ -127,8 +127,8 @@ int usb_send(struct usb_device *dev, int epnum, const void *data, int total_coun
 int usb_wait_for_send_done(struct usb_device *dev) {
     while (current_data && current_length)
         usb_poll(dev);
-    while (usb_ep_0_in_respond_read() == EPF_ACK)
-        ;
+    while ((usb_ep_0_in_dtb_read() & 1) == 1)
+        usb_poll(dev);
     return 0;
 }
 
@@ -185,6 +185,8 @@ int usb_irq_happened(void) {
 int usb_ack(struct usb_device *dev, int epnum) {
     (void)dev;
     (void)epnum;
+    usb_ep_0_in_dtb_write(1);
+    usb_ep_0_out_dtb_write(1);
     usb_ep_0_out_respond_write(EPF_ACK);
     usb_ep_0_in_respond_write(EPF_ACK);
     return 0;
