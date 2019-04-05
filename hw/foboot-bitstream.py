@@ -351,7 +351,7 @@ class SBWarmBoot(Module, AutoCSR):
         self.ctrl = CSRStorage(size=8)
         do_reset = Signal()
         self.comb += [
-            # "Reset Key" is 0xac
+            # "Reset Key" is 0xac (0b101011xx)
             do_reset.eq(self.ctrl.storage[2] & self.ctrl.storage[3] & ~self.ctrl.storage[4]
                       & self.ctrl.storage[5] & ~self.ctrl.storage[6] & self.ctrl.storage[7])
         ]
@@ -564,7 +564,7 @@ class BaseSoC(SoCCore):
         # # Add a "Multiboot" variant
         # platform.toolchain.nextpnr_build_template[3] = "icepack -s {build_name}.txt {build_name}-multi.bin"
 
-def make_multiboot_header(filename, boot_offsets=[128]):
+def make_multiboot_header(filename, boot_offsets=[160]):
     """
     ICE40 allows you to program the SB_WARMBOOT state machine by adding the following
     values to the bitstream, before any given image:
@@ -574,10 +574,22 @@ def make_multiboot_header(filename, boot_offsets=[128]):
     [44 03 o1 o2 o3]    Boot address
     [82 00 00]          Bank offset
     [01 08]             Reboot
+    [...]               Padding (up to 32 bytes)
 
     Note that in ICE40, the second nybble indicates the number of remaining bytes
-    (with the exception of the sync header)
+    (with the exception of the sync header).
+
+    The above construct is repeated five times:
+
+    INITIAL_BOOT        The image loaded at first boot
+    BOOT_S00            The first image for SB_WARMBOOT
+    BOOT_S01            The second image for SB_WARMBOOT
+    BOOT_S10            The third image for SB_WARMBOOT
+    BOOT_S11            The fourth image for SB_WARMBOOT
     """
+    while len(boot_offsets) < 5:
+        boot_offsets.append(boot_offsets[0])
+
     with open(filename, 'wb') as output:
         for offset in boot_offsets:
             # Sync Header
@@ -602,6 +614,7 @@ def make_multiboot_header(filename, boot_offsets=[128]):
                 output.write(bytes([0]))
 
 def main():
+    make_multiboot_header("build/gateware/multiboot.bin", [160, 262144])
     parser = argparse.ArgumentParser(
         description="Build Fomu Main Gateware")
     parser.add_argument(
