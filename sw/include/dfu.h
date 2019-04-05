@@ -68,6 +68,8 @@ typedef enum {
 // Main thread
 void dfu_init();
 
+void dfu_poll(void);
+
 // USB entry points. Always successful.
 uint8_t dfu_getstate();
 

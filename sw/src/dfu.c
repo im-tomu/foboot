@@ -28,8 +28,8 @@
 #include <toboot-internal.h>
 #include <dfu.h>
 
-#define BLOCK_SIZE 32768 // Erase block size (in bytes)
-#define PAGE_SIZE 256 // Number of bytes we can write
+#define ERASE_SIZE 65536 // Erase block size (in bytes)
+#define WRITE_SIZE 256 // Number of bytes we can write
 
 #include <spi.h>
 extern struct ff_spi *spi; // Defined in main.c
@@ -41,35 +41,6 @@ static enum {
     flsERASING,
     flsPROGRAMMING
 } fl_state;
-
-static struct toboot_state {
-    // Version number of the program being loaded:
-    //  0 (legacy)
-    //  1 (toboot v1)
-    //  2 (toboot v2)
-    uint8_t version;
-
-    // When clearing, first ensure these sectors are cleared prior to updating
-    uint32_t clear_lo;
-    uint32_t clear_hi;
-
-    // The current block we're clearing
-    uint32_t clear_current;
-
-    // This is the address we'll start programming/erasing from after clearing
-    uint32_t next_addr;
-
-    enum {
-        /// Toboot has just started
-        tbsIDLE,
-
-        /// Secure erase memory is being cleared
-        tbsCLEARING,
-
-        /// New image is being loaded
-        tbsLOADING,
-    } state;
-} tb_state;
 
 static dfu_state_t dfu_state = dfuIDLE;
 static dfu_status_t dfu_status = OK;
@@ -104,14 +75,14 @@ static void ftfl_begin_erase_sector(uint32_t address)
 {
     ftfl_busy_wait();
     // Only erase if it's on the page boundry.
-    if ((address & ~(PAGE_SIZE - 1) ) == address)
-        spiBeginErase(spi, address);
+    if ((address & ~(ERASE_SIZE - 1) ) == address)
+        spiBeginErase64(spi, address);
     fl_state = flsERASING;
 }
 
 static void ftfl_write_more_bytes(void)
 {
-    uint32_t bytes_to_write = PAGE_SIZE;
+    uint32_t bytes_to_write = WRITE_SIZE;
     if (dfu_bytes_remaining < bytes_to_write)
         bytes_to_write = dfu_bytes_remaining;
     ftfl_busy_wait();
@@ -134,65 +105,12 @@ static void ftfl_begin_program_section(uint32_t address)
 static uint32_t address_for_block(unsigned blockNum)
 {
     static const uint32_t starting_offset = 262144;
-    // if (blockNum == 0) {
-    //     // Determine Toboot version.
-    //     if ((dfu_buffer[0x94 / 4] & TOBOOT_V2_MAGIC_MASK) == TOBOOT_V2_MAGIC) {
-    //         tb_state.version = 2;
-    //         starting_offset = ((struct toboot_configuration *)&dfu_buffer[0x94 / 4])->start;
-    //     }
-    //     // V1 used a different offset.
-    //     else if ((dfu_buffer[0x98 / 4] & TOBOOT_V1_MAGIC_MASK) == TOBOOT_V1_MAGIC) {
-    //         // Applications that know about Toboot will indicate their block
-    //         // offset by placing a magic byte at offset 0x98.
-    //         // Ordinarily this would be the address offset for IRQ 22,
-    //         // but since there are only 20 IRQs on the EFM32HG, there are three
-    //         // 32-bit values that are unused starting at offset 0x94.
-    //         // We already use offset 0x94 for "disable boot", so use offset 0x98
-    //         // in the incoming stream to indicate flags for Toboot.
-    //         tb_state.version = 1;
-    //         starting_offset = (dfu_buffer[0x98 / 4] & TOBOOT_V1_APP_PAGE_MASK) >> TOBOOT_V1_APP_PAGE_SHIFT;
-    //     }
-    //     // Legacy programs default to offset 0x4000.
-    //     else {
-    //         tb_state.version = 0;
-    //         starting_offset = 16;
-    //     }
-
-    //     // Set the state to "CLEARING", since we're just starting the programming process.
-    //     tb_state.state = tbsCLEARING;
-    //     starting_offset *= 0x400;
-    // }
-    return starting_offset + (blockNum * BLOCK_SIZE);
+    return starting_offset + (blockNum * WRITE_SIZE);
 }
-
-// // If requested, erase sectors before loading new code.
-// static void pre_clear_next_block(void) {
-// #pragma warning "Support for sector erasing has been disabled"
-// #if 0
-//     // If there is another sector to clear, do that.
-//     while (++tb_state.clear_current < 64) {
-//         if (tb_state.clear_current < 32) {
-//             if ((tb_state.clear_lo & (1 << tb_state.clear_current))) {
-//                 ftfl_begin_erase_sector(tb_state.clear_current * 1024);
-//                 return;
-//             }
-//         }
-//         else if (tb_state.clear_current < 64) {
-//             if ((tb_state.clear_hi & (1 << (tb_state.clear_current & 31)))) {
-//                 ftfl_begin_erase_sector(tb_state.clear_current * 1024);
-//                 return;
-//             }
-//         }
-//     }
-// #endif
-//     // No more sectors to clear, continue with programming
-//     tb_state.state = tbsLOADING;
-//     ftfl_begin_erase_sector(tb_state.next_addr);
-// }
 
 void dfu_init(void)
 {
-    tb_state.state = tbsIDLE;
+    return;
 }
 
 uint8_t dfu_getstate(void)
@@ -237,8 +155,8 @@ bool dfu_download(unsigned blockNum, unsigned blockLength,
 
     if (ftfl_busy() || (fl_state != flsIDLE)) {
         // Flash controller shouldn't be busy now!
-        set_state(dfuERROR, errUNKNOWN);
-        return false;       
+        set_state(dfuERROR, errWRITE);
+        return false;
     }
 
     if (!blockLength) {
@@ -360,6 +278,12 @@ static void fl_state_poll(void)
     }
 }
 
+void dfu_poll(void)
+{
+    if ((dfu_state == dfuDNLOAD_SYNC) || (dfu_state == dfuDNBUSY))
+        fl_state_poll();
+}
+
 bool dfu_getstatus(uint8_t status[8])
 {
     switch (dfu_state) {
@@ -367,7 +291,7 @@ bool dfu_getstatus(uint8_t status[8])
         case dfuDNLOAD_SYNC:
         case dfuDNBUSY:
             // Programming operation in progress. Advance our private flash state machine.
-            fl_state_poll();
+            // fl_state_poll();
 
             if (dfu_state == dfuERROR) {
                 // An error occurred inside fl_state_poll();
