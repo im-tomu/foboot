@@ -27,6 +27,7 @@
 #include <toboot-api.h>
 #include <toboot-internal.h>
 #include <dfu.h>
+#include <rgb.h>
 
 #define ERASE_SIZE 65536 // Erase block size (in bytes)
 #define WRITE_SIZE 256 // Number of bytes we can write
@@ -54,6 +55,14 @@ static uint32_t dfu_bytes_remaining;
 static uint32_t dfu_target_address;
 
 static void set_state(dfu_state_t new_state, dfu_status_t new_status) {
+    if (new_state == dfuIDLE)
+        rgb_mode_idle();
+    else if (new_status != OK)
+        rgb_mode_error();
+    else if (new_state == dfuMANIFEST_WAIT_RESET)
+        rgb_mode_done();
+    else
+        rgb_mode_writing();
     dfu_state = new_state;
     dfu_status = new_status;
 }
@@ -305,13 +314,13 @@ bool dfu_getstatus(uint8_t status[8])
         case dfuMANIFEST_SYNC:
             // Ready to reboot. The main thread will take care of this. Also let the DFU tool
             // know to leave us alone until this happens.
-            dfu_state = dfuMANIFEST;
+            set_state(dfuMANIFEST, OK);
             dfu_poll_timeout_ms = 10;
             break;
 
         case dfuMANIFEST:
             // Perform the reboot
-            dfu_state = dfuMANIFEST_WAIT_RESET;
+            set_state(dfuMANIFEST_WAIT_RESET, OK);
             dfu_poll_timeout_ms = 1000;
             break;
 
