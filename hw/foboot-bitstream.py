@@ -110,6 +110,38 @@ _io_dvt = [
     ),
     ("clk48", 0, Pins("F4"), IOStandard("LVCMOS33"))
 ]
+_io_hacker = [
+    ("serial", 0,
+        Subsignal("rx", Pins("C3")),
+        Subsignal("tx", Pins("B3"), Misc("PULLUP")),
+        IOStandard("LVCMOS33")
+    ),
+    ("usb", 0,
+        Subsignal("d_p", Pins("A4")),
+        Subsignal("d_n", Pins("A2")),
+        Subsignal("pullup", Pins("D5")),
+        IOStandard("LVCMOS33")
+    ),
+    ("led", 0,
+        Subsignal("rgb0", Pins("A5"), IOStandard("LVCMOS33")),
+        Subsignal("rgb1", Pins("B5"), IOStandard("LVCMOS33")),
+        Subsignal("rgb2", Pins("C5"), IOStandard("LVCMOS33")),
+    ),
+    ("spiflash", 0,
+        Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
+        Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
+        Subsignal("miso", Pins("E1"), IOStandard("LVCMOS33")),
+        Subsignal("mosi", Pins("F1"), IOStandard("LVCMOS33")),
+        Subsignal("wp",   Pins("F2"), IOStandard("LVCMOS33")),
+        Subsignal("hold", Pins("B1"), IOStandard("LVCMOS33")),
+    ),
+    ("spiflash4x", 0,
+        Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
+        Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
+        Subsignal("dq",   Pins("E1 F1 F2 B1"), IOStandard("LVCMOS33")),
+    ),
+    ("clk48", 0, Pins("F4"), IOStandard("LVCMOS33"))
+]
 
 _connectors = []
 
@@ -292,6 +324,8 @@ class Platform(LatticePlatform):
             LatticePlatform.__init__(self, "ice40-up5k-sg48", _io_evt, _connectors, toolchain="icestorm")
         elif revision == "dvt":
             LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io_dvt, _connectors, toolchain="icestorm")
+        elif revision == "hacker":
+            LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io_hacker, _connectors, toolchain="icestorm")
         else:
             raise ValueError("Unrecognized reivsion: {}.  Known values: evt, dvt".format(revision))
 
@@ -622,7 +656,7 @@ def main():
         help="where to have the CPU obtain its executable code from"
     )
     parser.add_argument(
-        "--revision", choices=["dvt", "evt"], required=True,
+        "--revision", choices=["dvt", "evt", "hacker"], required=True,
         help="build foboot for a particular hardware revision"
     )
     parser.add_argument(
