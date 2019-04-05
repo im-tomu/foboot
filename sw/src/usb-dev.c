@@ -186,7 +186,7 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
         usb_disconnect();
 
         // Issue a reboot
-        reboot_to_image(1);
+        reboot_to_image(0);
         while (1)
            ;
         return;
