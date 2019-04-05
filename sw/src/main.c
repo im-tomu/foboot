@@ -94,7 +94,7 @@ int main(int argc, char **argv)
     while (1)
     {
         usb_poll(NULL);
-
+        dfu_poll();
     //     if (i > 200)
             // reboot_ctrl_write(0xac);
     }
