@@ -1,5 +1,3 @@
-PACKAGE    := foboot
-
 GIT_VERSION := $(shell git describe --tags)
 TRGT      ?= riscv64-unknown-elf-
 CC         := $(TRGT)gcc
@@ -22,17 +20,19 @@ LDSCRIPT   := $(BASE_DIR)/ld/linker.ld
 LD_DIR     := ../include/generated
 ADD_CFLAGS := -I../include -I$(BASE_DIR)/include -D__vexriscv__ -march=rv32im  -mabi=ilp32
 ADD_LFLAGS := 
+PACKAGE    := bios
 else
 BASE_DIR   := .
 LD_DIR     := $(BASE_DIR)/ld
 LDSCRIPT   := $(BASE_DIR)/ld/linker.ld
 ADD_CFLAGS := -I$(BASE_DIR)/include -D__vexriscv__ -march=rv32im  -mabi=ilp32
 ADD_LFLAGS := 
+PACKAGE    := foboot
 endif
 
 LDSCRIPTS  := $(LDSCRIPT) $(LD_DIR)/output_format.ld $(LD_DIR)/regions.ld
 SRC_DIR    := $(BASE_DIR)/src
-THIRD_PARTY := $(BASE_DIR)third_party
+THIRD_PARTY := $(BASE_DIR)/third_party
 DBG_CFLAGS := -ggdb -g -DDEBUG -Wall
 DBG_LFLAGS := -ggdb -g -Wall
 CFLAGS     := $(ADD_CFLAGS) \
