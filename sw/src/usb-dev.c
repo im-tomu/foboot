@@ -22,6 +22,7 @@ void usb_setup(struct usb_device *dev, const struct usb_setup_request *setup)
     {
     case 0x0500: // SET_ADDRESS
     case 0x0b01: // SET_INTERFACE
+        dfu_clrstatus();
         break;
 
     case 0x0900: // SET_CONFIGURATION

@@ -29,6 +29,8 @@
 #include <dfu.h>
 #include <rgb.h>
 
+#define RESCUE_IMAGE_OFFSET 262144
+
 #define ERASE_SIZE 65536 // Erase block size (in bytes)
 #define WRITE_SIZE 256 // Number of bytes we can write
 
@@ -113,7 +115,7 @@ static void ftfl_begin_program_section(uint32_t address)
 
 static uint32_t address_for_block(unsigned blockNum)
 {
-    static const uint32_t starting_offset = 262144;
+    static const uint32_t starting_offset = RESCUE_IMAGE_OFFSET;
     return starting_offset + (blockNum * WRITE_SIZE);
 }
 
@@ -127,19 +129,9 @@ uint8_t dfu_getstate(void)
     return dfu_state;
 }
 
-unsigned last_blockNum;
-unsigned last_blockLength;
-unsigned last_packetOffset;
-unsigned last_packetLength;
 bool dfu_download(unsigned blockNum, unsigned blockLength,
                   unsigned packetOffset, unsigned packetLength, const uint8_t *data)
 {
-    // uint32_t i;
-    last_packetLength = packetLength;
-    last_packetOffset = packetOffset;
-    last_blockLength = blockLength;
-    last_blockNum = blockNum;
-
     if (packetOffset + packetLength > DFU_TRANSFER_SIZE ||
         packetOffset + packetLength > blockLength) {
 
@@ -179,74 +171,6 @@ bool dfu_download(unsigned blockNum, unsigned blockLength,
     fl_current_addr = address_for_block(blockNum);
     dfu_bytes_remaining = blockLength;
 
-#if 0
-    // If it's the first block, figure out what we need to do in terms of erasing
-    // data and programming the new file.
-    if (blockNum == 0) {
-        const struct toboot_configuration *old_config = tb_get_config();
-
-        // Don't allow overwriting Toboot itself.
-        if (fl_current_addr < tb_first_free_address()) {
-            set_state(dfuERROR, errADDRESS);
-            return false;
-        }
-
-        // Calculate generation number and hash
-        if (tb_state.version == 2) {
-            struct toboot_configuration *new_config = (struct toboot_configuration *)&dfu_buffer[0x94 / 4];
-
-            // Update generation number
-            new_config->reserved_gen = old_config->reserved_gen + 1;
-
-            // Ensure we know this header is not fake
-            new_config->config &= ~TOBOOT_CONFIG_FAKE;
-
-            // Generate a valid signature
-            tb_sign_config(new_config);
-        }
-
-        // If the old configuration requires that certain blocks be erased, do that.
-        tb_state.clear_hi = old_config->erase_mask_hi;
-        tb_state.clear_lo = old_config->erase_mask_lo;
-        tb_state.clear_current = 0;
-
-        // Ensure we don't erase Foboot itself
-        for (i = 0; i < tb_first_free_sector(); i++) {
-            if (i < 32)
-                tb_state.clear_lo &= ~(1 << i);
-            else
-                tb_state.clear_hi &= ~(1 << i);
-        }
-
-        // If the newly-loaded program does not conform to Foboot V2.0, then look
-        // for any existing programs on the flash and delete those sectors.
-        // Because of boot priority, we need to ensure that no V2.0 applications
-        // exist on flash.
-        if (tb_state.version < 2) {
-            for (i = tb_first_free_sector(); i < 64; i++) {
-                if (tb_valid_signature_at_page(i) < 0)
-                    continue;
-                if (i < 32)
-                    tb_state.clear_lo |= (1 << i);
-                else
-                    tb_state.clear_hi |= (1 << (i - 32));
-            }
-        }
-
-        // If we still have sectors to clear, do that.  Otherwise,
-        // go straight into loading the program.
-        if (tb_state.clear_lo || tb_state.clear_hi) {
-            tb_state.state = tbsCLEARING;
-            tb_state.next_addr = fl_current_addr;
-            pre_clear_next_block();
-        }
-        else {
-            tb_state.state = tbsLOADING;
-            ftfl_begin_erase_sector(fl_current_addr);
-        }
-    }
-    else
-#endif
     ftfl_begin_erase_sector(fl_current_addr);
 
     set_state(dfuDNLOAD_SYNC, OK);
@@ -266,15 +190,8 @@ static void fl_state_poll(void)
         break;
 
     case flsERASING:
-        // // If we're still pre-clearing, continue with that.
-        // if (tb_state.state == tbsCLEARING) {
-        //     pre_clear_next_block();
-        // }
-        // // Done! Move on to programming the sector.
-        // else {
         fl_state = flsPROGRAMMING;
         ftfl_begin_program_section(fl_current_addr);
-        // }
         break;
 
     case flsPROGRAMMING:
@@ -299,8 +216,6 @@ bool dfu_getstatus(uint8_t status[8])
 
         case dfuDNLOAD_SYNC:
         case dfuDNBUSY:
-            // Programming operation in progress. Advance our private flash state machine.
-            // fl_state_poll();
 
             if (dfu_state == dfuERROR) {
                 // An error occurred inside fl_state_poll();
@@ -343,6 +258,8 @@ bool dfu_clrstatus(void)
     switch (dfu_state) {
 
     case dfuERROR:
+    case dfuIDLE:
+    case dfuMANIFEST_WAIT_RESET:
         // Clear an error
         set_state(dfuIDLE, OK);
         return true;
