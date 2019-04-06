@@ -676,8 +676,6 @@ def main():
 
     output_dir = 'build'
 
-    make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"), [160, 262144])
-
     if args.export_random_rom_file is not None:
         size = 0x2000
         def xorshift32(x):
@@ -722,6 +720,8 @@ def main():
         ]
     vns = builder.build()
     soc.do_exit(vns)
+
+    make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"), [160, 262144])
 
     with open(os.path.join(output_dir, 'gateware', 'multiboot-header.bin'), 'rb') as multiboot_header_file:
         multiboot_header = multiboot_header_file.read()
