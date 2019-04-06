@@ -547,8 +547,9 @@ class BaseSoC(SoCCore):
         elif boot_source == "bios":
             kwargs['cpu_reset_address']=0
             if bios_file is None:
-                bios_size = 0x2000
-                self.add_memory_region("rom", kwargs['cpu_reset_address'], bios_size)
+                self.integrated_rom_size = bios_size = 0x2000
+                self.submodules.rom = wishbone.SRAM(bios_size, read_only=True, init=[])
+                self.register_rom(self.rom.bus, bios_size)
             else:
                 bios_size = 0x2000
                 self.submodules.firmware_rom = FirmwareROM(bios_size, bios_file)
@@ -649,11 +650,10 @@ def make_multiboot_header(filename, boot_offsets=[160]):
                 output.write(bytes([0]))
 
 def main():
-    make_multiboot_header("build/gateware/multiboot.bin", [160, 262144])
     parser = argparse.ArgumentParser(
         description="Build Fomu Main Gateware")
     parser.add_argument(
-        "--boot-source", choices=["spi", "rand", "bios"], default="rand",
+        "--boot-source", choices=["spi", "rand", "bios"], default="bios",
         help="where to have the CPU obtain its executable code from"
     )
     parser.add_argument(
@@ -673,6 +673,10 @@ def main():
         "--export-random-rom-file", help="Generate a random ROM file and save it to a file"
     )
     args = parser.parse_args()
+
+    output_dir = 'build'
+
+    make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"), [160, 262144])
 
     if args.export_random_rom_file is not None:
         size = 0x2000
@@ -711,13 +715,30 @@ def main():
     soc = BaseSoC(platform, cpu_type="vexriscv", cpu_variant=cpu_variant,
                             debug=debug, boot_source=args.boot_source,
                             bios_file=args.bios, use_pll=args.no_pll)
-    builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv", compile_software=compile_software)
+    builder = Builder(soc, output_dir=output_dir, csr_csv="test/csr.csv", compile_software=compile_software)
     if compile_software:
         builder.software_packages = [
             ("bios", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "sw")))
         ]
     vns = builder.build()
     soc.do_exit(vns)
+
+    with open(os.path.join(output_dir, 'gateware', 'multiboot-header.bin'), 'rb') as multiboot_header_file:
+        multiboot_header = multiboot_header_file.read()
+        with open(os.path.join(output_dir, 'gateware', 'top.bin'), 'rb') as top_file:
+            top = top_file.read()
+            with open(os.path.join(output_dir, 'gateware', 'top-multiboot.bin'), 'wb') as top_multiboot_file:
+                top_multiboot_file.write(multiboot_header)
+                top_multiboot_file.write(top)
+
+    print(
+"""Foboot build complete.  Output files:
+    {}/gateware/top.bin             Bitstream file.  Load this onto the FPGA for testing.
+    {}/gateware/top-multiboot.bin   Multiboot-enabled bitstream file.  Flash this onto FPGA ROM.
+    {}/gateware/top.v               Source Verilog file.  Useful for debugging issues.
+    {}/software/include/generated   Header files for API access.
+    {}/software/bios/bios.elf       ELF file for debugging bios.
+""".format(output_dir, output_dir, output_dir, output_dir, output_dir))
 
 if __name__ == "__main__":
     main()
