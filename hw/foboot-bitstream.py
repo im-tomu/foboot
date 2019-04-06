@@ -141,7 +141,7 @@ _io_hacker = [
         Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
         Subsignal("dq",   Pins("E1 F1 F2 B1"), IOStandard("LVCMOS33")),
     ),
-    ("clk48", 0, Pins("F4"), IOStandard("LVCMOS33"))
+    ("clk48", 0, Pins("F5"), IOStandard("LVCMOS33"))
 ]
 
 _connectors = []
