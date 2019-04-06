@@ -1,8 +1,4 @@
 PACKAGE    := foboot
-FOMU_SDK  ?= .
-ADD_CFLAGS := -I$(FOMU_SDK)/include -D__vexriscv__ -march=rv32im  -mabi=ilp32
-ADD_LFLAGS := 
-SRC_DIR    := src
 
 GIT_VERSION := $(shell git describe --tags)
 TRGT      ?= riscv64-unknown-elf-
@@ -20,8 +16,23 @@ RM         := del
 PATH_SEP   := \\
 endif
 
-LDSCRIPT   := $(FOMU_SDK)/ld/linker.ld
-LDSCRIPTS  := $(LDSCRIPT) $(FOMU_SDK)/ld/output_format.ld $(FOMU_SDK)/ld/regions.ld
+ifeq ($(LITEX),1)
+BASE_DIR   := ../../../../sw
+LDSCRIPT   := $(BASE_DIR)/ld/linker.ld
+LD_DIR     := ../include/generated
+ADD_CFLAGS := -I../include -I$(BASE_DIR)/include -D__vexriscv__ -march=rv32im  -mabi=ilp32
+ADD_LFLAGS := 
+else
+BASE_DIR   := .
+LD_DIR     := $(BASE_DIR)/ld
+LDSCRIPT   := $(BASE_DIR)/ld/linker.ld
+ADD_CFLAGS := -I$(BASE_DIR)/include -D__vexriscv__ -march=rv32im  -mabi=ilp32
+ADD_LFLAGS := 
+endif
+
+LDSCRIPTS  := $(LDSCRIPT) $(LD_DIR)/output_format.ld $(LD_DIR)/regions.ld
+SRC_DIR    := $(BASE_DIR)/src
+THIRD_PARTY := $(BASE_DIR)third_party
 DBG_CFLAGS := -ggdb -g -DDEBUG -Wall
 DBG_LFLAGS := -ggdb -g -Wall
 CFLAGS     := $(ADD_CFLAGS) \
@@ -31,7 +42,7 @@ CFLAGS     := $(ADD_CFLAGS) \
 			  -march=rv32i \
 			  -DGIT_VERSION=u\"$(GIT_VERSION)\" -std=gnu11
 CXXFLAGS   := $(CFLAGS) -std=c++11 -fno-rtti -fno-exceptions
-LFLAGS     := $(CFLAGS) $(ADD_LFLAGS) \
+LFLAGS     := $(CFLAGS) $(ADD_LFLAGS) -L$(LD_DIR) \
 			  -nostartfiles \
 			  -nostdlib \
 			  -Wl,--gc-sections \
@@ -41,14 +52,14 @@ LFLAGS     := $(CFLAGS) $(ADD_LFLAGS) \
 
 OBJ_DIR    := .obj
 
-CSOURCES   := $(wildcard $(SRC_DIR)/*.c) $(wildcard third_party/libbase/*.c) $(wildcard third_party/*.c)
-CPPSOURCES := $(wildcard $(SRC_DIR)/*.cpp) $(wildcard third_party/libbase/*.cpp) $(wildcard third_party/*.cpp)
-ASOURCES   := $(wildcard $(SRC_DIR)/*.S) $(wildcard third_party/libbase/*.S) $(wildcard third_party/*.S)
+CSOURCES   := $(wildcard $(SRC_DIR)/*.c) $(wildcard $(THIRD_PARTY)/libbase/*.c) $(wildcard $(THIRD_PARTY)/*.c)
+CPPSOURCES := $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(THIRD_PARTY)/libbase/*.cpp) $(wildcard $(THIRD_PARTY)/*.cpp)
+ASOURCES   := $(wildcard $(SRC_DIR)/*.S) $(wildcard $(THIRD_PARTY)/libbase/*.S) $(wildcard $(THIRD_PARTY)/*.S)
 COBJS      := $(addprefix $(OBJ_DIR)/, $(notdir $(CSOURCES:.c=.o)))
 CXXOBJS    := $(addprefix $(OBJ_DIR)/, $(notdir $(CPPSOURCES:.cpp=.o)))
 AOBJS      := $(addprefix $(OBJ_DIR)/, $(notdir $(ASOURCES:.S=.o)))
 OBJECTS    := $(COBJS) $(CXXOBJS) $(AOBJS)
-VPATH      := $(SRC_DIR) third_party/libbase third_party
+VPATH      := $(SRC_DIR) $(THIRD_PARTY) $(THIRD_PARTY)/libbase
 
 QUIET      := @
 
@@ -73,10 +84,6 @@ $(PACKAGE).dfu: $(TARGET)
 	$(QUIET) $(COPY) $(PACKAGE).bin $@
 	$(QUIET) dfu-suffix -v 1209 -p 70b1 -a $@
 
-#$(PACKAGE).bit: $(TARGET)
-#	$(QUIET) echo "  BIT      $@"
-#	# $(QUIET) ice40-repack input/top.bin input/mem_1.init ./foboot.bin ./foboot.bit
-
 $(PACKAGE).ihex: $(TARGET)
 	$(QUIET) echo "  IHEX     $(PACKAGE).ihex"
 	$(QUIET) $(OBJCOPY) -O ihex $(TARGET) $@
@@ -90,7 +97,7 @@ $(DEBUG): $(TARGET)
 $(OBJ_DIR):
 	$(QUIET) mkdir $(OBJ_DIR)
 
-$(COBJS) : $(OBJ_DIR)/%.o : %.c Makefile
+$(COBJS) : $(OBJ_DIR)/%.o : %.c $(BASE_DIR)/Makefile
 	$(QUIET) echo "  CC       $<	$(notdir $@)"
 	$(QUIET) $(CC) -c $< $(CFLAGS) -o $@ -MMD
 
