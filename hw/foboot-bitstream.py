@@ -33,6 +33,7 @@ from valentyusb.usbcore.endpoint import EndpointType
 from lxsocsupport import up5kspram, spi_flash
 
 import argparse
+import os
 
 _io_evt = [
     ("serial", 0,
@@ -705,11 +706,16 @@ def main():
         cpu_variant = "debug"
         debug = True
 
+    os.environ["LITEX"] = "1" # Give our Makefile something to look for
     platform = Platform(revision=args.revision)
     soc = BaseSoC(platform, cpu_type="vexriscv", cpu_variant=cpu_variant,
                             debug=debug, boot_source=args.boot_source,
                             bios_file=args.bios, use_pll=args.no_pll)
     builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv", compile_software=compile_software)
+    if compile_software:
+        builder.software_packages = [
+            ("bios", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "sw")))
+        ]
     vns = builder.build()
     soc.do_exit(vns)
 
