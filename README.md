@@ -1,10 +1,10 @@
 # Foboot: The Bootloader for Fomu
 
-Foboot is a failsafe bootloader for Fomu.  It exposes a DFU interface to the host.  Foboot comes in two halves: A Software half and a Hardware half.
+Foboot is a failsafe bootloader for Fomu.  It exposes a DFU interface to the host.  Foboot comes in two halves: A Software half and a Hardware half.  These two halves are integrated into a single "bitstream" that is directly loaded onto an ICE40UP5k board, such as Fomu.
 
-## Building the Hardware
+## Requirements
 
-The hardware half is written in LiteX, and uses `lxbuildenv` to handle Python dependencies.  Hardware is contained within the `hw/` directory.  You must install software dependencies yourself:
+To build the hardware, you need:
 
 * Python 3.5+
 * Nextpnr
@@ -12,23 +12,60 @@ The hardware half is written in LiteX, and uses `lxbuildenv` to handle Python de
 * Yosys
 * Git
 
-Subproject dependencies will be taken care of with `lxbuildenv`.
+Subproject hardware dependencies will be taken care of with `lxbuildenv`.
+
+To build the software, you need:
+
+* RISC-V toolchain
+
+## Building the project
+
+The hardware half will take care of building the software half, if it is run with `--boot-source bios` (which is the default).  Therefore, to build Foboot, enter the `hw/` directory and run:
+
+```
+$ python3 foboot-bitstream.py --revision hacker
+```
+
+This will verify you have the correct dependencies installed, compile the Foboot software, then synthesize the Foboot bitstream.  The resulting output will be in `build/gateware/`.  You should write `build/gateware/top-multiboot.bin` to your Fomu device in order to get basic bootloader support.
 
 ### Usage
 
-To build, run `foboot-bitstream.py`:
+You can write the bitstream to your SPI flash.  If you're using `fomu-flash`, you would run the following:
 
-`python3 .\foboot-bitstream.py`
+```sh
+$ fomu-flash -w build/gateware/top-multiboot.bin
+Erasing @ 018000 / 01973a  Done
+Programming @ 01973a / 01973a  Done
+$ fomu-flash -r
+resetting fpga
+$
+```
 
-There are multiple build options available.  Use `--help` to list them.
+Fomu should now show up when you connect it to your machine:
 
-Build files will be generated in the `build/` directory.  You will probably be most interested in `build/gateware/top.bin` and `build/software/include/generated/`.
+```
+[172294.296354] usb 1-1.3: new full-speed USB device number 33 using dwc_otg
+[172294.445661] usb 1-1.3: New USB device found, idVendor=1209, idProduct=70b1
+[172294.445675] usb 1-1.3: New USB device strings: Mfr=1, Product=2, SerialNumber=0
+[172294.445684] usb 1-1.3: Product: Fomu Bootloader (0)
+[172294.445692] usb 1-1.3: Manufacturer: Kosagi
+```
 
-## Tests
+To load a new bitstream, use the `dfu-util -D` command.  For example:
 
-You can run tests by using the `unittest` command:
+```sh
+$ dfu-util -D blink.bin
+```
 
-`python .\lxbuildenv.py -r -m unittest -v valentyusb.usbcore.cpu.epfifo_test.TestPerEndpointFifoInterface`
+This will reflash the SPI beginning at offset 262144.
+
+To exit DFU and run the bitstream at offset 262144, run:
+
+```sh
+$ dfu-util -e
+```
+
+**Note that, unlike Toboot, Foboot requires you to issue `dfu-util -e` in order to start the program.**
 
 ## Building the Software
 
