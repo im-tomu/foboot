@@ -514,7 +514,9 @@ class BaseSoC(SoCCore):
     }
     interrupt_map.update(SoCCore.interrupt_map)
 
-    def __init__(self, platform, boot_source="rand", debug=False, bios_file=None, use_pll=True, **kwargs):
+    def __init__(self, platform, boot_source="rand",
+                 debug=False, bios_file=None, use_pll=True,
+                 use_dsp=False, **kwargs):
         # Disable integrated RAM as we'll add it later
         self.integrated_sram_size = 0
 
@@ -590,7 +592,9 @@ class BaseSoC(SoCCore):
         # and the "-dffe_min_ce_use 4" flag prevents Yosys from generating a
         # Clock Enable signal for a LUT that has fewer than 4 flip-flops.
         # This increases density, and lets us use the FPGA more efficiently.
-        platform.toolchain.nextpnr_yosys_template[2] += " -dsp -relut -dffe_min_ce_use 5"
+        platform.toolchain.nextpnr_yosys_template[2] += " -relut -dffe_min_ce_use 5"
+        if use_dsp:
+            platform.toolchain.nextpnr_yosys_template[2] += " -dsp"
 
         # Disable final deep-sleep power down so firmware words are loaded
         # onto softcore's address bus.
@@ -667,7 +671,10 @@ def main():
         "--with-debug", help="enable debug support", action="store_true"
     )
     parser.add_argument(
-        "--no-pll", help="disable pll (possibly improving timing)", action="store_false"
+        "--with-pll", help="enable pll -- this improves phase between 48M and 12M, but is harder to route", action="store_true"
+    )
+    parser.add_argument(
+        "--with-dsp", help="use dsp inference in yosys (not all yosys builds have -dsp)", action="store_true"
     )
     parser.add_argument(
         "--export-random-rom-file", help="Generate a random ROM file and save it to a file"
@@ -712,7 +719,8 @@ def main():
     platform = Platform(revision=args.revision)
     soc = BaseSoC(platform, cpu_type="vexriscv", cpu_variant=cpu_variant,
                             debug=debug, boot_source=args.boot_source,
-                            bios_file=args.bios, use_pll=args.no_pll)
+                            bios_file=args.bios, use_pll=args.with_pll,
+                            use_dsp=args.with_dsp)
     builder = Builder(soc, output_dir=output_dir, csr_csv="test/csr.csv", compile_software=compile_software)
     if compile_software:
         builder.software_packages = [
