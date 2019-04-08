@@ -65,24 +65,6 @@ static void init(void)
     spiInit(spi);
 }
 
-#if 0
-static const char *usb_hw_api(void) {
-#ifdef CSR_USB_EP_0_OUT_EV_PENDING_ADDR
-    return "epfifo";
-#else
-#ifdef CSR_USB_OBUF_EMPTY_ADDR
-    return "rawfifo";
-#else
-#ifdef CSR_USB_WHATEVER
-    return "whatever";
-#else
-    return "unrecognized hw api";
-#endif /* CSR_USB_WHATEVER */
-#endif /* CSR_USB_OBUF_EMPTY_ADDR */
-#endif /* CSR_USB_EP_0_OUT_EV_PENDING_ADDR */
-}
-#endif
-
 int main(int argc, char **argv)
 {
     (void)argc;
@@ -93,10 +75,8 @@ int main(int argc, char **argv)
     usb_connect();
     while (1)
     {
-        usb_poll(NULL);
+        usb_poll();
         dfu_poll();
-    //     if (i > 200)
-            // reboot_ctrl_write(0xac);
     }
     return 0;
 }

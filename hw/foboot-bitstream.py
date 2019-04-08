@@ -516,7 +516,7 @@ class BaseSoC(SoCCore):
 
     def __init__(self, platform, boot_source="rand",
                  debug=False, bios_file=None, use_pll=True,
-                 use_dsp=False, **kwargs):
+                 use_dsp=False, placer=None, **kwargs):
         # Disable integrated RAM as we'll add it later
         self.integrated_sram_size = 0
 
@@ -546,8 +546,10 @@ class BaseSoC(SoCCore):
             self.submodules.random_rom = RandomFirmwareROM(bios_size)
             self.add_constant("ROM_DISABLE", 1)
             self.register_rom(self.random_rom.bus, bios_size)
+            self.add_memory_region("user_flash", self.mem_map["spiflash"], 16777216)
         elif boot_source == "bios":
-            kwargs['cpu_reset_address']=0
+            kwargs['cpu_reset_address'] = 0
+            self.add_memory_region("user_flash", self.mem_map["spiflash"], 16777216)
             if bios_file is None:
                 self.integrated_rom_size = bios_size = 0x2000
                 self.submodules.rom = wishbone.SRAM(bios_size, read_only=True, init=[])
@@ -600,6 +602,9 @@ class BaseSoC(SoCCore):
         # onto softcore's address bus.
         platform.toolchain.build_template[3] = "icepack -s {build_name}.txt {build_name}.bin"
         platform.toolchain.nextpnr_build_template[2] = "icepack -s {build_name}.txt {build_name}.bin"
+
+        if placer is not None:
+            platform.toolchain.nextpnr_build_template[1] += " --placer {}".format(placer)
 
         # # Add a "Multiboot" variant
         # platform.toolchain.nextpnr_build_template[3] = "icepack -s {build_name}.txt {build_name}-multi.bin"
@@ -677,6 +682,9 @@ def main():
         "--with-dsp", help="use dsp inference in yosys (not all yosys builds have -dsp)", action="store_true"
     )
     parser.add_argument(
+        "--placer", choices=["sa", "heap"], help="which placer to use in nextpnr"
+    )
+    parser.add_argument(
         "--export-random-rom-file", help="Generate a random ROM file and save it to a file"
     )
     args = parser.parse_args()
@@ -720,7 +728,7 @@ def main():
     soc = BaseSoC(platform, cpu_type="vexriscv", cpu_variant=cpu_variant,
                             debug=debug, boot_source=args.boot_source,
                             bios_file=args.bios, use_pll=args.with_pll,
-                            use_dsp=args.with_dsp)
+                            use_dsp=args.with_dsp, placer=args.placer)
     builder = Builder(soc, output_dir=output_dir, csr_csv="test/csr.csv", compile_software=compile_software)
     if compile_software:
         builder.software_packages = [
