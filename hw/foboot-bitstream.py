@@ -526,13 +526,15 @@ class BaseSoC(SoCCore):
         SoCCore.__init__(self, platform, clk_freq, integrated_sram_size=0, with_uart=False, **kwargs)
 
         if debug:
-            self.cpu.use_external_variant("2-stage-1024-cache-debug.v")
             from litex.soc.cores.uart import UARTWishboneBridge
-            self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x10)
             self.submodules.uart_bridge = UARTWishboneBridge(platform.request("serial"), clk_freq, baudrate=115200)
             self.add_wb_master(self.uart_bridge.wishbone)
+            if hasattr(self, "cpu"):
+                self.cpu.use_external_variant("2-stage-1024-cache-debug.v")
+                self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x10)
         else:
-            self.cpu.use_external_variant("2-stage-1024-cache.v")
+            if hasattr(self, "cpu"):
+                self.cpu.use_external_variant("2-stage-1024-cache.v")
 
         # SPRAM- UP5K has single port RAM, might as well use it as SRAM to
         # free up scarce block RAM.
@@ -682,6 +684,9 @@ def main():
         "--with-dsp", help="use dsp inference in yosys (not all yosys builds have -dsp)", action="store_true"
     )
     parser.add_argument(
+        "--no-cpu", help="disable cpu generation for debugging purposes", action="store_true"
+    )
+    parser.add_argument(
         "--placer", choices=["sa", "heap"], help="which placer to use in nextpnr"
     )
     parser.add_argument(
@@ -717,15 +722,20 @@ def main():
     if args.boot_source == "bios" and args.bios is None:
         compile_software = True
 
+    cpu_type = "vexriscv"
     cpu_variant = "min"
     debug = False
     if args.with_debug:
         cpu_variant = "debug"
         debug = True
 
+    if args.no_cpu:
+        cpu_type = None
+        cpu_variant = None
+
     os.environ["LITEX"] = "1" # Give our Makefile something to look for
     platform = Platform(revision=args.revision)
-    soc = BaseSoC(platform, cpu_type="vexriscv", cpu_variant=cpu_variant,
+    soc = BaseSoC(platform, cpu_type=cpu_type, cpu_variant=cpu_variant,
                             debug=debug, boot_source=args.boot_source,
                             bios_file=args.bios, use_pll=args.with_pll,
                             use_dsp=args.with_dsp, placer=args.placer)
