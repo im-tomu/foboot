@@ -582,10 +582,8 @@ class BaseSoC(SoCCore):
             self.submodules.random_rom = RandomFirmwareROM(bios_size)
             self.add_constant("ROM_DISABLE", 1)
             self.register_rom(self.random_rom.bus, bios_size)
-            self.add_memory_region("user_flash", self.mem_map["spiflash"], 16777216)
         elif boot_source == "bios":
             kwargs['cpu_reset_address'] = 0
-            self.add_memory_region("user_flash", self.mem_map["spiflash"], 16777216)
             if bios_file is None:
                 self.integrated_rom_size = bios_size = 0x2000
                 self.submodules.rom = wishbone.SRAM(bios_size, read_only=True, init=[])
@@ -612,7 +610,9 @@ class BaseSoC(SoCCore):
 
         # Add a simple bit-banged SPI Flash module
         spi_pads = platform.request("spiflash")
-        self.submodules.bbspi = BBSpi(platform, spi_pads)
+        self.submodules.picorvspi = PicoRVSpi(platform, spi_pads)
+        self.register_mem("spiflash", self.mem_map["spiflash"],
+            self.picorvspi.bus, size=self.picorvspi.size)
 
         self.submodules.reboot = SBWarmBoot()
 
