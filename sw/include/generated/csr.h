@@ -12,33 +12,6 @@ extern uint32_t csr_readl(uint32_t addr);
 #include <hw/common.h>
 #endif /* ! CSR_ACCESSORS_DEFINED */
 
-/* bbspi */
-#define CSR_BBSPI_BASE 0xe0005000
-#define CSR_BBSPI_DO_ADDR 0xe0005000
-#define CSR_BBSPI_DO_SIZE 1
-static inline unsigned char bbspi_do_read(void) {
-	unsigned char r = csr_readl(0xe0005000);
-	return r;
-}
-static inline void bbspi_do_write(unsigned char value) {
-	csr_writel(value, 0xe0005000);
-}
-#define CSR_BBSPI_OE_ADDR 0xe0005004
-#define CSR_BBSPI_OE_SIZE 1
-static inline unsigned char bbspi_oe_read(void) {
-	unsigned char r = csr_readl(0xe0005004);
-	return r;
-}
-static inline void bbspi_oe_write(unsigned char value) {
-	csr_writel(value, 0xe0005004);
-}
-#define CSR_BBSPI_DI_ADDR 0xe0005008
-#define CSR_BBSPI_DI_SIZE 1
-static inline unsigned char bbspi_di_read(void) {
-	unsigned char r = csr_readl(0xe0005008);
-	return r;
-}
-
 /* ctrl */
 #define CSR_CTRL_BASE 0xe0000000
 #define CSR_CTRL_RESET_ADDR 0xe0000000
@@ -78,6 +51,69 @@ static inline unsigned int ctrl_bus_errors_read(void) {
 	r |= csr_readl(0xe000001c);
 	r <<= 8;
 	r |= csr_readl(0xe0000020);
+	return r;
+}
+
+/* picorvspi */
+#define CSR_PICORVSPI_BASE 0xe0005000
+#define CSR_PICORVSPI_CFG1_ADDR 0xe0005000
+#define CSR_PICORVSPI_CFG1_SIZE 1
+static inline unsigned char picorvspi_cfg1_read(void) {
+	unsigned char r = csr_readl(0xe0005000);
+	return r;
+}
+static inline void picorvspi_cfg1_write(unsigned char value) {
+	csr_writel(value, 0xe0005000);
+}
+#define CSR_PICORVSPI_CFG2_ADDR 0xe0005004
+#define CSR_PICORVSPI_CFG2_SIZE 1
+static inline unsigned char picorvspi_cfg2_read(void) {
+	unsigned char r = csr_readl(0xe0005004);
+	return r;
+}
+static inline void picorvspi_cfg2_write(unsigned char value) {
+	csr_writel(value, 0xe0005004);
+}
+#define CSR_PICORVSPI_CFG3_ADDR 0xe0005008
+#define CSR_PICORVSPI_CFG3_SIZE 1
+static inline unsigned char picorvspi_cfg3_read(void) {
+	unsigned char r = csr_readl(0xe0005008);
+	return r;
+}
+static inline void picorvspi_cfg3_write(unsigned char value) {
+	csr_writel(value, 0xe0005008);
+}
+#define CSR_PICORVSPI_CFG4_ADDR 0xe000500c
+#define CSR_PICORVSPI_CFG4_SIZE 1
+static inline unsigned char picorvspi_cfg4_read(void) {
+	unsigned char r = csr_readl(0xe000500c);
+	return r;
+}
+static inline void picorvspi_cfg4_write(unsigned char value) {
+	csr_writel(value, 0xe000500c);
+}
+#define CSR_PICORVSPI_STAT1_ADDR 0xe0005010
+#define CSR_PICORVSPI_STAT1_SIZE 1
+static inline unsigned char picorvspi_stat1_read(void) {
+	unsigned char r = csr_readl(0xe0005010);
+	return r;
+}
+#define CSR_PICORVSPI_STAT2_ADDR 0xe0005014
+#define CSR_PICORVSPI_STAT2_SIZE 1
+static inline unsigned char picorvspi_stat2_read(void) {
+	unsigned char r = csr_readl(0xe0005014);
+	return r;
+}
+#define CSR_PICORVSPI_STAT3_ADDR 0xe0005018
+#define CSR_PICORVSPI_STAT3_SIZE 1
+static inline unsigned char picorvspi_stat3_read(void) {
+	unsigned char r = csr_readl(0xe0005018);
+	return r;
+}
+#define CSR_PICORVSPI_STAT4_ADDR 0xe000501c
+#define CSR_PICORVSPI_STAT4_SIZE 1
+static inline unsigned char picorvspi_stat4_read(void) {
+	unsigned char r = csr_readl(0xe000501c);
 	return r;
 }
 

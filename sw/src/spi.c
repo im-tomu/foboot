@@ -24,7 +24,7 @@ static void gpioSetMode(int pin, int mode) {
         oe_mirror |= 1 << pin;
     else
         oe_mirror &= ~(1 << pin);
-    bbspi_oe_write(oe_mirror);
+    picorvspi_cfg2_write(oe_mirror);
 }
 
 static void gpioWrite(int pin, int val) {
@@ -32,11 +32,11 @@ static void gpioWrite(int pin, int val) {
         do_mirror |= 1 << pin;
     else
         do_mirror &= ~(1 << pin);
-    bbspi_do_write(do_mirror);
+    picorvspi_cfg1_write(do_mirror);
 }
 
 static int gpioRead(int pin) {
-    return !!(bbspi_di_read() & (1 << pin));
+    return !!(picorvspi_stat1_read() & (1 << pin));
 }
 
 static void gpioSync(void) {
@@ -873,6 +873,9 @@ int spiInit(struct ff_spi *spi) {
 	spi->state = SS_UNCONFIGURED;
 	spi->type = ST_UNCONFIGURED;
 
+	// Disable memory-mapped mode and enable bit-bang mode
+	picorvspi_cfg4_write(0);
+
 	// Reset the SPI flash, which will return it to SPI mode even
 	// if it's in QPI mode.
 	spiReset(spi);
@@ -904,23 +907,21 @@ int spiInit(struct ff_spi *spi) {
 
 struct ff_spi *spiAlloc(void) {
 	static struct ff_spi spi;
-	// struct ff_spi *spi = (struct ff_spi *)malloc(sizeof(struct ff_spi));
-	// memset(&spi, 0, sizeof(spi));
 	return &spi;
 }
 
 void spiSetPin(struct ff_spi *spi, enum spi_pin pin, int val) {
 	switch (pin) {
 	case SP_MOSI: spi->pins.mosi = val; break;
-        case SP_MISO: spi->pins.miso = val; break;
-        case SP_HOLD: spi->pins.hold = val; break;
-        case SP_WP: spi->pins.wp = val; break;
-        case SP_CS: spi->pins.cs = val; break;
-        case SP_CLK: spi->pins.clk = val; break;
-        case SP_D0: spi->pins.d0 = val; break;
-        case SP_D1: spi->pins.d1 = val; break;
-        case SP_D2: spi->pins.d2 = val; break;
-        case SP_D3: spi->pins.d3 = val; break;
+	case SP_MISO: spi->pins.miso = val; break;
+	case SP_HOLD: spi->pins.hold = val; break;
+	case SP_WP: spi->pins.wp = val; break;
+	case SP_CS: spi->pins.cs = val; break;
+	case SP_CLK: spi->pins.clk = val; break;
+	case SP_D0: spi->pins.d0 = val; break;
+	case SP_D1: spi->pins.d1 = val; break;
+	case SP_D2: spi->pins.d2 = val; break;
+	case SP_D3: spi->pins.d3 = val; break;
 	default: fprintf(stderr, "unrecognized pin: %d\n", pin); break;
 	}
 }
@@ -937,12 +938,6 @@ void spiUnhold(struct ff_spi *spi) {
 }
 
 void spiFree(struct ff_spi **spi) {
-	if (!spi)
-		return;
-	if (!*spi)
-		return;
-
-	spi_set_state(*spi, SS_HARDWARE);
-	// free(*spi);
-	// *spi = NULL;
+	// Re-enable memory-mapped mode
+	picorvspi_cfg4_write(0x80);
 }
