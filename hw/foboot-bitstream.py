@@ -15,6 +15,7 @@ import lxbuildenv
 from migen import Module, Signal, Instance, ClockDomain, If
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.fhdl.specials import TSTriple
+from migen.fhdl.bitcontainer import bits_for
 from migen.fhdl.structure import ClockSignal, ResetSignal, Replicate, Cat
 
 from litex.build.lattice.platform import LatticePlatform
@@ -397,20 +398,98 @@ class SBWarmBoot(Module, AutoCSR):
         )
 
 
+class PicoRVSpi(Module, AutoCSR):
+    def __init__(self, platform, pads, size=2*1024*1024):
+        self.size = size
+
+        self.bus = bus = wishbone.Interface()
+
+        self.reset = Signal()
+
+        self.cfg1 = CSRStorage(size=8)
+        self.cfg2 = CSRStorage(size=8)
+        self.cfg3 = CSRStorage(size=8)
+        self.cfg4 = CSRStorage(size=8)
+
+        self.stat1 = CSRStatus(size=8)
+        self.stat2 = CSRStatus(size=8)
+        self.stat3 = CSRStatus(size=8)
+        self.stat4 = CSRStatus(size=8)
+
+        cfg = Signal(32)
+        cfg_we = Signal(4)
+        cfg_out = Signal(32)
+        self.comb += [
+            cfg.eq(Cat(self.cfg1.storage, self.cfg2.storage, self.cfg3.storage, self.cfg4.storage)),
+            cfg_we.eq(Cat(self.cfg1.re, self.cfg2.re, self.cfg3.re, self.cfg4.re)),
+            self.stat1.status.eq(cfg_out[0:8]),
+            self.stat2.status.eq(cfg_out[8:16]),
+            self.stat3.status.eq(cfg_out[16:24]),
+            self.stat4.status.eq(cfg_out[24:32]),
+        ]
+
+        mosi_pad = TSTriple()
+        miso_pad = TSTriple()
+        cs_n_pad = TSTriple()
+        clk_pad  = TSTriple()
+        wp_pad   = TSTriple()
+        hold_pad = TSTriple()
+        self.specials += mosi_pad.get_tristate(pads.mosi)
+        self.specials += miso_pad.get_tristate(pads.miso)
+        self.specials += cs_n_pad.get_tristate(pads.cs_n)
+        self.specials += clk_pad.get_tristate(pads.clk)
+        self.specials += wp_pad.get_tristate(pads.wp)
+        self.specials += hold_pad.get_tristate(pads.hold)
+
+        reset = Signal()
+        self.comb += [
+            reset.eq(ResetSignal() | self.reset),
+            cs_n_pad.oe.eq(~reset),
+            clk_pad.oe.eq(~reset),
+        ]
+
+        flash_addr = Signal(24)
+        mem_bits = bits_for(size)
+        self.comb += flash_addr.eq(bus.adr[0:mem_bits-2] << 2),
+
+        ack = Signal()
+        self.sync += bus.ack.eq(ack & bus.stb)
+
+        self.specials += Instance("spimemio",
+            o_flash_io0_oe = mosi_pad.oe,
+            o_flash_io1_oe = miso_pad.oe,
+            o_flash_io2_oe = wp_pad.oe,
+            o_flash_io3_oe = hold_pad.oe,
+
+            o_flash_io0_do = mosi_pad.o,
+            o_flash_io1_do = miso_pad.o,
+            o_flash_io2_do = wp_pad.o,
+            o_flash_io3_do = hold_pad.o,
+            o_flash_csb    = cs_n_pad.o,
+            o_flash_clk    = clk_pad.o,
+
+            i_flash_io0_di = mosi_pad.i,
+            i_flash_io1_di = miso_pad.i,
+            i_flash_io2_di = wp_pad.i,
+            i_flash_io3_di = hold_pad.i,
+
+            i_resetn = ~reset,
+            i_clk = ClockSignal(),
+
+            i_valid = bus.stb & bus.cyc,
+            o_ready = ack,
+            i_addr  = flash_addr,
+            o_rdata = bus.dat_r,
+
+	        i_cfgreg_we = cfg_we,
+            i_cfgreg_di = cfg,
+	        o_cfgreg_do = cfg_out,
+        )
+        platform.add_source("spimemio.v")
+
 class BBSpi(Module, AutoCSR):
     def __init__(self, platform, pads):
         self.reset = Signal()
-        # self.rdata = Signal(32)
-        # self.addr = Signal(24)
-        # self.ready = Signal()
-        # self.valid = Signal()
-
-        # self.flash_csb = Signal()
-        # self.flash_clk = Signal()
-
-        # cfgreg_we = Signal(4)
-        # cfgreg_di = Signal(32)
-        # cfgreg_do = Signal(32)
 
         mosi_pad = TSTriple()
         miso_pad = TSTriple()
@@ -422,20 +501,6 @@ class BBSpi(Module, AutoCSR):
         self.do = CSRStorage(size=6)
         self.oe = CSRStorage(size=6)
         self.di = CSRStatus(size=6)
-        # self.cfg = CSRStorage(size=8)
-
-        # cfg_remapped = Cat(self.cfg.storage[0:7], Signal(7), self.cfg.storage[7])
-
-        # self.comb += self.reset.eq(0)
-        # self.comb += [
-        #     cfgreg_di.eq(Cat(self.do.storage, Replicate(2, 0), # Attach "DO" to lower 6 bits
-        #                      self.oe.storage, Replicate(4, 0), # Attach "OE" to bits 8-11
-        #                      cfg_remapped)),
-        #     cfgreg_we.eq(Cat(self.do.re, self.oe.re, self.cfg.re, self.cfg.re)),
-        #     self.di.status.eq(cfgreg_do),
-        #     clk_pad.oe.eq(~self.reset),
-        #     cs_n_pad.oe.eq(~self.reset),
-        # ]
         
         self.specials += mosi_pad.get_tristate(pads.mosi)
         self.specials += miso_pad.get_tristate(pads.miso)
@@ -461,44 +526,13 @@ class BBSpi(Module, AutoCSR):
 
             self.di.status.eq(Cat(mosi_pad.i, miso_pad.i, wp_pad.i, hold_pad.i, clk_pad.i, cs_n_pad.i)),
         ]
-        # self.specials += Instance("spimemio", 
-        #     o_flash_io0_oe = mosi_pad.oe,
-        #     o_flash_io1_oe = miso_pad.oe,
-        #     o_flash_io2_oe = wp_pad.oe,
-        #     o_flash_io3_oe = hold_pad.oe,
 
-        #     o_flash_io0_do = mosi_pad.o,
-        #     o_flash_io1_do = miso_pad.o,
-        #     o_flash_io2_do = wp_pad.o,
-        #     o_flash_io3_do = hold_pad.o,
-
-        #     i_flash_io0_di = mosi_pad.i,
-        #     i_flash_io1_di = miso_pad.i,
-        #     i_flash_io2_di = wp_pad.i,
-        #     i_flash_io3_di = hold_pad.i,
-
-        #     i_resetn = ResetSignal() | self.reset,
-        #     i_clk = ClockSignal(),
-
-        #     i_valid = self.valid,
-        #     o_ready = self.ready,
-        #     i_addr = self.addr,
-        #     o_rdata = self.rdata,
-
-	    #     i_cfgreg_we = cfgreg_we,
-        #     i_cfgreg_di = cfgreg_di,
-	    #     o_cfgreg_do = cfgreg_do,
-
-        #     o_flash_csb = self.flash_csb,
-        #     o_flash_clk = self.flash_clk,
-        # )
-        # platform.add_source("spimemio.v")
 
 class BaseSoC(SoCCore):
     csr_peripherals = [
         "cpu_or_bridge",
         "usb",
-        "bbspi",
+        "picorvspi",
         "reboot",
         "rgb",
     ]
