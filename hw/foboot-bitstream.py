@@ -642,9 +642,6 @@ class BaseSoC(SoCCore):
         if placer is not None:
             platform.toolchain.nextpnr_build_template[1] += " --placer {}".format(placer)
 
-        # # Add a "Multiboot" variant
-        # platform.toolchain.nextpnr_build_template[3] = "icepack -s {build_name}.txt {build_name}-multi.bin"
-
 def make_multiboot_header(filename, boot_offsets=[160]):
     """
     ICE40 allows you to program the SB_WARMBOOT state machine by adding the following
