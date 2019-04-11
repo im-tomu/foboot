@@ -379,7 +379,7 @@ import lxbuildenv
             print("Creating binaries")
             os.mkdir("bin")
             for bin_name, python_module in bin_tools.items():
-                with open('bin' + os.path.sep + bin_name, 'w') as new_bin:
+                with open('bin' + os.path.sep + bin_name, 'w', newline='\n') as new_bin:
                     new_bin.write(bin_template)
                     new_bin.write('from ' + python_module + ' import main\n')
                     new_bin.write('main()\n')
