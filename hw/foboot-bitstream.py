@@ -316,11 +316,6 @@ class FirmwareROM(wishbone.SRAM):
         wishbone.SRAM.__init__(self, size, read_only=True, init=data)
 
 class Platform(LatticePlatform):
-    default_clk_name = "clk48"
-    default_clk_period = 20.833
-
-    gateware_size = 0x20000
-
     def __init__(self, revision=None, toolchain="icestorm"):
         if revision == "evt":
             LatticePlatform.__init__(self, "ice40-up5k-sg48", _io_evt, _connectors, toolchain="icestorm")
@@ -329,7 +324,7 @@ class Platform(LatticePlatform):
         elif revision == "hacker":
             LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io_hacker, _connectors, toolchain="icestorm")
         else:
-            raise ValueError("Unrecognized reivsion: {}.  Known values: evt, dvt".format(revision))
+            raise ValueError("Unrecognized reivsion: {}.  Known values: evt, dvt, hacker".format(revision))
 
     def create_programmer(self):
         raise ValueError("programming is not supported")
@@ -811,7 +806,7 @@ def main():
     {}/gateware/top.bin             Bitstream file.  Load this onto the FPGA for testing.
     {}/gateware/top-multiboot.bin   Multiboot-enabled bitstream file.  Flash this onto FPGA ROM.
     {}/gateware/top.v               Source Verilog file.  Useful for debugging issues.
-    {}/software/include/generated   Header files for API access.
+    {}/software/include/generated/  Directory with header files for API access.
     {}/software/bios/bios.elf       ELF file for debugging bios.
 """.format(output_dir, output_dir, output_dir, output_dir, output_dir))
 
