@@ -1,5 +1,5 @@
 INCLUDE output_format.ld
-ENTRY(rgb_mode_white)
+ENTRY(_start)
 
 __DYNAMIC = 0;
 
