@@ -382,6 +382,7 @@ class SBLED(Module, AutoCSR):
             o_LEDDON = Signal(), 
         )
 
+
 class SBWarmBoot(Module, AutoCSR):
     def __init__(self):
         self.ctrl = CSRStorage(size=8)
@@ -452,8 +453,25 @@ class PicoRVSpi(Module, AutoCSR):
         mem_bits = bits_for(size)
         self.comb += flash_addr.eq(bus.adr[0:mem_bits-2] << 2),
 
-        ack = Signal()
-        self.sync += bus.ack.eq(ack & bus.stb)
+        read_active = Signal()
+        spi_ready = Signal()
+        self.sync += [
+            If(bus.stb & bus.cyc & ~read_active,
+                read_active.eq(1),
+                bus.ack.eq(0),
+            )
+            .Elif(read_active & spi_ready,
+                read_active.eq(0),
+                bus.ack.eq(1),
+            )
+            .Else(
+                bus.ack.eq(0),
+                read_active.eq(0),
+            )
+        ]
+
+        o_rdata = Signal(32)
+        self.comb += bus.dat_r.eq(o_rdata)
 
         self.specials += Instance("spimemio",
             o_flash_io0_oe = mosi_pad.oe,
@@ -477,9 +495,9 @@ class PicoRVSpi(Module, AutoCSR):
             i_clk = ClockSignal(),
 
             i_valid = bus.stb & bus.cyc,
-            o_ready = ack,
+            o_ready = spi_ready,
             i_addr  = flash_addr,
-            o_rdata = bus.dat_r,
+            o_rdata = o_rdata,
 
 	        i_cfgreg_we = cfg_we,
             i_cfgreg_di = cfg,
