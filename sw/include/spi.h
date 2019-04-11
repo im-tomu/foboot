@@ -88,6 +88,6 @@ void spiSwapTxRx(struct ff_spi *spi);
 
 struct ff_spi *spiAlloc(void);
 void spiSetPin(struct ff_spi *spi, enum spi_pin pin, int val);
-void spiFree(struct ff_spi **spi);
+void spiFree(void);
 
 #endif /* BB_SPI_H_ */

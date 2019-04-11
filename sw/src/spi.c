@@ -937,7 +937,7 @@ void spiUnhold(struct ff_spi *spi) {
 	spiEnd(spi);
 }
 
-void spiFree(struct ff_spi **spi) {
+void spiFree(void) {
 	// Re-enable memory-mapped mode
 	picorvspi_cfg4_write(0x80);
 }

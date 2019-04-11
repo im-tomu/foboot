@@ -192,7 +192,7 @@ void usb_setup(const struct usb_setup_request *setup)
         // to be received.
         usb_ack_in();
         usb_wait_for_send_done();
-        usb_disconnect();
+        reboot_to(0x20040000);
 
         // Issue a reboot
         reboot_to_image(0);

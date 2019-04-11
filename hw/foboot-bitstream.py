@@ -621,7 +621,7 @@ class BaseSoC(SoCCore):
         # Add USB pads
         usb_pads = platform.request("usb")
         usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
-        self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, endpoints=[EndpointType.BIDIR])
+        self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf)#, endpoints=[EndpointType.BIDIR])
         # self.submodules.usb = epmem.MemInterface(usb_iobuf)
         # self.submodules.usb = unififo.UsbUniFifo(usb_iobuf)
 

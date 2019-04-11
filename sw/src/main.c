@@ -38,6 +38,37 @@ static void rv_putchar(void *ignored, char c)
 }
 #endif
 
+void reboot_to(uint32_t addr) {
+    irq_setie(0);
+    usb_disconnect();
+    spiFree();
+    rgb_mode_error();
+    /*
+     * Set the return address register to the base of the DDR memory at 0x80000000.
+     * The reset handler of the application loaded to DDR memory by the  bootloader
+     * is expected to be at that location.
+     */
+    void (*fnc)(void) = (void *)addr;
+    fnc();
+    __builtin_unreachable();
+    asm volatile("mv ra,%0\n\t"
+        :
+        : "r"(addr)
+     );
+    
+    /*
+     * Flush the cache.
+     */
+    // asm volatile ("fence.i");
+
+    /*
+     * We need to explicitly execute a return intruction in case the compiler had
+     * done some return addres register manipulation in this function's veneer.
+     */
+    asm volatile("ret");
+    __builtin_unreachable();
+}
+
 static void init(void)
 {
 #ifdef CSR_UART_BASE
