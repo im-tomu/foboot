@@ -781,7 +781,7 @@ def main():
     vns = builder.build()
     soc.do_exit(vns)
 
-    make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"), [160, 262144])
+    make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"), [160, 160, 131072, 262144])
 
     with open(os.path.join(output_dir, 'gateware', 'multiboot-header.bin'), 'rb') as multiboot_header_file:
         multiboot_header = multiboot_header_file.read()
