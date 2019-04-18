@@ -549,7 +549,7 @@ class BaseSoC(SoCCore):
     interrupt_map.update(SoCCore.interrupt_map)
 
     def __init__(self, platform, boot_source="rand",
-                 debug=False, bios_file=None, use_pll=True,
+                 debug=None, bios_file=None, use_pll=True,
                  use_dsp=False, placer=None, **kwargs):
         # Disable integrated RAM as we'll add it later
         self.integrated_sram_size = 0
@@ -559,10 +559,14 @@ class BaseSoC(SoCCore):
 
         SoCCore.__init__(self, platform, clk_freq, integrated_sram_size=0, with_uart=False, **kwargs)
 
-        if debug:
-            from litex.soc.cores.uart import UARTWishboneBridge
-            self.submodules.uart_bridge = UARTWishboneBridge(platform.request("serial"), clk_freq, baudrate=115200)
-            self.add_wb_master(self.uart_bridge.wishbone)
+        usb_debug = False
+        if debug is not None:
+            if debug == "uart":
+                from litex.soc.cores.uart import UARTWishboneBridge
+                self.submodules.uart_bridge = UARTWishboneBridge(platform.request("serial"), clk_freq, baudrate=115200)
+                self.add_wb_master(self.uart_bridge.wishbone)
+            elif debug == "usb":
+                usb_debug = True
             if hasattr(self, "cpu"):
                 self.cpu.use_external_variant("2-stage-1024-cache-debug.v")
                 self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x10)
@@ -621,9 +625,17 @@ class BaseSoC(SoCCore):
         # Add USB pads
         usb_pads = platform.request("usb")
         usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
-        self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf)#, endpoints=[EndpointType.BIDIR])
+        self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, endpoints=[EndpointType.BIDIR], debug=usb_debug)
+        if usb_debug:
+            self.add_wb_master(self.usb.debug_bridge.wishbone)            
         # self.submodules.usb = epmem.MemInterface(usb_iobuf)
         # self.submodules.usb = unififo.UsbUniFifo(usb_iobuf)
+
+        pmoda = platform.request("pmoda")
+        self.sync += [
+            pmoda.p1.eq(self.usb.usb_core.bad_pid_data),
+            pmoda.p4.eq(self.usb.usb_core.bad_pid_hand),
+        ]
 
         # Add "-relut -dffe_min_ce_use 4" to the synth_ice40 command.
         # The "-reult" adds an additional LUT pass to pack more stuff in,
@@ -706,7 +718,7 @@ def main():
         "--bios", help="use specified file as a BIOS, rather than building one"
     )
     parser.add_argument(
-        "--with-debug", help="enable debug support", action="store_true"
+        "--with-debug", help="enable debug support", choices=["usb", "uart", None]
     )
     parser.add_argument(
         "--with-pll", help="enable pll -- this improves phase between 48M and 12M, but is harder to route", action="store_true"
@@ -755,10 +767,8 @@ def main():
 
     cpu_type = "vexriscv"
     cpu_variant = "min"
-    debug = False
     if args.with_debug:
         cpu_variant = "debug"
-        debug = True
 
     if args.no_cpu:
         cpu_type = None
@@ -767,7 +777,7 @@ def main():
     os.environ["LITEX"] = "1" # Give our Makefile something to look for
     platform = Platform(revision=args.revision)
     soc = BaseSoC(platform, cpu_type=cpu_type, cpu_variant=cpu_variant,
-                            debug=debug, boot_source=args.boot_source,
+                            debug=args.with_debug, boot_source=args.boot_source,
                             bios_file=args.bios, use_pll=args.with_pll,
                             use_dsp=args.with_dsp, placer=args.placer)
     builder = Builder(soc, output_dir=output_dir, csr_csv="test/csr.csv", compile_software=compile_software)
