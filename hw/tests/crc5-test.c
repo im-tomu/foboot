@@ -1,22 +1,16 @@
-#include <usb.h>
-#include <irq.h>
-#include <generated/csr.h>
-#include <string.h>
-#include <printf.h>
-#include <uart.h>
+#include <stdio.h>
+#include <stdint.h>
 
-#ifdef CSR_USB_OBUF_EMPTY_ADDR
-
-static const uint8_t crc5Table4[] =
+const uint8_t crc5Table4[] =
         {
             0x00, 0x0E, 0x1C, 0x12, 0x11, 0x1F, 0x0D, 0x03,
             0x0B, 0x05, 0x17, 0x19, 0x1A, 0x14, 0x06, 0x08};
-static const uint8_t crc5Table0[] =
+const uint8_t crc5Table0[] =
         {
             0x00, 0x16, 0x05, 0x13, 0x0A, 0x1C, 0x0F, 0x19,
             0x14, 0x02, 0x11, 0x07, 0x1E, 0x08, 0x1B, 0x0D};
 //---------------
-static int crc5Check(const uint8_t *data)
+int crc5Check(const uint8_t *data)
 //---------------
 {
     uint8_t b = data[0] ^ 0x1F;
@@ -26,7 +20,7 @@ static int crc5Check(const uint8_t *data)
 }
 //  crc5Check
 
-static int do_check(uint16_t pkt) {
+int do_check(uint16_t pkt) {
     uint8_t data[2] = {
         pkt >> 8,
         pkt,
@@ -35,7 +29,7 @@ static int do_check(uint16_t pkt) {
 }
 
 #define INT_SIZE 32
-static unsigned CRC5(unsigned dwInput, int iBitcnt)
+unsigned CRC5(unsigned dwInput, int iBitcnt)
 {
     const uint32_t poly5 = (0x05 << (INT_SIZE-5));
     uint32_t crc5  = (0x1f << (INT_SIZE-5));
@@ -137,89 +131,38 @@ int do_crc5(uint8_t bfr[2]) {
     return crc;
 }
 
-static const char hex[] = "0123456789abcdef";
-
-uint8_t usb_ep0out_wr_ptr;
-uint8_t usb_ep0out_rd_ptr;
-#define EP0OUT_BUFFERS 64
-__attribute__((aligned(4)))
-static uint8_t usb_ep0out_buffer[EP0OUT_BUFFERS][128];
-static uint8_t usb_ep0out_buffer_len[EP0OUT_BUFFERS];
-void usb_poll(void)
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*x))
+int main(int argc, char **argv)
 {
-    // usb_isr();
-    // printf("Start byte_count: %d\n", usb_byte_count_read());
-    while (usb_ep0out_rd_ptr != usb_ep0out_wr_ptr) {
-        uint8_t *obuf = usb_ep0out_buffer[usb_ep0out_rd_ptr];
-        uint8_t cnt = usb_ep0out_buffer_len[usb_ep0out_rd_ptr];
-        unsigned int i;
-        if (cnt) {
-            for (i = 0; i < cnt; i++) {
-                uart_write(' ');
-                uart_write(hex[(obuf[i] >> 4) & 0xf]);
-                uart_write(hex[obuf[i] & (0xf)]);
-            }
-            uart_write('\r');
-            uart_write('\n');
-        }
-        if (obuf[0] == 0xa5) {
-            do_crc5(obuf + 1);
-        }
-        usb_ep0out_rd_ptr = (usb_ep0out_rd_ptr + 1) & (EP0OUT_BUFFERS-1);
-    }
-}
+    // uint32_t check_bytes[] = {
+    //     /*
+    //     0xff3c,
+    //     0x12c5,
+    //     0xe17e,
+    //     0x19f5,
+    //     0x0225,
+    //     0x0165,
+    //     0x009d,
+    //     0x102f,
+    //     make_token(1013),
+    //     make_token(1429),
+    //     make_token(100),
+    //     */
+    //     0x82bc,
+    //     make_token(0x0483),//0x5fde,
+    //     0x843c,
 
-int irq_happened;
+    // };
+    uint8_t check_bytes[][2] = {
+        {0x82, 0xbc},
+        {0x83, 0x44},
+        {0x84, 0x3c},
+    };
 
-void usb_init(void) {
-    return;
-}
-
-int usb_send(struct usb_device *dev, int epnum, const void *data, int total_count) {
     unsigned int i;
-    const uint8_t *data_bfr = data;
-    while (!usb_ibuf_empty_read())
-        printf(".");
-    usb_arm_write(0);
-    for (i = 0; i < total_count; i++) {
-        printf("Writing %02x ", data_bfr[i]);
-        usb_ibuf_head_write(data_bfr[i]);
-    }
-    usb_arm_write(1);
+
+    for (i = 0; i < ARRAY_SIZE(check_bytes); i++)
+        do_crc5(check_bytes[i]);
+
+    return 0;
 }
-
-void usb_isr(void) {
-    uint8_t pending = usb_ev_pending_read();
-    unsigned int byte_count = 0;
-
-    // printf("Start pending: %d  byte_count: %d  empty: %d\n", pending, usb_byte_count_read(), usb_obuf_empty_read());
-    // Advance the obuf head, which will reset the obuf_empty bit
-    if (pending & 1) {
-        uint8_t *obuf = usb_ep0out_buffer[usb_ep0out_wr_ptr];
-        while (!usb_obuf_empty_read() && (byte_count < sizeof(usb_ep0out_buffer[usb_ep0out_wr_ptr]))) {
-            obuf[byte_count++] = usb_obuf_head_read();
-            usb_obuf_head_write(0);
-        }
-        usb_ep0out_buffer_len[usb_ep0out_wr_ptr] = byte_count;
-        usb_ep0out_wr_ptr = (usb_ep0out_wr_ptr + 1) & (EP0OUT_BUFFERS-1);
-        usb_ev_pending_write(pending);
-    }
-    // printf("Start pending: %d  byte_count: %d  empty: %d  bytes_read: %d\n", pending, usb_byte_count_read(), usb_obuf_empty_read(), byte_count);
-
-    return;
-}
-
-void usb_connect(void) {
-    usb_pullup_out_write(1);
-
-    usb_ev_pending_write(usb_ev_pending_read());
-    usb_ev_enable_write(1);
-
-	irq_setmask(irq_getmask() | (1 << USB_INTERRUPT));
-}
-
-int usb_irq_happened(void) {
-  return irq_happened;
-}
-
-#endif /* CSR_USB_OBUF_EMPTY_ADDR */

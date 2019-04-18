@@ -316,11 +316,6 @@ class FirmwareROM(wishbone.SRAM):
         wishbone.SRAM.__init__(self, size, read_only=True, init=data)
 
 class Platform(LatticePlatform):
-    default_clk_name = "clk48"
-    default_clk_period = 20.833
-
-    gateware_size = 0x20000
-
     def __init__(self, revision=None, toolchain="icestorm"):
         if revision == "evt":
             LatticePlatform.__init__(self, "ice40-up5k-sg48", _io_evt, _connectors, toolchain="icestorm")
@@ -329,7 +324,7 @@ class Platform(LatticePlatform):
         elif revision == "hacker":
             LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io_hacker, _connectors, toolchain="icestorm")
         else:
-            raise ValueError("Unrecognized reivsion: {}.  Known values: evt, dvt".format(revision))
+            raise ValueError("Unrecognized reivsion: {}.  Known values: evt, dvt, hacker".format(revision))
 
     def create_programmer(self):
         raise ValueError("programming is not supported")
@@ -381,6 +376,7 @@ class SBLED(Module, AutoCSR):
             o_PWMOUT2 = rgba_pwm[2],
             o_LEDDON = Signal(), 
         )
+
 
 class SBWarmBoot(Module, AutoCSR):
     def __init__(self):
@@ -452,8 +448,25 @@ class PicoRVSpi(Module, AutoCSR):
         mem_bits = bits_for(size)
         self.comb += flash_addr.eq(bus.adr[0:mem_bits-2] << 2),
 
-        ack = Signal()
-        self.sync += bus.ack.eq(ack & bus.stb)
+        read_active = Signal()
+        spi_ready = Signal()
+        self.sync += [
+            If(bus.stb & bus.cyc & ~read_active,
+                read_active.eq(1),
+                bus.ack.eq(0),
+            )
+            .Elif(read_active & spi_ready,
+                read_active.eq(0),
+                bus.ack.eq(1),
+            )
+            .Else(
+                bus.ack.eq(0),
+                read_active.eq(0),
+            )
+        ]
+
+        o_rdata = Signal(32)
+        self.comb += bus.dat_r.eq(o_rdata)
 
         self.specials += Instance("spimemio",
             o_flash_io0_oe = mosi_pad.oe,
@@ -477,9 +490,9 @@ class PicoRVSpi(Module, AutoCSR):
             i_clk = ClockSignal(),
 
             i_valid = bus.stb & bus.cyc,
-            o_ready = ack,
+            o_ready = spi_ready,
             i_addr  = flash_addr,
-            o_rdata = bus.dat_r,
+            o_rdata = o_rdata,
 
 	        i_cfgreg_we = cfg_we,
             i_cfgreg_di = cfg,
@@ -803,7 +816,7 @@ def main():
     {}/gateware/top.bin             Bitstream file.  Load this onto the FPGA for testing.
     {}/gateware/top-multiboot.bin   Multiboot-enabled bitstream file.  Flash this onto FPGA ROM.
     {}/gateware/top.v               Source Verilog file.  Useful for debugging issues.
-    {}/software/include/generated   Header files for API access.
+    {}/software/include/generated/  Directory with header files for API access.
     {}/software/bios/bios.elf       ELF file for debugging bios.
 """.format(output_dir, output_dir, output_dir, output_dir, output_dir))
 

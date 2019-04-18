@@ -38,34 +38,56 @@ static void rv_putchar(void *ignored, char c)
 }
 #endif
 
-void reboot_to(uint32_t addr) {
+#define REBOOT_ADDR 0x20040000
+void reboot(void) {
     irq_setie(0);
+    irq_setmask(0);
     usb_disconnect();
     spiFree();
     rgb_mode_error();
-    /*
-     * Set the return address register to the base of the DDR memory at 0x80000000.
-     * The reset handler of the application loaded to DDR memory by the  bootloader
-     * is expected to be at that location.
-     */
-    void (*fnc)(void) = (void *)addr;
-    fnc();
-    __builtin_unreachable();
-    asm volatile("mv ra,%0\n\t"
-        :
-        : "r"(addr)
-     );
-    
-    /*
-     * Flush the cache.
-     */
-    // asm volatile ("fence.i");
 
-    /*
-     * We need to explicitly execute a return intruction in case the compiler had
-     * done some return addres register manipulation in this function's veneer.
-     */
-    asm volatile("ret");
+    // Check the first few words for the sync pulse;
+    int i;
+    int riscv_boot = 1;
+    uint32_t *destination_array = (uint32_t *)REBOOT_ADDR;
+    for (i = 0; i < 16; i++) {
+        if (destination_array[i] == 0x7e99aa7e) {
+            riscv_boot = 0;
+            break;
+        }
+    }
+
+    if (riscv_boot) {
+        // Reset the Return Address, zero out some registers, and return.
+        asm volatile(
+            "mv ra,%0\n\t"    /* x1  */
+            "mv sp,zero\n\t"  /* x2  */
+            "mv gp,zero\n\t"  /* x3  */
+            "mv tp,zero\n\t"  /* x4  */
+            "mv t0,zero\n\t"  /* x5  */
+            "mv t1,zero\n\t"  /* x6  */
+            "mv t2,zero\n\t"  /* x7  */
+            "mv x8,zero\n\t"  /* x8  */
+            "mv s1,zero\n\t"  /* x9  */
+            "mv a0,zero\n\t"  /* x10 */
+            "mv a1,zero\n\t"  /* x11 */
+
+            // /* Flush the caches */
+            // ".word 0x400f\n\t"
+            // "nop\n\t"
+            // "nop\n\t"
+            // "nop\n\t"
+
+            "ret\n\t"
+
+            :
+            : "r"(REBOOT_ADDR)
+        );
+    }
+    else {
+        // Issue a reboot
+        warmboot_to_image(2);
+    }
     __builtin_unreachable();
 }
 
