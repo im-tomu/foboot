@@ -381,6 +381,7 @@ class SBLED(Module, AutoCSR):
 class SBWarmBoot(Module, AutoCSR):
     def __init__(self):
         self.ctrl = CSRStorage(size=8)
+        self.addr = CSRStorage(size=32)
         do_reset = Signal()
         self.comb += [
             # "Reset Key" is 0xac (0b101011xx)
@@ -632,30 +633,25 @@ class BaseSoC(SoCCore):
             self.picorvspi.bus, size=self.picorvspi.size)
 
         self.submodules.reboot = SBWarmBoot()
+        self.cpu.cpu_reset_address = self.reboot.addr.storage
 
         self.submodules.rgb = SBLED(platform.request("led"))
 
         # Add USB pads
         usb_pads = platform.request("usb")
         usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
-        self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, endpoints=[EndpointType.BIDIR], debug=usb_debug)
+        self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, debug=usb_debug)
         if usb_debug:
             self.add_wb_master(self.usb.debug_bridge.wishbone)            
         # self.submodules.usb = epmem.MemInterface(usb_iobuf)
         # self.submodules.usb = unififo.UsbUniFifo(usb_iobuf)
-
-        pmoda = platform.request("pmoda")
-        self.sync += [
-            pmoda.p1.eq(self.usb.usb_core.bad_pid_data),
-            pmoda.p4.eq(self.usb.usb_core.bad_pid_hand),
-        ]
 
         # Add "-relut -dffe_min_ce_use 4" to the synth_ice40 command.
         # The "-reult" adds an additional LUT pass to pack more stuff in,
         # and the "-dffe_min_ce_use 4" flag prevents Yosys from generating a
         # Clock Enable signal for a LUT that has fewer than 4 flip-flops.
         # This increases density, and lets us use the FPGA more efficiently.
-        platform.toolchain.nextpnr_yosys_template[2] += " -relut -dffe_min_ce_use 5"
+        platform.toolchain.nextpnr_yosys_template[2] += " -relut -dffe_min_ce_use 4"
         if use_dsp:
             platform.toolchain.nextpnr_yosys_template[2] += " -dsp"
 
