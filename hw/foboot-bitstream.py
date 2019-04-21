@@ -48,6 +48,12 @@ _io_evt = [
         Subsignal("pullup", Pins("35")),
         IOStandard("LVCMOS33")
     ),
+    ("touch", 0,
+        Subsignal("t1", Pins("48"), IOStandard("LVCMOS33")),
+        Subsignal("t2", Pins("47"), IOStandard("LVCMOS33")),
+        Subsignal("t3", Pins("46"), IOStandard("LVCMOS33")),
+        Subsignal("t4", Pins("45"), IOStandard("LVCMOS33")),
+    ),
     ("pmoda", 0,
         Subsignal("p1", Pins("28"), IOStandard("LVCMOS33")),
         Subsignal("p2", Pins("27"), IOStandard("LVCMOS33")),
@@ -92,6 +98,12 @@ _io_dvt = [
         Subsignal("pullup", Pins("A4")),
         IOStandard("LVCMOS33")
     ),
+    ("touch", 0,
+        Subsignal("t1", Pins("E4"), IOStandard("LVCMOS33")),
+        Subsignal("t2", Pins("D5"), IOStandard("LVCMOS33")),
+        Subsignal("t3", Pins("E5"), IOStandard("LVCMOS33")),
+        Subsignal("t4", Pins("F5"), IOStandard("LVCMOS33")),
+    ),
     ("led", 0,
         Subsignal("rgb0", Pins("A5"), IOStandard("LVCMOS33")),
         Subsignal("rgb1", Pins("B5"), IOStandard("LVCMOS33")),
@@ -123,6 +135,12 @@ _io_hacker = [
         Subsignal("d_n", Pins("A2")),
         Subsignal("pullup", Pins("D5")),
         IOStandard("LVCMOS33")
+    ),
+    ("touch", 0,
+        Subsignal("t1", Pins("F4"), IOStandard("LVCMOS33")),
+        Subsignal("t2", Pins("E5"), IOStandard("LVCMOS33")),
+        Subsignal("t3", Pins("E4"), IOStandard("LVCMOS33")),
+        Subsignal("t4", Pins("F2"), IOStandard("LVCMOS33")),
     ),
     ("led", 0,
         Subsignal("rgb0", Pins("A5"), IOStandard("LVCMOS33")),
@@ -394,6 +412,35 @@ class SBWarmBoot(Module, AutoCSR):
             i_BOOT = do_reset,
         )
 
+class TouchPads(Module, AutoCSR):
+    def __init__(self, pads):
+        touch1 = TSTriple()
+        touch2 = TSTriple()
+        touch3 = TSTriple()
+        touch4 = TSTriple()
+        self.specials += touch1.get_tristate(pads.t1)
+        self.specials += touch2.get_tristate(pads.t2)
+        self.specials += touch3.get_tristate(pads.t3)
+        self.specials += touch4.get_tristate(pads.t4)
+
+        self.o  = CSRStorage(size=4)
+        self.oe = CSRStorage(size=4)
+        self.i  = CSRStatus(size=4)
+
+        self.comb += [
+            touch1.o.eq(self.o.storage[0]),
+            touch2.o.eq(self.o.storage[1]),
+            touch3.o.eq(self.o.storage[2]),
+            touch4.o.eq(self.o.storage[3]),
+
+            touch1.oe.eq(self.oe.storage[0]),
+            touch2.oe.eq(self.oe.storage[1]),
+            touch3.oe.eq(self.oe.storage[2]),
+            touch4.oe.eq(self.oe.storage[3]),
+
+            self.i.status.eq(Cat(touch1.i, touch2.i, touch3.i, touch4.i))
+        ]
+
 
 class PicoRVSpi(Module, AutoCSR):
     def __init__(self, platform, pads, size=2*1024*1024):
@@ -547,6 +594,7 @@ class BaseSoC(SoCCore):
         "cpu_or_bridge",
         "usb",
         "picorvspi",
+        "touch",
         "reboot",
         "rgb",
     ]
@@ -645,6 +693,9 @@ class BaseSoC(SoCCore):
             self.add_wb_master(self.usb.debug_bridge.wishbone)            
         # self.submodules.usb = epmem.MemInterface(usb_iobuf)
         # self.submodules.usb = unififo.UsbUniFifo(usb_iobuf)
+
+        # Add GPIO pads for the touch buttons
+        self.submodules.touch = TouchPads(platform.request("touch"))
 
         # Add "-relut -dffe_min_ce_use 4" to the synth_ice40 command.
         # The "-reult" adds an additional LUT pass to pack more stuff in,
