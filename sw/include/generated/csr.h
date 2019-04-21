@@ -118,45 +118,63 @@ static inline unsigned char picorvspi_stat4_read(void) {
 }
 
 /* reboot */
-#define CSR_REBOOT_BASE 0xe0005800
-#define CSR_REBOOT_CTRL_ADDR 0xe0005800
+#define CSR_REBOOT_BASE 0xe0006000
+#define CSR_REBOOT_CTRL_ADDR 0xe0006000
 #define CSR_REBOOT_CTRL_SIZE 1
 static inline unsigned char reboot_ctrl_read(void) {
-	unsigned char r = csr_readl(0xe0005800);
-	return r;
-}
-static inline void reboot_ctrl_write(unsigned char value) {
-	csr_writel(value, 0xe0005800);
-}
-
-/* rgb */
-#define CSR_RGB_BASE 0xe0006000
-#define CSR_RGB_DAT_ADDR 0xe0006000
-#define CSR_RGB_DAT_SIZE 1
-static inline unsigned char rgb_dat_read(void) {
 	unsigned char r = csr_readl(0xe0006000);
 	return r;
 }
-static inline void rgb_dat_write(unsigned char value) {
+static inline void reboot_ctrl_write(unsigned char value) {
 	csr_writel(value, 0xe0006000);
 }
-#define CSR_RGB_ADDR_ADDR 0xe0006004
+#define CSR_REBOOT_ADDR_ADDR 0xe0006004
+#define CSR_REBOOT_ADDR_SIZE 4
+static inline unsigned int reboot_addr_read(void) {
+	unsigned int r = csr_readl(0xe0006004);
+	r <<= 8;
+	r |= csr_readl(0xe0006008);
+	r <<= 8;
+	r |= csr_readl(0xe000600c);
+	r <<= 8;
+	r |= csr_readl(0xe0006010);
+	return r;
+}
+static inline void reboot_addr_write(unsigned int value) {
+	csr_writel(value >> 24, 0xe0006004);
+	csr_writel(value >> 16, 0xe0006008);
+	csr_writel(value >> 8, 0xe000600c);
+	csr_writel(value, 0xe0006010);
+}
+
+/* rgb */
+#define CSR_RGB_BASE 0xe0006800
+#define CSR_RGB_DAT_ADDR 0xe0006800
+#define CSR_RGB_DAT_SIZE 1
+static inline unsigned char rgb_dat_read(void) {
+	unsigned char r = csr_readl(0xe0006800);
+	return r;
+}
+static inline void rgb_dat_write(unsigned char value) {
+	csr_writel(value, 0xe0006800);
+}
+#define CSR_RGB_ADDR_ADDR 0xe0006804
 #define CSR_RGB_ADDR_SIZE 1
 static inline unsigned char rgb_addr_read(void) {
-	unsigned char r = csr_readl(0xe0006004);
+	unsigned char r = csr_readl(0xe0006804);
 	return r;
 }
 static inline void rgb_addr_write(unsigned char value) {
-	csr_writel(value, 0xe0006004);
+	csr_writel(value, 0xe0006804);
 }
-#define CSR_RGB_CTRL_ADDR 0xe0006008
+#define CSR_RGB_CTRL_ADDR 0xe0006808
 #define CSR_RGB_CTRL_SIZE 1
 static inline unsigned char rgb_ctrl_read(void) {
-	unsigned char r = csr_readl(0xe0006008);
+	unsigned char r = csr_readl(0xe0006808);
 	return r;
 }
 static inline void rgb_ctrl_write(unsigned char value) {
-	csr_writel(value, 0xe0006008);
+	csr_writel(value, 0xe0006808);
 }
 
 /* timer0 */
@@ -253,6 +271,33 @@ static inline unsigned char timer0_ev_enable_read(void) {
 }
 static inline void timer0_ev_enable_write(unsigned char value) {
 	csr_writel(value, 0xe0002840);
+}
+
+/* touch */
+#define CSR_TOUCH_BASE 0xe0005800
+#define CSR_TOUCH_O_ADDR 0xe0005800
+#define CSR_TOUCH_O_SIZE 1
+static inline unsigned char touch_o_read(void) {
+	unsigned char r = csr_readl(0xe0005800);
+	return r;
+}
+static inline void touch_o_write(unsigned char value) {
+	csr_writel(value, 0xe0005800);
+}
+#define CSR_TOUCH_OE_ADDR 0xe0005804
+#define CSR_TOUCH_OE_SIZE 1
+static inline unsigned char touch_oe_read(void) {
+	unsigned char r = csr_readl(0xe0005804);
+	return r;
+}
+static inline void touch_oe_write(unsigned char value) {
+	csr_writel(value, 0xe0005804);
+}
+#define CSR_TOUCH_I_ADDR 0xe0005808
+#define CSR_TOUCH_I_SIZE 1
+static inline unsigned char touch_i_read(void) {
+	unsigned char r = csr_readl(0xe0005808);
+	return r;
 }
 
 /* usb */
