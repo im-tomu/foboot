@@ -24,12 +24,11 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include <toboot-api.h>
-#include <toboot-internal.h>
 #include <dfu.h>
 #include <rgb.h>
 
 #define RESCUE_IMAGE_OFFSET 262144
+#define RAM_BOOT_SENTINAL 0x17ab0f23
 
 #define ERASE_SIZE 65536 // Erase block size (in bytes)
 #define WRITE_SIZE 256 // Number of bytes we can write
@@ -52,9 +51,16 @@ static unsigned dfu_poll_timeout_ms = 5;
 static uint32_t dfu_buffer[DFU_TRANSFER_SIZE/4];
 static uint32_t dfu_buffer_offset;
 static uint32_t dfu_bytes_remaining;
+static uint32_t ram_mode; // Set this to non-zero to load data into RAM.
 
 // Memory offset we're uploading to.
 static uint32_t dfu_target_address;
+
+uint32_t dfu_origin_addr(void) {
+    if (ram_mode)
+        return ram_mode;
+    return RESCUE_IMAGE_OFFSET | 0x20000000;
+}
 
 static void set_state(dfu_state_t new_state, dfu_status_t new_status) {
     if (new_state == dfuIDLE)
@@ -71,6 +77,9 @@ static void set_state(dfu_state_t new_state, dfu_status_t new_status) {
 
 static bool ftfl_busy()
 {
+    if (ram_mode)
+        return 0;
+
     // Is the flash memory controller busy?
     return spiIsBusy(spi);
 }
@@ -84,10 +93,12 @@ static void ftfl_busy_wait()
 
 static void ftfl_begin_erase_sector(uint32_t address)
 {
-    ftfl_busy_wait();
-    // Only erase if it's on the page boundry.
-    if ((address & ~(ERASE_SIZE - 1) ) == address)
-        spiBeginErase64(spi, address);
+    if (!ram_mode) {
+        ftfl_busy_wait();
+        // Only erase if it's on the page boundry.
+        if ((address & ~(ERASE_SIZE - 1) ) == address)
+            spiBeginErase64(spi, address);
+    }
     fl_state = flsERASING;
 }
 
@@ -96,8 +107,13 @@ static void ftfl_write_more_bytes(void)
     uint32_t bytes_to_write = WRITE_SIZE;
     if (dfu_bytes_remaining < bytes_to_write)
         bytes_to_write = dfu_bytes_remaining;
-    ftfl_busy_wait();
-    spiBeginWrite(spi, dfu_target_address, &dfu_buffer[dfu_buffer_offset/4], bytes_to_write);
+    if (ram_mode) {
+        memcpy((void *)dfu_target_address, &dfu_buffer[dfu_buffer_offset/4], bytes_to_write);
+    }
+    else {
+        ftfl_busy_wait();
+        spiBeginWrite(spi, dfu_target_address, &dfu_buffer[dfu_buffer_offset/4], bytes_to_write);
+    }
 
     dfu_bytes_remaining -= bytes_to_write;
     dfu_target_address += bytes_to_write;
@@ -115,7 +131,12 @@ static void ftfl_begin_program_section(uint32_t address)
 
 static uint32_t address_for_block(unsigned blockNum)
 {
-    static const uint32_t starting_offset = RESCUE_IMAGE_OFFSET;
+    uint32_t starting_offset;
+    if (ram_mode)
+        starting_offset = ram_mode;
+    else
+        starting_offset = RESCUE_IMAGE_OFFSET;
+
     return starting_offset + (blockNum * WRITE_SIZE);
 }
 
@@ -142,13 +163,17 @@ bool dfu_download(unsigned blockNum, unsigned blockLength,
 
     // Store more data...
     memcpy(((uint8_t *)dfu_buffer) + packetOffset, data, packetLength);
-    // int i;
-    // for (i = packetOffset; i < (packetOffset + packetLength); i++) {
-    //     if (((uint8_t *)dfu_buffer)[i] != 0x55) {
-    //         asm("ebreak");
-    //     }
-    // }
-        // ((uint8_t *)dfu_buffer)[i] = 0x55;
+
+    // Check to see if we're writing to RAM instead of SPI flash
+    if ((blockNum == 0) && (packetOffset == 0)) {
+        unsigned int i = 0;
+        for (i = 0; i < (packetLength - 1); i++) {
+            if (dfu_buffer[i/4] == RAM_BOOT_SENTINAL) {
+                ram_mode = dfu_buffer[(i/4)+1];
+                break;
+            }
+        }
+    }
 
     if (packetOffset + packetLength != blockLength) {
         // Still waiting for more data.

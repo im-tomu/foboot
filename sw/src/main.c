@@ -20,7 +20,6 @@ void isr(void)
         usb_isr();
 }
 
-#define REBOOT_ADDR 0x20040000
 void reboot(void) {
     irq_setie(0);
     irq_setmask(0);
@@ -28,11 +27,13 @@ void reboot(void) {
     spiFree();
     rgb_mode_error();
 
+    uint32_t reboot_addr = dfu_origin_addr();
+
     // Check the first few words for the sync pulse;
     int i;
     int riscv_boot = 1;
-    uint32_t *destination_array = (uint32_t *)REBOOT_ADDR;
-    reboot_addr_write(REBOOT_ADDR);
+    uint32_t *destination_array = (uint32_t *)reboot_addr;
+    reboot_addr_write(reboot_addr);
     for (i = 0; i < 32; i++) {
         if ((destination_array[i] == 0x7e99aa7e)
          || (destination_array[i] == 0x7eaa997e)) {
@@ -65,7 +66,7 @@ void reboot(void) {
             "ret\n\t"
 
             :
-            : "r"(REBOOT_ADDR)
+            : "r"(reboot_addr)
         );
     }
     else {
