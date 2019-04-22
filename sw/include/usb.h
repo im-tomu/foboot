@@ -14,14 +14,13 @@ void usb_disconnect(void);
 
 int usb_irq_happened(void);
 void usb_setup(const struct usb_setup_request *setup);
-int usb_send(const void *data, int total_count);
+void usb_send(const void *data, int total_count);
 void usb_ack_in(void);
 void usb_ack_out(void);
 void usb_err(void);
 int usb_recv(void *buffer, unsigned int buffer_len);
 void usb_poll(void);
-int usb_wait_for_send_done(void);
-void usb_recv_done(void);
+void usb_wait_for_send_done(void);
 
 #ifdef __cplusplus
 }

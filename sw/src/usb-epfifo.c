@@ -133,7 +133,7 @@ static void process_tx(void) {
     return;
 }
 
-int usb_send(const void *data, int total_count) {
+void usb_send(const void *data, int total_count) {
 
     while ((current_length || current_data))// && usb_ep_0_in_respond_read() != EPF_NAK)
         ;
@@ -143,16 +143,13 @@ int usb_send(const void *data, int total_count) {
     data_to_send = 0;
     control_state = IN_DATA;
     process_tx();
-
-    return 0;
 }
 
-int usb_wait_for_send_done(void) {
+void usb_wait_for_send_done(void) {
     while (current_data && current_length)
         usb_poll();
     while ((usb_ep_0_in_dtb_read() & 1) == 1)
         usb_poll();
-    return 0;
 }
 
 void usb_isr(void) {
@@ -236,10 +233,6 @@ int usb_recv(void *buffer, unsigned int buffer_len) {
     }
     return 0;
 }
-
-// void usb_recv_done(void) {
-//     usb_ep_0_in_respond_write(EPF_NAK);
-// }
 
 void usb_poll(void) {
     // If some data was received, then process it.

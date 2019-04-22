@@ -31,3 +31,13 @@ int elapsed(int *last_event, int period)
 	} else
 		return 0;
 }
+
+void msleep(int ms)
+{
+        timer0_en_write(0);
+        timer0_reload_write(0);
+        timer0_load_write(SYSTEM_CLOCK_FREQUENCY/1000*ms);
+        timer0_en_write(1);
+        timer0_update_value_write(1);
+        while(timer0_value_read()) timer0_update_value_write(1);
+}

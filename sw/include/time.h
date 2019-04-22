@@ -7,6 +7,7 @@ extern "C" {
 
 void time_init(void);
 int elapsed(int *last_event, int period);
+void msleep(int ms);
 
 #ifdef __cplusplus
 }
