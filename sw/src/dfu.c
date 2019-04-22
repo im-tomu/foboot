@@ -137,7 +137,7 @@ static uint32_t address_for_block(unsigned blockNum)
     else
         starting_offset = RESCUE_IMAGE_OFFSET;
 
-    return starting_offset + (blockNum * WRITE_SIZE);
+    return starting_offset + (blockNum * DFU_TRANSFER_SIZE);
 }
 
 void dfu_init(void)
