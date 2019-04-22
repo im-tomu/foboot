@@ -33,8 +33,9 @@ void reboot(void) {
     int riscv_boot = 1;
     uint32_t *destination_array = (uint32_t *)REBOOT_ADDR;
     reboot_addr_write(REBOOT_ADDR);
-    for (i = 0; i < 16; i++) {
-        if (destination_array[i] == 0x7e99aa7e) {
+    for (i = 0; i < 32; i++) {
+        if ((destination_array[i] == 0x7e99aa7e)
+         || (destination_array[i] == 0x7eaa997e)) {
             riscv_boot = 0;
             break;
         }

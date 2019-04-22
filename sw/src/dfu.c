@@ -47,7 +47,7 @@ static enum {
 
 static dfu_state_t dfu_state = dfuIDLE;
 static dfu_status_t dfu_status = OK;
-static unsigned dfu_poll_timeout_ms = 1;
+static unsigned dfu_poll_timeout_ms = 5;
 
 static uint32_t dfu_buffer[DFU_TRANSFER_SIZE/4];
 static uint32_t dfu_buffer_offset;
@@ -97,7 +97,7 @@ static void ftfl_write_more_bytes(void)
     if (dfu_bytes_remaining < bytes_to_write)
         bytes_to_write = dfu_bytes_remaining;
     ftfl_busy_wait();
-    spiBeginWrite(spi, dfu_target_address, &dfu_buffer[dfu_buffer_offset], bytes_to_write);
+    spiBeginWrite(spi, dfu_target_address, &dfu_buffer[dfu_buffer_offset/4], bytes_to_write);
 
     dfu_bytes_remaining -= bytes_to_write;
     dfu_target_address += bytes_to_write;
@@ -142,6 +142,13 @@ bool dfu_download(unsigned blockNum, unsigned blockLength,
 
     // Store more data...
     memcpy(((uint8_t *)dfu_buffer) + packetOffset, data, packetLength);
+    // int i;
+    // for (i = packetOffset; i < (packetOffset + packetLength); i++) {
+    //     if (((uint8_t *)dfu_buffer)[i] != 0x55) {
+    //         asm("ebreak");
+    //     }
+    // }
+        // ((uint8_t *)dfu_buffer)[i] = 0x55;
 
     if (packetOffset + packetLength != blockLength) {
         // Still waiting for more data.
@@ -167,10 +174,8 @@ bool dfu_download(unsigned blockNum, unsigned blockLength,
     }
 
     // Start programming a block by erasing the corresponding flash sector
-    fl_state = flsERASING;
     fl_current_addr = address_for_block(blockNum);
     dfu_bytes_remaining = blockLength;
-
     ftfl_begin_erase_sector(fl_current_addr);
 
     set_state(dfuDNLOAD_SYNC, OK);
@@ -230,7 +235,7 @@ bool dfu_getstatus(uint8_t status[8])
             // Ready to reboot. The main thread will take care of this. Also let the DFU tool
             // know to leave us alone until this happens.
             set_state(dfuMANIFEST, OK);
-            dfu_poll_timeout_ms = 10;
+            dfu_poll_timeout_ms = 1;
             break;
 
         case dfuMANIFEST:

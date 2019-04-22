@@ -550,7 +550,7 @@ static void spi_get_id(struct ff_spi *spi) {
 	spi->id.manufacturer_id = spiCommandRx(spi);
 	spi->id.device_id = spiCommandRx(spi);
 	spiEnd(spi);
-}
+	return;
 #if 0
 	spiBegin(spi);
 	spiCommand(spi, 0x9f);	// Read device id
@@ -581,6 +581,7 @@ static void spi_get_id(struct ff_spi *spi) {
 
 	spi_decode_id(spi);
 	return;
+#endif
 }
 
 void spiOverrideSize(struct ff_spi *spi, uint32_t size) {
@@ -592,7 +593,6 @@ void spiOverrideSize(struct ff_spi *spi, uint32_t size) {
 	else
 		spi->id.bytes = size;
 }
-#endif
 
 int spiSetType(struct ff_spi *spi, enum spi_type type) {
 
@@ -692,7 +692,7 @@ int spiBeginErase64(struct ff_spi *spi, uint32_t erase_addr) {
 }
 
 int spiBeginWrite(struct ff_spi *spi, uint32_t addr, const void *v_data, unsigned int count) {
-	uint8_t write_cmd = 0x02;
+	const uint8_t write_cmd = 0x02;
 	const uint8_t *data = v_data;
 	unsigned int i;
 
