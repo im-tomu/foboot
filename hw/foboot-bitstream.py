@@ -781,7 +781,7 @@ def main():
         "--with-debug", help="enable debug support", choices=["usb", "uart", None]
     )
     parser.add_argument(
-        "--with-pll", help="enable pll -- this improves phase between 48M and 12M, but is harder to route", action="store_true"
+        "--no-pll", help="disable pll -- this is easier to route, but may not work", action="store_true"
     )
     parser.add_argument(
         "--with-dsp", help="use dsp inference in yosys (not all yosys builds have -dsp)", action="store_true"
@@ -838,7 +838,7 @@ def main():
     platform = Platform(revision=args.revision)
     soc = BaseSoC(platform, cpu_type=cpu_type, cpu_variant=cpu_variant,
                             debug=args.with_debug, boot_source=args.boot_source,
-                            bios_file=args.bios, use_pll=args.with_pll,
+                            bios_file=args.bios, use_pll=not args.no_pll,
                             use_dsp=args.with_dsp, placer=args.placer)
     builder = Builder(soc, output_dir=output_dir, csr_csv="test/csr.csv", compile_software=compile_software)
     if compile_software:
