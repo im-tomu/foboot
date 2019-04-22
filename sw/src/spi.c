@@ -584,6 +584,7 @@ static void spi_get_id(struct ff_spi *spi) {
 #endif
 }
 
+#if 0
 void spiOverrideSize(struct ff_spi *spi, uint32_t size) {
 	spi->size_override = size;
 
@@ -593,6 +594,7 @@ void spiOverrideSize(struct ff_spi *spi, uint32_t size) {
 	else
 		spi->id.bytes = size;
 }
+#endif
 
 int spiSetType(struct ff_spi *spi, enum spi_type type) {
 
