@@ -3,7 +3,6 @@
 #include <usb.h>
 #include <dfu.h>
 #include <system.h>
-#include <printf.h>
 
 #include <usb-desc.h>
 
@@ -109,7 +108,7 @@ void usb_setup(const struct usb_setup_request *setup)
         }
         usb_err();
         return;
-/*
+
     case (MSFT_VENDOR_CODE << 8) | 0xC0: // Get Microsoft descriptor
     case (MSFT_VENDOR_CODE << 8) | 0xC1:
         if (setup->wIndex == 0x0004)
@@ -136,7 +135,7 @@ void usb_setup(const struct usb_setup_request *setup)
         // printf("%s:%d couldn't find webusb descriptor (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
         usb_err();
         return;
-*/
+
     case 0x0121: // DFU_DNLOAD
         if (setup->wIndex > 0)
         {

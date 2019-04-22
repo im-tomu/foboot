@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <irq.h>
-#include <printf.h>
 #include <uart.h>
 #include <usb.h>
 #include <time.h>
@@ -19,24 +18,7 @@ void isr(void)
 
     if (irqs & (1 << USB_INTERRUPT))
         usb_isr();
-
-#ifdef CSR_UART_BASE
-    if (irqs & (1 << UART_INTERRUPT))
-        uart_isr();
-#endif
 }
-
-#ifdef CSR_UART_BASE
-static void rv_putchar(void *ignored, char c)
-{
-    (void)ignored;
-    if (c == '\n')
-        uart_write('\r');
-    if (c == '\r')
-        return;
-    uart_write(c);
-}
-#endif
 
 #define REBOOT_ADDR 0x20040000
 void reboot(void) {

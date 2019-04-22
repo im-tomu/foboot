@@ -2,8 +2,6 @@
 #include <irq.h>
 #include <generated/csr.h>
 #include <string.h>
-#include <printf.h>
-#include <uart.h>
 #include <usb.h>
 
 #ifdef CSR_USB_EP_0_OUT_EV_PENDING_ADDR

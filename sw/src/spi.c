@@ -6,7 +6,6 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <stdlib.h>
-#include <printf.h>
 #include <generated/csr.h>
 
 #include "spi.h"

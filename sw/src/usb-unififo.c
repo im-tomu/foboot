@@ -2,8 +2,6 @@
 #include <irq.h>
 #include <generated/csr.h>
 #include <string.h>
-#include <printf.h>
-#include <uart.h>
 
 #ifdef CSR_USB_OBUF_EMPTY_ADDR
 
