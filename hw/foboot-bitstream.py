@@ -152,13 +152,13 @@ _io_hacker = [
         Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
         Subsignal("miso", Pins("E1"), IOStandard("LVCMOS33")),
         Subsignal("mosi", Pins("F1"), IOStandard("LVCMOS33")),
-        Subsignal("wp",   Pins("F2"), IOStandard("LVCMOS33")),
+        Subsignal("wp",   Pins("A1"), IOStandard("LVCMOS33")),
         Subsignal("hold", Pins("B1"), IOStandard("LVCMOS33")),
     ),
     ("spiflash4x", 0,
         Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
-        Subsignal("dq",   Pins("E1 F1 F2 B1"), IOStandard("LVCMOS33")),
+        Subsignal("dq",   Pins("E1 F1 A1 B1"), IOStandard("LVCMOS33")),
     ),
     ("clk48", 0, Pins("F5"), IOStandard("LVCMOS33"))
 ]
