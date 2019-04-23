@@ -681,7 +681,9 @@ class BaseSoC(SoCCore):
             self.picorvspi.bus, size=self.picorvspi.size)
 
         self.submodules.reboot = SBWarmBoot()
-        self.cpu.cpu_reset_address = self.reboot.addr.storage
+        self.cpu.cpu_params.update(
+            i_externalResetVector=self.reboot.addr.storage,
+        )
 
         self.submodules.rgb = SBLED(platform.request("led"))
 
