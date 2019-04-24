@@ -36,7 +36,7 @@
 	url = https://github.com/xobs/lxsocsupport.git
 [submodule "hw/deps/valentyusb"]
 	path = hw/deps/valentyusb
-	url = https://github.com/xobs/valentyusb.git
+	url = https://github.com/im-tomu/valentyusb.git
 [submodule "hw/deps/usb"]
 	path = hw/deps/usb
 	url = https://github.com/pyusb/pyusb.git
