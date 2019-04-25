@@ -590,15 +590,20 @@ class BBSpi(Module, AutoCSR):
 
 
 class BaseSoC(SoCCore):
-    csr_peripherals = [
-        "cpu_or_bridge",
-        "usb",
-        "picorvspi",
-        "touch",
-        "reboot",
-        "rgb",
-    ]
-    csr_map_update(SoCCore.csr_map, csr_peripherals)
+    SoCCore.csr_map = {
+        "ctrl":           0,  # provided by default (optional)
+        "crg":            1,  # user
+        "uart_phy":       2,  # provided by default (optional)
+        "uart":           3,  # provided by default (optional)
+        "identifier_mem": 4,  # provided by default (optional)
+        "timer0":         5,  # provided by default (optional)
+        "cpu_or_bridge":  8,
+        "usb":            9,
+        "picorvspi":      10,
+        "touch":          11,
+        "reboot":         12,
+        "rgb":            13,
+    }
 
     mem_map = {
         "spiflash": 0x20000000,  # (default shadow @0xa0000000)
