@@ -1,5 +1,5 @@
 // Generator : SpinalHDL v1.3.2    git head : 41815ceafff4e72c2e3a3e1ff7e9ada5202a0d26
-// Date      : 26/03/2019, 08:02:43
+// Date      : 11/04/2019, 06:14:01
 // Component : VexRiscv
 
 
@@ -92,19 +92,19 @@ module InstructionCache (
       input   io_mem_rsp_payload_error,
       input   clk,
       input   reset);
-  reg [23:0] _zz_12_;
+  reg [24:0] _zz_12_;
   reg [31:0] _zz_13_;
   wire  _zz_14_;
   wire [0:0] _zz_15_;
   wire [0:0] _zz_16_;
-  wire [23:0] _zz_17_;
+  wire [24:0] _zz_17_;
   reg  _zz_1_;
   reg  _zz_2_;
   reg  lineLoader_fire;
   reg  lineLoader_valid;
   reg [31:0] lineLoader_address;
   reg  lineLoader_hadError;
-  reg [5:0] lineLoader_flushCounter;
+  reg [4:0] lineLoader_flushCounter;
   reg  _zz_3_;
   reg  lineLoader_flushFromInterface;
   wire  _zz_4_;
@@ -116,21 +116,21 @@ module InstructionCache (
   wire  lineLoader_wayToAllocate_willOverflow;
   reg [2:0] lineLoader_wordIndex;
   wire  lineLoader_write_tag_0_valid;
-  wire [4:0] lineLoader_write_tag_0_payload_address;
+  wire [3:0] lineLoader_write_tag_0_payload_address;
   wire  lineLoader_write_tag_0_payload_data_valid;
   wire  lineLoader_write_tag_0_payload_data_error;
-  wire [21:0] lineLoader_write_tag_0_payload_data_address;
+  wire [22:0] lineLoader_write_tag_0_payload_data_address;
   wire  lineLoader_write_data_0_valid;
-  wire [7:0] lineLoader_write_data_0_payload_address;
+  wire [6:0] lineLoader_write_data_0_payload_address;
   wire [31:0] lineLoader_write_data_0_payload_data;
   wire  _zz_5_;
-  wire [4:0] _zz_6_;
+  wire [3:0] _zz_6_;
   wire  _zz_7_;
   wire  fetchStage_read_waysValues_0_tag_valid;
   wire  fetchStage_read_waysValues_0_tag_error;
-  wire [21:0] fetchStage_read_waysValues_0_tag_address;
-  wire [23:0] _zz_8_;
-  wire [7:0] _zz_9_;
+  wire [22:0] fetchStage_read_waysValues_0_tag_address;
+  wire [24:0] _zz_8_;
+  wire [6:0] _zz_9_;
   wire  _zz_10_;
   wire [31:0] fetchStage_read_waysValues_0_data;
   reg [31:0] decodeStage_mmuRsp_physicalAddress;
@@ -143,7 +143,7 @@ module InstructionCache (
   reg  decodeStage_mmuRsp_hit;
   reg  decodeStage_hit_tags_0_valid;
   reg  decodeStage_hit_tags_0_error;
-  reg [21:0] decodeStage_hit_tags_0_address;
+  reg [22:0] decodeStage_hit_tags_0_address;
   wire  decodeStage_hit_hits_0;
   wire  decodeStage_hit_valid;
   wire  decodeStage_hit_error;
@@ -152,9 +152,9 @@ module InstructionCache (
   reg [31:0] decodeStage_hit_word;
   reg  io_cpu_fetch_dataBypassValid_regNextWhen;
   reg [31:0] io_cpu_fetch_dataBypass_regNextWhen;
-  reg [23:0] ways_0_tags [0:31];
-  reg [31:0] ways_0_datas [0:255];
-  assign _zz_14_ = (! lineLoader_flushCounter[5]);
+  reg [24:0] ways_0_tags [0:15];
+  reg [31:0] ways_0_datas [0:127];
+  assign _zz_14_ = (! lineLoader_flushCounter[4]);
   assign _zz_15_ = _zz_8_[0 : 0];
   assign _zz_16_ = _zz_8_[1 : 1];
   assign _zz_17_ = {lineLoader_write_tag_0_payload_data_address,{lineLoader_write_tag_0_payload_data_error,lineLoader_write_tag_0_payload_data_valid}};
@@ -222,7 +222,7 @@ module InstructionCache (
   end
 
   assign io_flush_cmd_ready = (! (lineLoader_valid || io_cpu_fetch_isValid));
-  assign _zz_4_ = lineLoader_flushCounter[5];
+  assign _zz_4_ = lineLoader_flushCounter[4];
   assign io_flush_rsp = ((_zz_4_ && (! _zz_4__regNext)) && lineLoader_flushFromInterface);
   assign io_mem_cmd_valid = (lineLoader_valid && (! lineLoader_cmdSent));
   assign io_mem_cmd_payload_address = {lineLoader_address[31 : 5],(5'b00000)};
@@ -238,21 +238,21 @@ module InstructionCache (
   assign lineLoader_wayToAllocate_willOverflowIfInc = 1'b1;
   assign lineLoader_wayToAllocate_willOverflow = (lineLoader_wayToAllocate_willOverflowIfInc && lineLoader_wayToAllocate_willIncrement);
   assign _zz_5_ = 1'b1;
-  assign lineLoader_write_tag_0_valid = ((_zz_5_ && lineLoader_fire) || (! lineLoader_flushCounter[5]));
-  assign lineLoader_write_tag_0_payload_address = (lineLoader_flushCounter[5] ? lineLoader_address[9 : 5] : lineLoader_flushCounter[4 : 0]);
-  assign lineLoader_write_tag_0_payload_data_valid = lineLoader_flushCounter[5];
+  assign lineLoader_write_tag_0_valid = ((_zz_5_ && lineLoader_fire) || (! lineLoader_flushCounter[4]));
+  assign lineLoader_write_tag_0_payload_address = (lineLoader_flushCounter[4] ? lineLoader_address[8 : 5] : lineLoader_flushCounter[3 : 0]);
+  assign lineLoader_write_tag_0_payload_data_valid = lineLoader_flushCounter[4];
   assign lineLoader_write_tag_0_payload_data_error = (lineLoader_hadError || io_mem_rsp_payload_error);
-  assign lineLoader_write_tag_0_payload_data_address = lineLoader_address[31 : 10];
+  assign lineLoader_write_tag_0_payload_data_address = lineLoader_address[31 : 9];
   assign lineLoader_write_data_0_valid = (io_mem_rsp_valid && _zz_5_);
-  assign lineLoader_write_data_0_payload_address = {lineLoader_address[9 : 5],lineLoader_wordIndex};
+  assign lineLoader_write_data_0_payload_address = {lineLoader_address[8 : 5],lineLoader_wordIndex};
   assign lineLoader_write_data_0_payload_data = io_mem_rsp_payload_data;
-  assign _zz_6_ = io_cpu_prefetch_pc[9 : 5];
+  assign _zz_6_ = io_cpu_prefetch_pc[8 : 5];
   assign _zz_7_ = (! io_cpu_fetch_isStuck);
   assign _zz_8_ = _zz_12_;
   assign fetchStage_read_waysValues_0_tag_valid = _zz_15_[0];
   assign fetchStage_read_waysValues_0_tag_error = _zz_16_[0];
-  assign fetchStage_read_waysValues_0_tag_address = _zz_8_[23 : 2];
-  assign _zz_9_ = io_cpu_prefetch_pc[9 : 2];
+  assign fetchStage_read_waysValues_0_tag_address = _zz_8_[24 : 2];
+  assign _zz_9_ = io_cpu_prefetch_pc[8 : 2];
   assign _zz_10_ = (! io_cpu_fetch_isStuck);
   assign fetchStage_read_waysValues_0_data = _zz_13_;
   assign io_cpu_fetch_data = (io_cpu_fetch_dataBypassValid ? io_cpu_fetch_dataBypass : fetchStage_read_waysValues_0_data[31 : 0]);
@@ -261,7 +261,7 @@ module InstructionCache (
   assign io_cpu_fetch_mmuBus_cmd_bypassTranslation = 1'b0;
   assign io_cpu_fetch_mmuBus_end = ((! io_cpu_fetch_isStuck) || io_cpu_fetch_isRemoved);
   assign io_cpu_fetch_physicalAddress = io_cpu_fetch_mmuBus_rsp_physicalAddress;
-  assign decodeStage_hit_hits_0 = (decodeStage_hit_tags_0_valid && (decodeStage_hit_tags_0_address == decodeStage_mmuRsp_physicalAddress[31 : 10]));
+  assign decodeStage_hit_hits_0 = (decodeStage_hit_tags_0_valid && (decodeStage_hit_tags_0_address == decodeStage_mmuRsp_physicalAddress[31 : 9]));
   assign decodeStage_hit_valid = (decodeStage_hit_hits_0 != (1'b0));
   assign decodeStage_hit_error = decodeStage_hit_tags_0_error;
   assign decodeStage_hit_data = _zz_11_;
@@ -282,7 +282,7 @@ module InstructionCache (
     if(reset) begin
       lineLoader_valid <= 1'b0;
       lineLoader_hadError <= 1'b0;
-      lineLoader_flushCounter <= (6'b000000);
+      lineLoader_flushCounter <= (5'b00000);
       lineLoader_flushFromInterface <= 1'b0;
       lineLoader_cmdSent <= 1'b0;
       lineLoader_wordIndex <= (3'b000);
@@ -297,11 +297,11 @@ module InstructionCache (
         lineLoader_valid <= 1'b1;
       end
       if(_zz_14_)begin
-        lineLoader_flushCounter <= (lineLoader_flushCounter + (6'b000001));
+        lineLoader_flushCounter <= (lineLoader_flushCounter + (5'b00001));
       end
       if(io_flush_cmd_valid)begin
         if(io_flush_cmd_ready)begin
-          lineLoader_flushCounter <= (6'b000000);
+          lineLoader_flushCounter <= (5'b00000);
           lineLoader_flushFromInterface <= 1'b1;
         end
       end
@@ -324,7 +324,7 @@ module InstructionCache (
     if(io_cpu_fill_valid)begin
       lineLoader_address <= io_cpu_fill_payload;
     end
-    _zz_3_ <= lineLoader_flushCounter[5];
+    _zz_3_ <= lineLoader_flushCounter[4];
     _zz_4__regNext <= _zz_4_;
     if((! io_cpu_decode_isStuck))begin
       decodeStage_mmuRsp_physicalAddress <= io_cpu_fetch_mmuBus_rsp_physicalAddress;

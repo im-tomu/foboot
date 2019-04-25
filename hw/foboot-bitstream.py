@@ -195,7 +195,7 @@ class _CRG(Module):
             # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
             # reset.
             self.clock_domains.cd_por = ClockDomain()
-            reset_delay = Signal(14, reset=4095)
+            reset_delay = Signal(10, reset=1023)
             self.comb += [
                 self.cd_por.clk.eq(self.cd_sys.clk),
                 self.cd_sys.rst.eq(reset_delay != 0),
@@ -546,7 +546,7 @@ class PicoRVSpi(Module, AutoCSR):
             i_cfgreg_di = cfg,
 	        o_cfgreg_do = cfg_out,
         )
-        platform.add_source("spimemio.v")
+        platform.add_source("rtl/spimemio.v")
 
 class BBSpi(Module, AutoCSR):
     def __init__(self, platform, pads):
@@ -617,9 +617,12 @@ class BaseSoC(SoCCore):
 
     def __init__(self, platform, boot_source="rand",
                  debug=None, bios_file=None, use_pll=True,
-                 use_dsp=False, placer=None, **kwargs):
+                 use_dsp=False, placer=None, output_dir="build",
+                 **kwargs):
         # Disable integrated RAM as we'll add it later
         self.integrated_sram_size = 0
+
+        self.output_dir = output_dir
 
         clk_freq = int(12e6)
         self.submodules.crg = _CRG(platform, use_pll=use_pll)
@@ -635,11 +638,14 @@ class BaseSoC(SoCCore):
             elif debug == "usb":
                 usb_debug = True
             if hasattr(self, "cpu"):
-                self.cpu.use_external_variant("2-stage-1024-cache-debug.v")
+                self.cpu.use_external_variant("rtl/2-stage-1024-cache-debug.v")
+                self.copy_memory_file("2-stage-1024-cache-debug.v_toplevel_RegFilePlugin_regFile.bin")
+                os.path.join(output_dir, "gateware")
                 self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x10)
         else:
             if hasattr(self, "cpu"):
-                self.cpu.use_external_variant("2-stage-1024-cache.v")
+                self.cpu.use_external_variant("rtl/2-stage-1024-cache.v")
+                self.copy_memory_file("2-stage-1024-cache.v_toplevel_RegFilePlugin_regFile.bin")
 
         # SPRAM- UP5K has single port RAM, might as well use it as SRAM to
         # free up scarce block RAM.
@@ -720,6 +726,15 @@ class BaseSoC(SoCCore):
 
         if placer is not None:
             platform.toolchain.nextpnr_build_template[1] += " --placer {}".format(placer)
+
+    def copy_memory_file(self, src):
+        import os
+        from shutil import copyfile
+        if not os.path.exists(self.output_dir):
+            os.mkdir(self.output_dir)
+        if not os.path.exists(os.path.join(self.output_dir, "gateware")):
+            os.mkdir(os.path.join(self.output_dir, "gateware"))
+        copyfile(os.path.join("rtl", src), os.path.join(self.output_dir, "gateware", src))
 
 def make_multiboot_header(filename, boot_offsets=[160]):
     """
@@ -846,7 +861,8 @@ def main():
     soc = BaseSoC(platform, cpu_type=cpu_type, cpu_variant=cpu_variant,
                             debug=args.with_debug, boot_source=args.boot_source,
                             bios_file=args.bios, use_pll=not args.no_pll,
-                            use_dsp=args.with_dsp, placer=args.placer)
+                            use_dsp=args.with_dsp, placer=args.placer,
+                            output_dir=output_dir)
     builder = Builder(soc, output_dir=output_dir, csr_csv="test/csr.csv", compile_software=compile_software)
     if compile_software:
         builder.software_packages = [
