@@ -25,14 +25,14 @@ ifeq ($(LITEX),1)
 BASE_DIR   := ../../../../sw
 LDSCRIPT   := $(BASE_DIR)/ld/linker.ld
 LD_DIR     := ../include/generated
-ADD_CFLAGS := -I../include -I$(BASE_DIR)/include -D__vexriscv__ -march=rv32im  -mabi=ilp32
+ADD_CFLAGS := -I../include -I$(BASE_DIR)/include
 ADD_LFLAGS := 
 PACKAGE    := bios
 else
 BASE_DIR   := .
 LD_DIR     := $(BASE_DIR)/ld
 LDSCRIPT   := $(BASE_DIR)/ld/linker.ld
-ADD_CFLAGS := -I$(BASE_DIR)/include -D__vexriscv__ -march=rv32im  -mabi=ilp32
+ADD_CFLAGS := -I$(BASE_DIR)/include
 ADD_LFLAGS := 
 PACKAGE    := foboot
 endif
@@ -43,6 +43,7 @@ THIRD_PARTY := $(BASE_DIR)/third_party
 DBG_CFLAGS := -ggdb -g -DDEBUG -Wall
 DBG_LFLAGS := -ggdb -g -Wall
 CFLAGS     := $(ADD_CFLAGS) \
+			  -D__vexriscv__ -march=rv32i  -mabi=ilp32 \
 			  -Wall -Wextra \
 			  -flto \
 			  -ffunction-sections -fdata-sections -fno-common \
