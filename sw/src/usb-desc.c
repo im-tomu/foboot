@@ -166,12 +166,18 @@ const uint8_t usb_microsoft_wcid[MSFT_WCID_LEN] = {
     0,0,0,0,0,0,                    // Reserved
 };
 
-const struct webusb_url_descriptor landing_url_descriptor = {
+static const struct webusb_url_descriptor landing_url_descriptor = {
     .bLength = LANDING_PAGE_DESCRIPTOR_SIZE,
     .bDescriptorType = WEBUSB_DT_URL,
     .bScheme = WEBUSB_URL_SCHEME_HTTPS,
     .URL = LANDING_PAGE_URL
 };
+
+const uint8_t *get_landing_url_descriptor(uint32_t *datalen) {
+    // Return landing page URL descriptor
+    *datalen = LANDING_PAGE_DESCRIPTOR_SIZE;
+    return (const uint8_t*)&landing_url_descriptor;
+}
 
 struct full_bos {
     struct usb_bos_descriptor bos;

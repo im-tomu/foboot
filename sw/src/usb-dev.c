@@ -126,9 +126,7 @@ void usb_setup(const struct usb_setup_request *setup)
         {
             if (setup->wValue == 0x0001)
             {
-                // Return landing page URL descriptor
-                data = (uint8_t*)&landing_url_descriptor;
-                datalen = LANDING_PAGE_DESCRIPTOR_SIZE;
+                data = get_landing_url_descriptor(&datalen);
                 break;
             }
         }
