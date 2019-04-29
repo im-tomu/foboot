@@ -167,41 +167,48 @@ _connectors = []
 
 class _CRG(Module):
     def __init__(self, platform, use_pll):
+        clk48_raw = platform.request("clk48")
+        clk12_raw = Signal()
+        clk48 = Signal()
+        clk12 = Signal()
+
+        reset_delay = Signal(13, reset=4095)
+        self.clock_domains.cd_por = ClockDomain()
+        self.reset = Signal()
+
+        self.clock_domains.cd_sys = ClockDomain()
+        self.clock_domains.cd_usb_12 = ClockDomain()
+        self.clock_domains.cd_usb_48 = ClockDomain()
+
+        platform.add_period_constraint(self.cd_usb_48.clk, 1e9/48e6)
+        platform.add_period_constraint(self.cd_sys.clk, 1e9/12e6)
+        platform.add_period_constraint(self.cd_usb_12.clk, 1e9/12e6)
+        platform.add_period_constraint(clk48, 1e9/48e6)
+        platform.add_period_constraint(clk48_raw, 1e9/48e6)
+        platform.add_period_constraint(clk12_raw, 1e9/12e6)
+
+        # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
+        # reset.
+        self.comb += [
+            self.cd_por.clk.eq(self.cd_sys.clk),
+            self.cd_sys.rst.eq(reset_delay != 0),
+            self.cd_usb_12.rst.eq(reset_delay != 0),
+        ]
+
         if use_pll:
-            clk48_raw = platform.request("clk48")
-            clk12_raw = Signal()
-            clk48 = Signal()
-            clk12 = Signal()
 
             # Divide clk48 down to clk12, to ensure they're synchronized.
             # By doing this, we avoid needing clock-domain crossing.
             clk12_counter = Signal(2)
 
-
-            self.clock_domains.cd_sys = ClockDomain()
-            self.clock_domains.cd_usb_12 = ClockDomain()
-            self.clock_domains.cd_usb_48 = ClockDomain()
             self.clock_domains.cd_usb_48_raw = ClockDomain()
 
-            platform.add_period_constraint(self.cd_usb_48.clk, 1e9/48e6)
             platform.add_period_constraint(self.cd_usb_48_raw.clk, 1e9/48e6)
-            platform.add_period_constraint(self.cd_sys.clk, 1e9/12e6)
-            platform.add_period_constraint(self.cd_usb_12.clk, 1e9/12e6)
-            platform.add_period_constraint(clk48, 1e9/48e6)
-            platform.add_period_constraint(clk48_raw, 1e9/48e6)
-
-            self.reset = Signal()
 
             # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
             # reset.
-            self.clock_domains.cd_por = ClockDomain()
-            reset_delay = Signal(10, reset=1023)
             self.comb += [
-                self.cd_por.clk.eq(self.cd_sys.clk),
-                self.cd_sys.rst.eq(reset_delay != 0),
-                self.cd_usb_12.rst.eq(reset_delay != 0),
                 self.cd_usb_48.rst.eq(reset_delay != 0),
-                # self.cd_usb_48_raw.rst.eq(reset_delay != 0),
             ]
 
             self.comb += self.cd_usb_48_raw.clk.eq(clk48_raw)
@@ -215,7 +222,6 @@ class _CRG(Module):
                 i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk12_raw,
                 o_GLOBAL_BUFFER_OUTPUT=clk12,
             )
-            platform.add_period_constraint(clk12_raw, 1e9/12e6)
 
             self.specials += Instance(
                 "SB_PLL40_CORE",
@@ -246,33 +252,6 @@ class _CRG(Module):
                 #i_SDI,
             )
         else:
-            clk48_raw = platform.request("clk48")
-            clk12_raw = Signal()
-            clk48 = Signal()
-            clk12 = Signal()
-
-            self.clock_domains.cd_sys = ClockDomain()
-            self.clock_domains.cd_usb_12 = ClockDomain()
-            self.clock_domains.cd_usb_48 = ClockDomain()
-
-            platform.add_period_constraint(self.cd_usb_48.clk, 1e9/48e6)
-            platform.add_period_constraint(self.cd_sys.clk, 1e9/12e6)
-            platform.add_period_constraint(self.cd_usb_12.clk, 1e9/12e6)
-            platform.add_period_constraint(clk48, 1e9/48e6)
-
-            self.reset = Signal()
-
-            # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
-            # reset.
-            self.clock_domains.cd_por = ClockDomain()
-            reset_delay = Signal(13, reset=4095)
-            self.comb += [
-                self.cd_por.clk.eq(self.cd_sys.clk),
-                self.cd_sys.rst.eq(reset_delay != 0),
-                self.cd_usb_12.rst.eq(reset_delay != 0),
-                # self.cd_usb_48.rst.eq(reset_delay != 0),
-            ]
-
             self.specials += Instance(
                 "SB_GB",
                 i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk48_raw,
@@ -284,7 +263,6 @@ class _CRG(Module):
             self.sync.usb_48 += clk12_counter.eq(clk12_counter + 1)
 
             self.comb += clk12_raw.eq(clk12_counter[1])
-            platform.add_period_constraint(clk12_raw, 1e9/12e6)
             self.specials += Instance(
                 "SB_GB",
                 i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk12_raw,
