@@ -71,7 +71,7 @@ struct usb_bos_descriptor {
 static const uint8_t device_descriptor[] = {
         18,                                     // bLength
         1,                                      // bDescriptorType
-        0x10, 0x02,                             // bcdUSB
+        0x01, 0x02,                             // bcdUSB
         0x00,                                   // bDeviceClass
         0x00,                                   // bDeviceSubClass
         0x00,                                   // bDeviceProtocol
