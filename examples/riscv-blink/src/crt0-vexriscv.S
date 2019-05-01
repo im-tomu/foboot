@@ -6,6 +6,8 @@
 
 _start:
   j crt_init
+  .word 0xb469075a
+  .word 0x00000020
 
 .section .text
 .global  trap_entry
