@@ -779,6 +779,13 @@ int spiInit(struct ff_spi *spi) {
 	return 0;
 }
 
+void spiEnableQuad(void) {
+	struct ff_spi *spi = spiAlloc();
+	spiInit(spi);
+	spiWriteStatus(spi, 2, spiReadStatus(spi, 2) | (1 << 1));
+	spiFree();
+}
+
 struct ff_spi *spiAlloc(void) {
 	static struct ff_spi spi;
 	return &spi;

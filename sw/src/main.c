@@ -23,23 +23,54 @@ void isr(void)
 void reboot(void) {
     irq_setie(0);
     irq_setmask(0);
-    usb_disconnect();
-    spiFree();
-    rgb_mode_error();
 
     uint32_t reboot_addr = dfu_origin_addr();
+    uint32_t boot_config = 0;
 
-    // Check the first few words for the sync pulse;
+    // Free the SPI controller, which returns it to memory-mapped mode.
+    spiFree();
+
+    // Scan for configuration data.
     int i;
     int riscv_boot = 1;
     uint32_t *destination_array = (uint32_t *)reboot_addr;
     reboot_addr_write(reboot_addr);
     for (i = 0; i < 32; i++) {
+        // Look for FPGA sync pulse.
         if ((destination_array[i] == 0x7e99aa7e)
          || (destination_array[i] == 0x7eaa997e)) {
             riscv_boot = 0;
             break;
         }
+        // Look for "boot config" word
+        else if (destination_array[i] == 0xb469075a) {
+            boot_config = destination_array[i + 1];
+        }
+    }
+
+    // If requested, just let USB be idle.  Otherwise, reset it.
+    if (boot_config & 0x00000020) // NO_USB_RESET
+        usb_idle();
+    else
+        usb_disconnect();
+
+    // Figure out what mode to put SPI flash into.
+    if (boot_config & 0x00000001) { // QPI_EN
+        spiEnableQuad();
+        picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x20);
+    }
+    if (boot_config & 0x00000002) // DDR_EN
+        picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x40);
+    if (boot_config & 0x00000002) // CFM_EN
+        picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x10);
+    rgb_mode_error();
+
+    // Vexriscv requires three extra nop cycles to flush the cache.
+    if (boot_config & 0x00000010) { // FLUSH_CACHE
+        asm("fence.i");
+        asm("nop");
+        asm("nop");
+        asm("nop");
     }
 
     if (riscv_boot) {

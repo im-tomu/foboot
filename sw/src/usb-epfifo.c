@@ -38,6 +38,19 @@ enum epfifo_response {
 #define USB_EV_ERROR 1
 #define USB_EV_PACKET 2
 
+void usb_idle(void) {
+    usb_ep_0_out_ev_enable_write(0);
+    usb_ep_0_in_ev_enable_write(0);
+
+    // Reject all incoming data, since there is no handler anymore
+    usb_ep_0_out_respond_write(EPF_NAK);
+
+    // Reject outgoing data, since we don't have any to give.
+    usb_ep_0_in_respond_write(EPF_NAK);
+
+    irq_setmask(irq_getmask() & ~(1 << USB_INTERRUPT));
+}
+
 void usb_disconnect(void) {
     usb_ep_0_out_ev_enable_write(0);
     usb_ep_0_in_ev_enable_write(0);

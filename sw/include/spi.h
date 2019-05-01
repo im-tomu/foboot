@@ -73,6 +73,7 @@ int spiIsBusy(struct ff_spi *spi);
 int spiBeginErase32(struct ff_spi *spi, uint32_t erase_addr);
 int spiBeginErase64(struct ff_spi *spi, uint32_t erase_addr);
 int spiBeginWrite(struct ff_spi *spi, uint32_t addr, const void *data, unsigned int count);
+void spiEnableQuad(void);
 
 struct spi_id spiId(struct ff_spi *spi);
 void spiOverrideSize(struct ff_spi *spi, uint32_t new_size);

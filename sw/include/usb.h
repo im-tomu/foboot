@@ -10,6 +10,7 @@ struct usb_setup_request;
 void usb_isr(void);
 void usb_init(void);
 void usb_connect(void);
+void usb_idle(void);
 void usb_disconnect(void);
 
 int usb_irq_happened(void);
