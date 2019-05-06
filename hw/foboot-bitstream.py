@@ -46,6 +46,7 @@ _io_evt = [
         Subsignal("d_p", Pins("34")),
         Subsignal("d_n", Pins("37")),
         Subsignal("pullup", Pins("35")),
+        Subsignal("pulldown", Pins("36")),
         IOStandard("LVCMOS33")
     ),
     ("touch", 0,
@@ -681,7 +682,12 @@ class BaseSoC(SoCCore):
         usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
         self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, debug=usb_debug)
         if usb_debug:
-            self.add_wb_master(self.usb.debug_bridge.wishbone)            
+            self.add_wb_master(self.usb.debug_bridge.wishbone)
+        # For the EVT board, ensure the pulldown pin is tristated as an input
+        if hasattr(usb_pads, "pulldown"):
+            pulldown = TSTriple()
+            self.specials += pulldown.get_tristate(usb_pads.pulldown)
+            self.comb += pulldown.oe.eq(0)
         # self.submodules.usb = epmem.MemInterface(usb_iobuf)
         # self.submodules.usb = unififo.UsbUniFifo(usb_iobuf)
 
