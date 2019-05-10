@@ -176,10 +176,12 @@ void usb_isr(void) {
         int byte_count = 0;
         usb_ep0out_last_tok[usb_ep0out_wr_ptr] = last_tok;
         volatile uint8_t * obuf = usb_ep0out_buffer[usb_ep0out_wr_ptr];
-        while (!usb_ep_0_out_obuf_empty_read()) {
-            obuf[byte_count++] = usb_ep_0_out_obuf_head_read();
+        // usb_ep_0_out_obuf_head_write(0);
+        // usb_ep_0_out_obuf_head_write(0);
+        do {
             usb_ep_0_out_obuf_head_write(0);
-        }
+            obuf[byte_count++] = usb_ep_0_out_obuf_head_read();
+        } while (!usb_ep_0_out_obuf_empty_read());
         usb_ep0out_buffer_len[usb_ep0out_wr_ptr] = byte_count - 2 /* Strip off CRC16 */;
         usb_ep0out_wr_ptr = (usb_ep0out_wr_ptr + 1) & (EP0OUT_BUFFERS-1);
 
@@ -236,7 +238,7 @@ int usb_recv(void *buffer, unsigned int buffer_len) {
                 unsigned int ep0_buffer_len = usb_ep0out_buffer_len[usb_ep0out_rd_ptr];
                 if (ep0_buffer_len < buffer_len)
                     buffer_len = ep0_buffer_len;
-                usb_ep0out_buffer_len[usb_ep0out_rd_ptr] = 0;
+                // usb_ep0out_buffer_len[usb_ep0out_rd_ptr] = 0;
                 memcpy(buffer, (void *)&usb_ep0out_buffer[usb_ep0out_rd_ptr], buffer_len);
                 usb_ep0out_rd_ptr = (usb_ep0out_rd_ptr + 1) & (EP0OUT_BUFFERS-1);
                 return buffer_len;
@@ -254,7 +256,7 @@ void usb_poll(void) {
         // unsigned int len = usb_ep0out_buffer_len[usb_ep0out_rd_ptr];
         uint8_t last_tok = usb_ep0out_last_tok[usb_ep0out_rd_ptr];
 
-        usb_ep0out_buffer_len[usb_ep0out_rd_ptr] = 0;
+        // usb_ep0out_buffer_len[usb_ep0out_rd_ptr] = 0;
         usb_ep0out_rd_ptr = (usb_ep0out_rd_ptr + 1) & (EP0OUT_BUFFERS-1);
 
         if (last_tok == USB_PID_SETUP) {
