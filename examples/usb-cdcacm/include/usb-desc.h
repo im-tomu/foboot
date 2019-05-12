@@ -33,7 +33,6 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <dfu.h>
 #include <webusb-defs.h>
 
 struct usb_setup_request {

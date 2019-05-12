@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <usb.h>
-#include <dfu.h>
 #include <system.h>
 #include <printf.h>
 
@@ -10,10 +9,8 @@
 static uint8_t reply_buffer[8];
 static uint8_t usb_configuration = 0;
 #define USB_MAX_PACKET_SIZE 64
-static uint32_t rx_buffer[USB_MAX_PACKET_SIZE/4];
 uint16_t last_request_and_type;
 
-__attribute__((section(".ramtext")))
 void usb_setup(const struct usb_setup_request *setup)
 {
     const uint8_t *data = NULL;
@@ -30,7 +27,6 @@ void usb_setup(const struct usb_setup_request *setup)
 
     case 0x0500: // SET_ADDRESS
     case 0x0b01: // SET_INTERFACE
-        dfu_clrstatus();
         break;
 
     case 0x0900: // SET_CONFIGURATION
@@ -143,127 +139,6 @@ void usb_setup(const struct usb_setup_request *setup)
         usb_err();
         return;
 */
-    case 0x0121: // DFU_DNLOAD
-        if (setup->wIndex > 0)
-        {
-            usb_err();
-            return;
-        }
-        // Data comes in the OUT phase. But if it's a zero-length request, handle it now.
-        if (setup->wLength == 0)
-        {
-            if (!dfu_download(setup->wValue, 0, 0, 0, NULL))
-            {
-                usb_err();
-                return;
-            }
-            usb_ack_in();
-            return;
-        }
-
-        // ACK the setup packet
-        // usb_ack_out();
-
-        int bytes_remaining = setup->wLength;
-        int ep0_rx_offset = 0;
-        // Fill the buffer, or if there is enough space transfer the whole packet.
-        unsigned int blockLength = setup->wLength;
-        unsigned int blockNum = setup->wValue;
-
-        while (bytes_remaining > 0) {
-            unsigned int i;
-            unsigned int len = blockLength;
-            if (len > sizeof(rx_buffer))
-                len = sizeof(rx_buffer);
-            for (i = 0; i < sizeof(rx_buffer)/4; i++)
-                rx_buffer[i] = 0xffffffff;
-
-            // Receive DATA packets (which are automatically ACKed)
-            len = usb_recv((void *)rx_buffer, len);
-
-            // Append the data to the download buffer.
-            dfu_download(blockNum, blockLength, ep0_rx_offset, len, (void *)rx_buffer);
-
-            bytes_remaining -= len;
-            ep0_rx_offset += len;
-        }
-
-        // ACK the final IN packet.
-        usb_ack_in();
-
-        return;
-
-    case 0x0021: // DFU_DETACH
-        // Send the "ACK" packet and wait for it
-        // to be received.
-        usb_ack_in();
-        usb_wait_for_send_done();
-        reboot();
-        while (1)
-           ;
-        return;
-
-    case 0x03a1: // DFU_GETSTATUS
-        if (setup->wIndex > 0)
-        {
-            usb_err();
-            return;
-        }
-        if (dfu_getstatus(reply_buffer))
-        {
-            data = reply_buffer;
-            datalen = 6;
-            break;
-        }
-        else
-        {
-            usb_err();
-            return;
-        }
-        break;
-
-    case 0x0421: // DFU_CLRSTATUS
-        if (setup->wIndex > 0)
-        {
-            usb_err();
-            return;
-        }
-        if (dfu_clrstatus())
-        {
-            break;
-        }
-        else
-        {
-            usb_err();
-            return;
-        }
-
-    case 0x05a1: // DFU_GETSTATE
-        if (setup->wIndex > 0)
-        {
-            usb_err();
-            return;
-        }
-        reply_buffer[0] = dfu_getstate();
-        data = reply_buffer;
-        datalen = 1;
-        break;
-
-    case 0x0621: // DFU_ABORT
-        if (setup->wIndex > 0)
-        {
-            usb_err();
-            return;
-        }
-        if (dfu_abort())
-        {
-            break;
-        }
-        else
-        {
-            usb_err();
-            return;
-        }
 
     default:
         usb_err();
