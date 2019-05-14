@@ -269,6 +269,10 @@ bool dfu_getstatus(uint8_t status[8])
             dfu_poll_timeout_ms = 1000;
             break;
 
+        case dfuIDLE:
+            dfu_poll_timeout_ms = 5;
+            break;
+
         default:
             break;
     }
