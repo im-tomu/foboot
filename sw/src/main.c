@@ -7,13 +7,14 @@
 #include <rgb.h>
 #include <spi.h>
 #include <generated/csr.h>
+#include <generated/mem.h>
 
 struct ff_spi *spi;
 
 // ICE40UP5K bitstream images (with SB_MULTIBOOT header) are
 // 104250 bytes.  The SPI flash has 4096-byte erase blocks.
 // The smallest divisible boundary is 4096*26.
-#define FBM_OFFSET ((void *)0xa1000)
+#define FBM_OFFSET ((void *)(SPIFLASH_BASE + 0x1a000))
 
 void isr(void)
 {
@@ -26,6 +27,8 @@ void isr(void)
 }
 
 static void riscv_reboot_to(void *addr, uint32_t boot_config) {
+    reboot_addr_write((uint32_t)addr);
+
     // If requested, just let USB be idle.  Otherwise, reset it.
     if (boot_config & 0x00000020) // NO_USB_RESET
         usb_idle();
@@ -83,7 +86,6 @@ static void riscv_reboot_to(void *addr, uint32_t boot_config) {
 static void maybe_boot_fbm(void) {
     unsigned int i;
     int matches = 0;
-
     // Write a sequence of 10 bits out TOUCH2, and check their value
     // on TOUCH0.  Every time it matches, increment a counter.
     // If the counter matches 10 times, then don't boot FBM.
@@ -99,7 +101,7 @@ static void maybe_boot_fbm(void) {
 
     // We've determined that we won't force entry into FBR.  Check to see
     // if the FBM signature exists on flash.
-    uint32_t *fbr_addr = (uint32_t *)FBM_OFFSET;
+    uint32_t *fbr_addr = FBM_OFFSET;
     for (i = 0; i < 64; i++) {
         if (fbr_addr[i] == 0x032bd37d)
             riscv_reboot_to(FBM_OFFSET, 0);
@@ -120,7 +122,6 @@ void reboot(void) {
     int i;
     int riscv_boot = 1;
     uint32_t *destination_array = (uint32_t *)reboot_addr;
-    reboot_addr_write(reboot_addr);
     for (i = 0; i < 32; i++) {
         // Look for FPGA sync pulse.
         if ((destination_array[i] == 0x7e99aa7e)
@@ -146,17 +147,7 @@ void reboot(void) {
 
 static void init(void)
 {
-#ifdef CSR_UART_BASE
-    init_printf(NULL, rv_putchar);
-#endif
-    irq_setmask(0);
-    irq_setie(1);
-    uart_init();
-    usb_init();
-    dfu_init();
-    time_init();
     rgb_init();
-
     spi = spiAlloc();
     spiSetPin(spi, SP_MOSI, 0);
     spiSetPin(spi, SP_MISO, 1);
@@ -169,6 +160,20 @@ static void init(void)
     spiSetPin(spi, SP_D2, 2);
     spiSetPin(spi, SP_D3, 3);
     spiInit(spi);
+    spiFree();
+    maybe_boot_fbm();
+
+    spiInit(spi);
+#ifdef CSR_UART_BASE
+    init_printf(NULL, rv_putchar);
+#endif
+    irq_setmask(0);
+    irq_setie(1);
+    uart_init();
+    usb_init();
+    dfu_init();
+    time_init();
+
 }
 
 int main(int argc, char **argv)
