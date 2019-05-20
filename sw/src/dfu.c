@@ -26,6 +26,7 @@
 
 #include <dfu.h>
 #include <rgb.h>
+#include <generated/mem.h>
 
 #define RESCUE_IMAGE_OFFSET 262144
 #define RAM_BOOT_SENTINAL 0x17ab0f23
@@ -59,7 +60,7 @@ static uint32_t dfu_target_address;
 uint32_t dfu_origin_addr(void) {
     if (ram_mode)
         return ram_mode;
-    return RESCUE_IMAGE_OFFSET | 0x20000000;
+    return RESCUE_IMAGE_OFFSET + SPIFLASH_BASE;
 }
 
 static void set_state(dfu_state_t new_state, dfu_status_t new_status) {
