@@ -6,7 +6,8 @@
 
 _start:
   j crt_init
-  .word 0x17ab0f23
+  .word 0x17ab0f23 // Magic number indicating we'll load to RAM
+  .word 0x10001000 // Address in RAM to load
 
 crt_init:
   la sp, _fstack + 4

@@ -1,10 +1,10 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <usb.h>
-#include <dfu.h>
 #include <system.h>
 
 #include <usb-desc.h>
+#include <usb-msc.h>
 
 static uint8_t reply_buffer[8];
 static uint8_t usb_configuration = 0;
@@ -21,9 +21,13 @@ void usb_setup(const struct usb_setup_request *setup)
 
     switch (setup->wRequestAndType)
     {
+    case 0xfea1: // Get Max LUN
+        if (usb_msc_setup(setup))
+            return;
+        break;
+
     case 0x0500: // SET_ADDRESS
     case 0x0b01: // SET_INTERFACE
-        dfu_clrstatus();
         break;
 
     case 0x0900: // SET_CONFIGURATION
@@ -46,7 +50,7 @@ void usb_setup(const struct usb_setup_request *setup)
     case 0x0082: // GET_STATUS (endpoint)
         if (setup->wIndex > 0)
         {
-            usb_err();
+            usb_stall(0x80);
             return;
         }
         reply_buffer[0] = 0;
@@ -63,7 +67,7 @@ void usb_setup(const struct usb_setup_request *setup)
         if (setup->wIndex > 0 || setup->wValue != 0)
         {
             // TODO: do we need to handle IN vs OUT here?
-            usb_err();
+            usb_stall(0x80);
             return;
         }
         // XXX: Should we clear the stall bit?
@@ -75,7 +79,7 @@ void usb_setup(const struct usb_setup_request *setup)
         if (setup->wIndex > 0 || setup->wValue != 0)
         {
             // TODO: do we need to handle IN vs OUT here?
-            usb_err();
+            usb_stall(0x80);
             return;
         }
         // XXX: Should we set the stall bit?
@@ -106,7 +110,7 @@ void usb_setup(const struct usb_setup_request *setup)
                 goto send;
             }
         }
-        usb_err();
+        usb_stall(0x80);
         return;
 
     case (MSFT_VENDOR_CODE << 8) | 0xC0: // Get Microsoft descriptor
@@ -118,7 +122,7 @@ void usb_setup(const struct usb_setup_request *setup)
             datalen = MSFT_WCID_LEN;
             break;
         }
-        usb_err();
+        usb_stall(0x80);
         return;
 
     case (WEBUSB_VENDOR_CODE << 8) | 0xC0: // Get WebUSB descriptor
@@ -130,144 +134,11 @@ void usb_setup(const struct usb_setup_request *setup)
                 break;
             }
         }
-        // printf("%s:%d couldn't find webusb descriptor (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
-        usb_err();
+        usb_stall(0x80);
         return;
-
-    case 0x0121: // DFU_DNLOAD
-        if (setup->wIndex > 0)
-        {
-            usb_err();
-            return;
-        }
-        // Data comes in the OUT phase. But if it's a zero-length request, handle it now.
-        if (setup->wLength == 0)
-        {
-            if (!dfu_download(setup->wValue, 0, 0, 0, NULL))
-            {
-                usb_err();
-                return;
-            }
-            usb_ack_in();
-            return;
-        }
-
-        // ACK the setup packet
-        // usb_ack_out();
-
-        int bytes_remaining = setup->wLength;
-        int ep0_rx_offset = 0;
-        // Fill the buffer, or if there is enough space transfer the whole packet.
-        unsigned int blockLength = setup->wLength;
-        unsigned int blockNum = setup->wValue;
-
-        while (bytes_remaining > 0) {
-            unsigned int i;
-            unsigned int len = blockLength;
-            if (len > sizeof(rx_buffer))
-                len = sizeof(rx_buffer);
-            for (i = 0; i < sizeof(rx_buffer)/4; i++)
-                rx_buffer[i] = 0xffffffff;
-
-            // Receive DATA packets (which are automatically ACKed)
-            len = usb_recv((void *)rx_buffer, len);
-
-            // Append the data to the download buffer.
-            dfu_download(blockNum, blockLength, ep0_rx_offset, len, (void *)rx_buffer);
-
-            bytes_remaining -= len;
-            ep0_rx_offset += len;
-        }
-
-        // ACK the final IN packet.
-        usb_ack_in();
-
-        return;
-
-    case 0x0021: // DFU_DETACH
-        // Send the "ACK" packet and wait for it
-        // to be received.
-        usb_ack_in();
-        usb_wait_for_send_done();
-        reboot();
-        while (1)
-           ;
-        return;
-
-    case 0x03a1: // DFU_GETSTATUS
-        if (setup->wIndex > 0)
-        {
-            usb_err();
-            return;
-        }
-        if (dfu_getstatus(reply_buffer))
-        {
-            data = reply_buffer;
-            datalen = 6;
-            // If the state is dfuMANIFEST-WAIT-RESET, then perform a reset
-            // once the host acknowledges the packet.
-            if (reply_buffer[4] == 8) {
-                usb_send(data, datalen);
-                usb_wait_for_send_done();
-                int i;
-                for (i = 0; i < 10000; i++)
-                    asm("nop");
-                reboot();
-            }
-            break;
-        }
-        else
-        {
-            usb_err();
-            return;
-        }
-        break;
-
-    case 0x0421: // DFU_CLRSTATUS
-        if (setup->wIndex > 0)
-        {
-            usb_err();
-            return;
-        }
-        if (dfu_clrstatus())
-        {
-            break;
-        }
-        else
-        {
-            usb_err();
-            return;
-        }
-
-    case 0x05a1: // DFU_GETSTATE
-        if (setup->wIndex > 0)
-        {
-            usb_err();
-            return;
-        }
-        reply_buffer[0] = dfu_getstate();
-        data = reply_buffer;
-        datalen = 1;
-        break;
-
-    case 0x0621: // DFU_ABORT
-        if (setup->wIndex > 0)
-        {
-            usb_err();
-            return;
-        }
-        if (dfu_abort())
-        {
-            break;
-        }
-        else
-        {
-            usb_err();
-            return;
-        }
 
     default:
-        usb_err();
+        usb_stall(0x80);
         return;
     }
 
@@ -275,9 +146,9 @@ send:
     if (data && datalen) {
         if (datalen > setup->wLength)
             datalen = setup->wLength;
-        usb_send(data, datalen);
+        usb_send(0, data, datalen);
     }
     else
-        usb_ack_in();
+        usb_ack(0x80);
     return;
 }

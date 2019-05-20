@@ -12,7 +12,7 @@ SECTIONS
 		_ftext = .;
 		*(.text.start)
 		_etext = .;
-	} > rom
+	} > sram
 
 	.data : AT (ADDR(.text) + SIZEOF (.text))
 	{

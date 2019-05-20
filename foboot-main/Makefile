@@ -34,7 +34,7 @@ LD_DIR     := $(BASE_DIR)/ld
 LDSCRIPT   := $(BASE_DIR)/ld/linker.ld
 ADD_CFLAGS := -I$(BASE_DIR)/include
 ADD_LFLAGS := 
-PACKAGE    := foboot
+PACKAGE    := foboot-main
 endif
 
 LDSCRIPTS  := $(LDSCRIPT) $(LD_DIR)/output_format.ld $(LD_DIR)/regions.ld

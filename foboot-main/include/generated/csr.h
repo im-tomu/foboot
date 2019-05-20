@@ -667,6 +667,10 @@ static inline int csr_data_width_read(void) {
 static inline int system_clock_frequency_read(void) {
 	return 12000000;
 }
+#define ROM_DISABLE 1
+static inline int rom_disable_read(void) {
+	return 1;
+}
 #define CONFIG_CLOCK_FREQUENCY 12000000
 static inline int config_clock_frequency_read(void) {
 	return 12000000;

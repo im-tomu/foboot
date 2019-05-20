@@ -1,6 +1,9 @@
 #ifndef __USB_H
 #define __USB_H
 
+#include <stddef.h>
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -15,11 +18,11 @@ void usb_disconnect(void);
 
 int usb_irq_happened(void);
 void usb_setup(const struct usb_setup_request *setup);
-void usb_send(const void *data, int total_count);
-void usb_ack_in(void);
-void usb_ack_out(void);
-void usb_err(void);
-int usb_recv(void *buffer, unsigned int buffer_len);
+void usb_send(int epnum, const void *data, size_t total_count);
+void usb_send_cb(int epnum, int (*cb)(uint8_t *, size_t, void *), void *ptr);
+void usb_ack(int epnum);
+void usb_stall(int epnum);
+int usb_recv(void *buffer, size_t buffer_len);
 void usb_poll(void);
 void usb_wait_for_send_done(void);
 

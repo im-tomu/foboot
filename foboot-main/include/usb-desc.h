@@ -33,7 +33,6 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <dfu.h>
 #include <webusb-defs.h>
 
 struct usb_setup_request {
@@ -59,18 +58,23 @@ struct usb_string_descriptor_struct {
 #define VENDOR_ID                 0x1209    // pid.codes
 #define PRODUCT_ID                0x70b1    // Assigned to Tomu project
 #define DEVICE_VER                0x0101    // Bootloader version
-#define MANUFACTURER_NAME         u"Kosagi"
+#define MANUFACTURER_NAME         u"Foosn"
 #define MANUFACTURER_NAME_LEN     sizeof(MANUFACTURER_NAME)
-#define PRODUCT_NAME              u"Fomu Bootloader (0) " GIT_VERSION
+#define PRODUCT_NAME              u"Fomu Bootloader " GIT_VERSION
 #define PRODUCT_NAME_LEN          sizeof(PRODUCT_NAME)
+#define SERIAL_NUMBER             u"000000000000"
+#define SERIAL_NUMBER_LEN         sizeof(SERIAL_NUMBER)
 #define EP0_SIZE                  64
 #define NUM_INTERFACE             1
-#define CONFIG_DESC_SIZE          (9+9+9)
 
 // Microsoft Compatible ID Feature Descriptor
 #define MSFT_VENDOR_CODE    '~'     // Arbitrary, but should be printable ASCII
 #define MSFT_WCID_LEN       40
 extern const uint8_t usb_microsoft_wcid[MSFT_WCID_LEN];
+
+#define USB_DT_ENDPOINT				5
+#define USB_DT_ENDPOINT_SIZE		7
+#define USB_ENDPOINT_ATTR_BULK			0x02
 
 typedef struct {
     uint16_t  wValue;
@@ -84,7 +88,7 @@ extern const usb_descriptor_list_t usb_descriptor_list[];
 #define WEBUSB_VENDOR_CODE 2
 
 #ifndef LANDING_PAGE_URL
-#define LANDING_PAGE_URL "dfu.tomu.im"
+#define LANDING_PAGE_URL "dfu.fomu.im"
 #endif
 
 #define LANDING_PAGE_DESCRIPTOR_SIZE (WEBUSB_DT_URL_DESCRIPTOR_SIZE \

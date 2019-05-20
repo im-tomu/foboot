@@ -3,7 +3,6 @@
 #include <uart.h>
 #include <usb.h>
 #include <time.h>
-#include <dfu.h>
 #include <rgb.h>
 #include <spi.h>
 #include <generated/csr.h>
@@ -24,7 +23,7 @@ void reboot(void) {
     irq_setie(0);
     irq_setmask(0);
 
-    uint32_t reboot_addr = dfu_origin_addr();
+    uint32_t reboot_addr = 262144;
     uint32_t boot_config = 0;
 
     // Free the SPI controller, which returns it to memory-mapped mode.
@@ -87,13 +86,6 @@ void reboot(void) {
             "mv s1,zero\n\t"  /* x9  */
             "mv a0,zero\n\t"  /* x10 */
             "mv a1,zero\n\t"  /* x11 */
-
-            // /* Flush the caches */
-            // ".word 0x400f\n\t"
-            // "nop\n\t"
-            // "nop\n\t"
-            // "nop\n\t"
-
             "ret\n\t"
 
             :
@@ -116,7 +108,6 @@ static void init(void)
     irq_setie(1);
     uart_init();
     usb_init();
-    dfu_init();
     time_init();
     rgb_init();
 
@@ -145,7 +136,6 @@ int main(int argc, char **argv)
     while (1)
     {
         usb_poll();
-        dfu_poll();
     }
     return 0;
 }
