@@ -567,6 +567,89 @@ class BBSpi(Module, AutoCSR):
             self.di.status.eq(Cat(mosi_pad.i, miso_pad.i, wp_pad.i, hold_pad.i, clk_pad.i, cs_n_pad.i)),
         ]
 
+class Version(Module, AutoCSR):
+    def __init__(self):
+        def makeint(i, base=10):
+            try:
+                return int(i, base=base)
+            except:
+                return 0
+        def get_gitver():
+            import subprocess
+            def decode_version(v):
+                version = v.split(".")
+                major = 0
+                minor = 0
+                rev = 0
+                if len(version) >= 3:
+                    rev = makeint(version[2])
+                if len(version) >= 2:
+                    minor = makeint(version[1])
+                if len(version) >= 1:
+                    major = makeint(version[0])
+                return (major, minor, rev)
+            git_rev_cmd = subprocess.Popen(["git", "describe", "--tags", "--dirty=+"],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+            (git_stdout, _) = git_rev_cmd.communicate()
+            if git_rev_cmd.wait() != 0:
+                print('unable to get git version')
+                return
+            raw_git_rev = git_stdout.decode().strip()
+
+            dirty = False
+            if raw_git_rev[-1] == "+":
+                raw_git_rev = raw_git_rev[:-1]
+                dirty = True
+
+            parts = raw_git_rev.split("-")
+            major = 0
+            minor = 0
+            rev = 0
+            gitrev = 0
+            gitextra = 0
+
+            if len(parts) >= 3:
+                if parts[0].startswith("v"):
+                    version = parts[0]
+                    if version.startswith("v"):
+                        version = parts[0][1:]
+                    (major, minor, rev) = decode_version(version)
+                gitextra = makeint(parts[1])
+                if parts[2].startswith("g"):
+                    gitrev = makeint(parts[2][1:], base=16)
+            elif len(parts) >= 2:
+                if parts[1].startswith("g"):
+                    gitrev = makeint(parts[1][1:], base=16)
+                version = parts[0]
+                if version.startswith("v"):
+                    version = parts[0][1:]
+                (major, minor, rev) = decode_version(version)
+            elif len(parts) >= 1:
+                version = parts[0]
+                if version.startswith("v"):
+                    version = parts[0][1:]
+                (major, minor, rev) = decode_version(version)
+
+            return (major, minor, rev, gitrev, gitextra, dirty)
+
+        self.major = CSRStatus(8)
+        self.minor = CSRStatus(8)
+        self.revision = CSRStatus(8)
+        self.gitrev = CSRStatus(32)
+        self.gitextra = CSRStatus(10)
+        self.dirty = CSRStatus(1)
+
+        (major, minor, rev, gitrev, gitextra, dirty) = get_gitver()
+        self.comb += [
+            self.major.status.eq(major),
+            self.minor.status.eq(minor),
+            self.revision.status.eq(rev),
+            self.gitrev.status.eq(gitrev),
+            self.gitextra.status.eq(gitextra),
+            self.dirty.status.eq(dirty),
+        ]
+
 
 class BaseSoC(SoCCore):
     SoCCore.csr_map = {
@@ -582,6 +665,7 @@ class BaseSoC(SoCCore):
         "touch":          11,
         "reboot":         12,
         "rgb":            13,
+        "version":        14,
     }
 
     mem_map = {
@@ -676,6 +760,7 @@ class BaseSoC(SoCCore):
         )
 
         self.submodules.rgb = SBLED(platform.request("led"))
+        self.submodules.version = Version()
 
         # Add USB pads
         usb_pads = platform.request("usb")
@@ -699,7 +784,7 @@ class BaseSoC(SoCCore):
         # and the "-dffe_min_ce_use 4" flag prevents Yosys from generating a
         # Clock Enable signal for a LUT that has fewer than 4 flip-flops.
         # This increases density, and lets us use the FPGA more efficiently.
-        platform.toolchain.nextpnr_yosys_template[2] += " -relut -dffe_min_ce_use 5"
+        platform.toolchain.nextpnr_yosys_template[2] += " -relut -dffe_min_ce_use 4"
         if use_dsp:
             platform.toolchain.nextpnr_yosys_template[2] += " -dsp"
 
@@ -855,7 +940,12 @@ def main():
     vns = builder.build()
     soc.do_exit(vns)
 
-    make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"), [160, 160, 131072, 262144])
+    make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"), [
+        160,
+        157696,
+        262144,
+        266240,
+    ])
 
     with open(os.path.join(output_dir, 'gateware', 'multiboot-header.bin'), 'rb') as multiboot_header_file:
         multiboot_header = multiboot_header_file.read()
