@@ -10,6 +10,11 @@
 
 struct ff_spi *spi;
 
+// ICE40UP5K bitstream images (with SB_MULTIBOOT header) are
+// 104250 bytes.  The SPI flash has 4096-byte erase blocks.
+// The smallest divisible boundary is 4096*26.
+#define FBM_OFFSET (4096*26)
+
 void isr(void)
 {
     unsigned int irqs;
@@ -18,6 +23,87 @@ void isr(void)
 
     if (irqs & (1 << USB_INTERRUPT))
         usb_isr();
+}
+
+static void riscv_reboot_to(void *addr, uint32_t boot_config) {
+    // If requested, just let USB be idle.  Otherwise, reset it.
+    if (boot_config & 0x00000020) // NO_USB_RESET
+        usb_idle();
+    else
+        usb_disconnect();
+
+    // Figure out what mode to put SPI flash into.
+    if (boot_config & 0x00000001) { // QPI_EN
+        spiEnableQuad();
+        picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x20);
+    }
+    if (boot_config & 0x00000002) // DDR_EN
+        picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x40);
+    if (boot_config & 0x00000002) // CFM_EN
+        picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x10);
+    rgb_mode_error();
+
+    // Vexriscv requires three extra nop cycles to flush the cache.
+    if (boot_config & 0x00000010) { // FLUSH_CACHE
+        asm("fence.i");
+        asm("nop");
+        asm("nop");
+        asm("nop");
+    }
+
+    // Reset the Return Address, zero out some registers, and return.
+    asm volatile(
+        "mv ra,%0\n\t"    /* x1  */
+        "mv sp,zero\n\t"  /* x2  */
+        "mv gp,zero\n\t"  /* x3  */
+        "mv tp,zero\n\t"  /* x4  */
+        "mv t0,zero\n\t"  /* x5  */
+        "mv t1,zero\n\t"  /* x6  */
+        "mv t2,zero\n\t"  /* x7  */
+        "mv x8,zero\n\t"  /* x8  */
+        "mv s1,zero\n\t"  /* x9  */
+        "mv a0,zero\n\t"  /* x10 */
+        "mv a1,zero\n\t"  /* x11 */
+
+        // /* Flush the caches */
+        // ".word 0x400f\n\t"
+        // "nop\n\t"
+        // "nop\n\t"
+        // "nop\n\t"
+
+        "ret\n\t"
+
+        :
+        : "r"(reboot_addr)
+    );
+}
+
+// If Foboot_Main exists on SPI flash, and if the bypass isn't active,
+// jump to FBM.
+static void maybe_boot_fbm(void) {
+    unsigned int i;
+    int matches = 0;
+
+    // Write a sequence of 10 bits out TOUCH2, and check their value
+    // on TOUCH0.  Every time it matches, increment a counter.
+    // If the counter matches 10 times, then don't boot FBM.
+    for (i = 0; i < 10; i++) {
+        // Set pin 2 as output, and pin 0 as input, and see if it loops back.
+        touch_oe_write((1 << 2) | (0 << 0));
+        touch_o_write((i&1) << 2);
+        if ((i&1) == (touch_i_read() & (1 << 0)))
+            matches++;
+    }
+    if (matches == 10)
+        return;
+
+    // We've determined that we won't force entry into FBR.  Check to see
+    // if the FBM signature exists on flash.
+    uint32_t *fbr_addr = (uint32_t *)FBM_OFFSET;
+    for (i = 0; i < 64; i++) {
+        if (fbr_addr[i] == 0x032bd37d)
+            riscv_reboot_to(FBM_OFFSET, 0);
+    }
 }
 
 void reboot(void) {
@@ -48,57 +134,8 @@ void reboot(void) {
         }
     }
 
-    // If requested, just let USB be idle.  Otherwise, reset it.
-    if (boot_config & 0x00000020) // NO_USB_RESET
-        usb_idle();
-    else
-        usb_disconnect();
-
-    // Figure out what mode to put SPI flash into.
-    if (boot_config & 0x00000001) { // QPI_EN
-        spiEnableQuad();
-        picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x20);
-    }
-    if (boot_config & 0x00000002) // DDR_EN
-        picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x40);
-    if (boot_config & 0x00000002) // CFM_EN
-        picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x10);
-    rgb_mode_error();
-
-    // Vexriscv requires three extra nop cycles to flush the cache.
-    if (boot_config & 0x00000010) { // FLUSH_CACHE
-        asm("fence.i");
-        asm("nop");
-        asm("nop");
-        asm("nop");
-    }
-
     if (riscv_boot) {
-        // Reset the Return Address, zero out some registers, and return.
-        asm volatile(
-            "mv ra,%0\n\t"    /* x1  */
-            "mv sp,zero\n\t"  /* x2  */
-            "mv gp,zero\n\t"  /* x3  */
-            "mv tp,zero\n\t"  /* x4  */
-            "mv t0,zero\n\t"  /* x5  */
-            "mv t1,zero\n\t"  /* x6  */
-            "mv t2,zero\n\t"  /* x7  */
-            "mv x8,zero\n\t"  /* x8  */
-            "mv s1,zero\n\t"  /* x9  */
-            "mv a0,zero\n\t"  /* x10 */
-            "mv a1,zero\n\t"  /* x11 */
-
-            // /* Flush the caches */
-            // ".word 0x400f\n\t"
-            // "nop\n\t"
-            // "nop\n\t"
-            // "nop\n\t"
-
-            "ret\n\t"
-
-            :
-            : "r"(reboot_addr)
-        );
+        riscv_reboot_to(reboot_addr, boot_config);
     }
     else {
         // Issue a reboot
