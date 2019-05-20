@@ -13,7 +13,7 @@ struct ff_spi *spi;
 // ICE40UP5K bitstream images (with SB_MULTIBOOT header) are
 // 104250 bytes.  The SPI flash has 4096-byte erase blocks.
 // The smallest divisible boundary is 4096*26.
-#define FBM_OFFSET (4096*26)
+#define FBM_OFFSET ((void *)0xa1000)
 
 void isr(void)
 {
@@ -74,7 +74,7 @@ static void riscv_reboot_to(void *addr, uint32_t boot_config) {
         "ret\n\t"
 
         :
-        : "r"(reboot_addr)
+        : "r"(addr)
     );
 }
 
@@ -135,7 +135,7 @@ void reboot(void) {
     }
 
     if (riscv_boot) {
-        riscv_reboot_to(reboot_addr, boot_config);
+        riscv_reboot_to((void *)reboot_addr, boot_config);
     }
     else {
         // Issue a reboot
