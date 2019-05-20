@@ -211,7 +211,7 @@ static const struct usb_string_descriptor_struct usb_string_manufacturer_name = 
 };
 
 __attribute__((aligned(4)))
-struct usb_string_descriptor_struct usb_string_product_name = {
+static const struct usb_string_descriptor_struct usb_string_product_name = {
     2 + PRODUCT_NAME_LEN,
     3,
     PRODUCT_NAME
