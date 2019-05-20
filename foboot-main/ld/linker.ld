@@ -11,19 +11,27 @@ SECTIONS
 	{
 		_ftext = .;
 		*(.text.start)
+		*(.text .stub .text.* .gnu.linkonce.t.*)
 		_etext = .;
-	} > sram
+	} > rom
 
-	.data : AT (ADDR(.text) + SIZEOF (.text))
+	.rodata :
 	{
 		. = ALIGN(4);
-		_fdata = .;
-		*(.text .stub .text.* .gnu.linkonce.t.*)
+		_frodata = .;
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
 		*(.srodata)
+		_erodata = .;
+	} > rom
+
+	.data : AT (ADDR(.rodata) + SIZEOF (.rodata))
+	{
+		. = ALIGN(4);
+		_fdata = .;
 		*(.data .data.* .gnu.linkonce.d.*)
 		*(.data1)
+		*(.ramtext .ramtext.*)
 		_gp = ALIGN(16);
 		*(.sdata .sdata.* .gnu.linkonce.s.* .sdata2 .sdata2.*)
 		_edata = ALIGN(16); /* Make sure _edata is >= _gp. */

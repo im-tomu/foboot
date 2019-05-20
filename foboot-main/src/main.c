@@ -9,6 +9,7 @@
 
 struct ff_spi *spi;
 
+__attribute__((section(".ramtext")))
 void isr(void)
 {
     unsigned int irqs;
@@ -110,21 +111,9 @@ static void init(void)
     usb_init();
     time_init();
     rgb_init();
-
-    spi = spiAlloc();
-    spiSetPin(spi, SP_MOSI, 0);
-    spiSetPin(spi, SP_MISO, 1);
-    spiSetPin(spi, SP_WP, 2);
-    spiSetPin(spi, SP_HOLD, 3);
-    spiSetPin(spi, SP_CLK, 4);
-    spiSetPin(spi, SP_CS, 5);
-    spiSetPin(spi, SP_D0, 0);
-    spiSetPin(spi, SP_D1, 1);
-    spiSetPin(spi, SP_D2, 2);
-    spiSetPin(spi, SP_D3, 3);
-    spiInit(spi);
 }
 
+__attribute__((section(".ramtext")))
 int main(int argc, char **argv)
 {
     (void)argc;

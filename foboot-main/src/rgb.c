@@ -73,7 +73,7 @@ static void rgb_switch_mode(uint8_t mode,
 }
 
 void rgb_mode_idle(void) {
-    rgb_switch_mode(IDLE, 12, 14, 2, 3, 0x00/4, 0x4a/4, 0xe1/4);
+    rgb_switch_mode(IDLE, 18, 5, 20, 3, 0x00/4, 0x7a/4, 0x31/4);
 }
 
 void rgb_mode_writing(void) {

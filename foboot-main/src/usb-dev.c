@@ -12,6 +12,7 @@ static uint8_t usb_configuration = 0;
 static uint32_t rx_buffer[USB_MAX_PACKET_SIZE/4];
 uint16_t last_request_and_type;
 
+__attribute__((section(".ramtext")))
 void usb_setup(const struct usb_setup_request *setup)
 {
     const uint8_t *data = NULL;

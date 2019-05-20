@@ -79,6 +79,7 @@ void usb_disconnect(void) {
     usb_pullup_out_write(0);
 }
 
+__attribute__((section(".ramtext")))
 void usb_connect(void) {
 
     usb_ep_0_out_ev_pending_write(usb_ep_0_out_ev_enable_read());
@@ -114,6 +115,7 @@ void usb_init(void) {
     return;
 }
 
+__attribute__((section(".ramtext")))
 void usb_isr(void) {
     uint8_t ep0o_pending = usb_ep_0_out_ev_pending_read();
     uint8_t ep0i_pending = usb_ep_0_in_ev_pending_read();
@@ -380,6 +382,7 @@ void usb_send_cb(int epnum, int (*cb)(uint8_t *, size_t, void *), void *ptr) {
     }
 }
 
+__attribute__((section(".ramtext")))
 void usb_send(int epnum, const void *data, size_t total_count) {
     switch (epnum) {
     case 0:
@@ -431,6 +434,7 @@ int usb_recv(void *buffer, unsigned int buffer_len) {
     return 0;
 }
 
+__attribute__((section(".ramtext")))
 void usb_poll(void) {
     // If some data was received, then process it.
     while (usb_ep0out_rd_ptr != usb_ep0out_wr_ptr) {

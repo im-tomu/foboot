@@ -6,8 +6,7 @@
 
 _start:
   j crt_init
-  .word 0x17ab0f23 // Magic number indicating we'll load to RAM
-  .word 0x10001000 // Address in RAM to load
+  .word 0x032bd37d // Magic number indicating this is a valid FBM
 
 crt_init:
   la sp, _fstack + 4
@@ -25,7 +24,7 @@ bss_loop:
 bss_done:
 
   // Load DATA section
-  la t0, _etext
+  la t0, _erodata
   la t1, _fdata
   la t2, _edata
 3:
@@ -43,7 +42,7 @@ bss_done:
 
   call main
 
-.section .text
+.section .ramtext
 .global  trap_entry
 trap_entry:
   sw x1,  - 1*4(sp)

@@ -642,6 +642,53 @@ static inline unsigned char usb_ep_2_in_ibuf_empty_read(void) {
 	return r;
 }
 
+/* version */
+#define CSR_VERSION_BASE 0xe0007000
+#define CSR_VERSION_MAJOR_ADDR 0xe0007000
+#define CSR_VERSION_MAJOR_SIZE 1
+static inline unsigned char version_major_read(void) {
+	unsigned char r = csr_readl(0xe0007000);
+	return r;
+}
+#define CSR_VERSION_MINOR_ADDR 0xe0007004
+#define CSR_VERSION_MINOR_SIZE 1
+static inline unsigned char version_minor_read(void) {
+	unsigned char r = csr_readl(0xe0007004);
+	return r;
+}
+#define CSR_VERSION_REVISION_ADDR 0xe0007008
+#define CSR_VERSION_REVISION_SIZE 1
+static inline unsigned char version_revision_read(void) {
+	unsigned char r = csr_readl(0xe0007008);
+	return r;
+}
+#define CSR_VERSION_GITREV_ADDR 0xe000700c
+#define CSR_VERSION_GITREV_SIZE 4
+static inline unsigned int version_gitrev_read(void) {
+	unsigned int r = csr_readl(0xe000700c);
+	r <<= 8;
+	r |= csr_readl(0xe0007010);
+	r <<= 8;
+	r |= csr_readl(0xe0007014);
+	r <<= 8;
+	r |= csr_readl(0xe0007018);
+	return r;
+}
+#define CSR_VERSION_GITEXTRA_ADDR 0xe000701c
+#define CSR_VERSION_GITEXTRA_SIZE 2
+static inline unsigned short int version_gitextra_read(void) {
+	unsigned short int r = csr_readl(0xe000701c);
+	r <<= 8;
+	r |= csr_readl(0xe0007020);
+	return r;
+}
+#define CSR_VERSION_DIRTY_ADDR 0xe0007024
+#define CSR_VERSION_DIRTY_SIZE 1
+static inline unsigned char version_dirty_read(void) {
+	unsigned char r = csr_readl(0xe0007024);
+	return r;
+}
+
 /* constants */
 #define NMI_INTERRUPT 0
 static inline int nmi_interrupt_read(void) {
