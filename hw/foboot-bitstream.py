@@ -919,7 +919,7 @@ def main():
     cpu_type = "vexriscv"
     cpu_variant = "min"
     if args.with_debug:
-        cpu_variant = "debug"
+        cpu_variant = cpu_variant + "+debug"
 
     if args.no_cpu:
         cpu_type = None
