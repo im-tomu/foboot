@@ -125,6 +125,7 @@ _io_dvt = [
     ),
     ("clk48", 0, Pins("F4"), IOStandard("LVCMOS33"))
 ]
+_io_pvt = _io_dvt
 _io_hacker = [
     ("serial", 0,
         Subsignal("rx", Pins("C3")),
@@ -318,10 +319,12 @@ class Platform(LatticePlatform):
             LatticePlatform.__init__(self, "ice40-up5k-sg48", _io_evt, _connectors, toolchain="icestorm")
         elif revision == "dvt":
             LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io_dvt, _connectors, toolchain="icestorm")
+        elif revision == "pvt":
+            LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io_pvt, _connectors, toolchain="icestorm")
         elif revision == "hacker":
             LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io_hacker, _connectors, toolchain="icestorm")
         else:
-            raise ValueError("Unrecognized reivsion: {}.  Known values: evt, dvt, hacker".format(revision))
+            raise ValueError("Unrecognized reivsion: {}.  Known values: evt, dvt, pvt, hacker".format(revision))
 
     def create_programmer(self):
         raise ValueError("programming is not supported")
@@ -784,7 +787,7 @@ class BaseSoC(SoCCore):
         # and the "-dffe_min_ce_use 4" flag prevents Yosys from generating a
         # Clock Enable signal for a LUT that has fewer than 4 flip-flops.
         # This increases density, and lets us use the FPGA more efficiently.
-        platform.toolchain.nextpnr_yosys_template[2] += " -relut -dffe_min_ce_use 5"
+        platform.toolchain.nextpnr_yosys_template[2] += " -relut -dffe_min_ce_use 4"
         if use_dsp:
             platform.toolchain.nextpnr_yosys_template[2] += " -dsp"
 
@@ -862,7 +865,7 @@ def main():
         help="where to have the CPU obtain its executable code from"
     )
     parser.add_argument(
-        "--revision", choices=["dvt", "evt", "hacker"], required=True,
+        "--revision", choices=["evt", "dvt", "pvt", "hacker"], required=True,
         help="build foboot for a particular hardware revision"
     )
     parser.add_argument(
