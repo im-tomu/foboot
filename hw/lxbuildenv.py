@@ -16,6 +16,9 @@ DEFAULT_DEPS = {
     'litex':        'https://github.com/enjoy-digital/litex.git',
     'litescope':    'https://github.com/enjoy-digital/litescope.git',
     'pyserial':     'https://github.com/pyserial/pyserial.git',
+}
+
+OPTIONAL_DEPS = {
     'liteeth':      'https://github.com/enjoy-digital/liteeth.git',
     'liteusb':      'https://github.com/enjoy-digital/liteusb.git',
     'litedram':     'https://github.com/enjoy-digital/litedram.git',
@@ -171,11 +174,11 @@ def check_make(args):
     return check_cmd(args, "make", "GNU Make")
 
 def check_riscv(args):
-    riscv64 = check_cmd(args, "riscv64-unknown-elf-gcc", "riscv toolchain", "download it from https://www.sifive.com/products/tools/")
+    riscv64 = check_cmd(args, "riscv64-unknown-elf-gcc", "riscv toolchain", "download it from https://www.sifive.com/boards/")
     if riscv64[0] == True:
         return riscv64
 
-    riscv32 = check_cmd(args, "riscv32-unknown-elf-gcc", "riscv toolchain", "download it from https://www.sifive.com/products/tools/")
+    riscv32 = check_cmd(args, "riscv32-unknown-elf-gcc", "riscv toolchain", "download it from https://www.sifive.com/boards/")
     if riscv32[0] == True:
         return riscv32
 
@@ -357,11 +360,11 @@ def lx_main(args):
             print("bin/ directory exists -- remove bin/ directory to re-initialize")
         else:
             bin_tools = {
-                'mkmscimg':           'litex.soc.tools.mkmscimg',
-                'litex_term':         'litex.utils.litex_term',
-                'litex_server':       'litex.utils.litex_server',
-                'litex_sim':          'litex.utils.litex_sim',
-                'litex_read_verilog': 'litex.utils.litex_read_verilog',
+                'mkmscimg':           'litex.soc.software.mkmscimg',
+                'litex_term':         'litex.tools.litex_term',
+                'litex_server':       'litex.tools.litex_server',
+                'litex_sim':          'litex.tools.litex_sim',
+                'litex_read_verilog': 'litex.tools.litex_read_verilog',
                 'litex_simple':       'litex.boards.targets.simple',
             }
             bin_template = """#!/usr/bin/env python3
