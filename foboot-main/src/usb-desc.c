@@ -72,16 +72,16 @@ static const uint8_t device_descriptor[] = {
         18,                                     // bLength
         1,                                      // bDescriptorType
         0x01, 0x02,                             // bcdUSB
-        0x00,                                   // bDeviceClass
-        0x00,                                   // bDeviceSubClass
-        0x00,                                   // bDeviceProtocol
+        0x08, /* MSC */                         // bDeviceClass
+        0,                                      // bDeviceSubClass
+        0,                                      // bDeviceProtocol
         EP0_SIZE,                               // bMaxPacketSize0
         LSB(VENDOR_ID), MSB(VENDOR_ID),         // idVendor
         LSB(PRODUCT_ID), MSB(PRODUCT_ID),       // idProduct
         LSB(DEVICE_VER), MSB(DEVICE_VER),       // bcdDevice
         1,                                      // iManufacturer
         2,                                      // iProduct
-        0,                                      // iSerialNumber
+        3,                                      // iSerialNumber
         1                                       // bNumConfigurations
 };
 
@@ -96,38 +96,47 @@ static const uint8_t device_descriptor[] = {
 
 // USB Configuration Descriptor.  This huge descriptor tells all
 // of the devices capbilities.
+#define CONFIG_DESC_SIZE          (9+9+USB_DT_ENDPOINT_SIZE+USB_DT_ENDPOINT_SIZE)
 static const uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
         // configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
         9,                                      // bLength;
         2,                                      // bDescriptorType;
         LSB(CONFIG_DESC_SIZE),                  // wTotalLength
         MSB(CONFIG_DESC_SIZE),
-        NUM_INTERFACE,                          // bNumInterfaces
+        1,                                      // bNumInterfaces
         1,                                      // bConfigurationValue
-        1,                                      // iConfiguration
+        0,                                      // iConfiguration
         0x80,                                   // bmAttributes
         50,                                     // bMaxPower
 
         // interface descriptor, DFU Mode (DFU spec Table 4.4)
         9,                                      // bLength
         4,                                      // bDescriptorType
-        DFU_INTERFACE,                          // bInterfaceNumber
+        0,                                      // bInterfaceNumber
         0,                                      // bAlternateSetting
-        0,                                      // bNumEndpoints
-        0xFE,                                   // bInterfaceClass
-        0x01,                                   // bInterfaceSubClass
-        0x02,                                   // bInterfaceProtocol
-        2,                                      // iInterface
+        2,                                      // bNumEndpoints
+        0x08, /* IFACE_CLASS_MASS_STORAGE */    // bInterfaceClass
+        0x06, /* SCSI subclass */               // bInterfaceSubClass
+        0x50, /* BBB interface */               // bInterfaceProtocol
+        0,                                      // iInterface
 
-        // DFU Functional Descriptor (DFU spec Table 4.2)
-        9,                                      // bLength
-        0x21,                                   // bDescriptorType
-        0x0D,                                   // bmAttributes
-        LSB(DFU_DETACH_TIMEOUT),                // wDetachTimeOut
-        MSB(DFU_DETACH_TIMEOUT),
-        LSB(DFU_TRANSFER_SIZE),                 // wTransferSize
-        MSB(DFU_TRANSFER_SIZE),
-        0x01,0x01,                              // bcdDFUVersion
+        // Endpoint descriptor
+        USB_DT_ENDPOINT_SIZE,                   // bLength
+        USB_DT_ENDPOINT,                        // bDescriptorType
+        0x82,                                   // bEndpointAddress
+        USB_ENDPOINT_ATTR_BULK,                 // bmAttributes
+        LSB(64),                                // wMaxPacketSize
+        MSB(64),                                // wMaxPacketSize
+        0,                                      // bInterval
+
+        // Endpoint descriptor
+        USB_DT_ENDPOINT_SIZE,                   // bLength
+        USB_DT_ENDPOINT,                        // bDescriptorType
+        0x02,                                   // bEndpointAddress
+        USB_ENDPOINT_ATTR_BULK,                 // bmAttributes
+        LSB(64),                                // wMaxPacketSize
+        MSB(64),                                // wMaxPacketSize
+        0,                                      // bInterval
 };
 
 
@@ -211,10 +220,17 @@ static const struct usb_string_descriptor_struct usb_string_manufacturer_name = 
 };
 
 __attribute__((aligned(4)))
-static const struct usb_string_descriptor_struct usb_string_product_name = {
+struct usb_string_descriptor_struct usb_string_product_name = {
     2 + PRODUCT_NAME_LEN,
     3,
     PRODUCT_NAME
+};
+
+__attribute__((aligned(4)))
+static const struct usb_string_descriptor_struct usb_string_serial_number = {
+    2 + SERIAL_NUMBER_LEN,
+    3,
+    SERIAL_NUMBER
 };
 
 // **************************************************************
@@ -229,6 +245,7 @@ const usb_descriptor_list_t usb_descriptor_list[] = {
     {0x0300, 0, (const uint8_t *)&string0},
     {0x0301, 0, (const uint8_t *)&usb_string_manufacturer_name},
     {0x0302, 0, (const uint8_t *)&usb_string_product_name},
+    {0x0303, 0, (const uint8_t *)&usb_string_serial_number},
     {0x03EE, 0, (const uint8_t *)&usb_string_microsoft},
     {0x0F00, sizeof(full_bos), (const uint8_t *)&full_bos},
     {0, 0, NULL}

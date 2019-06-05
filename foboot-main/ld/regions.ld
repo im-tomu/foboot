@@ -1,0 +1,4 @@
+MEMORY {
+	sram : ORIGIN = 0x10000000, LENGTH = 128k
+	rom  : ORIGIN = 0x20000000 + 0x1a00, LENGTH = 0xc000
+}

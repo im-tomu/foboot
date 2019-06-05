@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <stdlib.h>
-#include <printf.h>
+#include <time.h>
 #include <generated/csr.h>
 
 #include "spi.h"
@@ -511,6 +511,7 @@ void spiWriteStatus(struct ff_spi *spi, uint8_t sr, uint8_t val) {
 	}
 }
 
+#if 0
 struct spi_id spiId(struct ff_spi *spi) {
 	return spi->id;
 }
@@ -539,7 +540,7 @@ static void spi_decode_id(struct ff_spi *spi) {
 	}
 	return;
 }
-
+#endif
 static void spi_get_id(struct ff_spi *spi) {
 	spiBegin(spi);
 	spiCommand(spi, 0x90);	// Read manufacturer ID
@@ -549,7 +550,8 @@ static void spi_get_id(struct ff_spi *spi) {
 	spi->id.manufacturer_id = spiCommandRx(spi);
 	spi->id.device_id = spiCommandRx(spi);
 	spiEnd(spi);
-
+	return;
+#if 0
 	spiBegin(spi);
 	spiCommand(spi, 0x9f);	// Read device id
 	spi->id._manufacturer_id = spiCommandRx(spi);
@@ -579,8 +581,10 @@ static void spi_get_id(struct ff_spi *spi) {
 
 	spi_decode_id(spi);
 	return;
+#endif
 }
 
+#if 0
 void spiOverrideSize(struct ff_spi *spi, uint32_t size) {
 	spi->size_override = size;
 
@@ -590,6 +594,7 @@ void spiOverrideSize(struct ff_spi *spi, uint32_t size) {
 	else
 		spi->id.bytes = size;
 }
+#endif
 
 int spiSetType(struct ff_spi *spi, enum spi_type type) {
 
@@ -689,7 +694,7 @@ int spiBeginErase64(struct ff_spi *spi, uint32_t erase_addr) {
 }
 
 int spiBeginWrite(struct ff_spi *spi, uint32_t addr, const void *v_data, unsigned int count) {
-	uint8_t write_cmd = 0x02;
+	const uint8_t write_cmd = 0x02;
 	const uint8_t *data = v_data;
 	unsigned int i;
 
@@ -730,8 +735,7 @@ uint8_t spiReset(struct ff_spi *spi) {
 	spiCommand(spi, 0x99); // "Reset Device" command
 	spiEnd(spi);
 
-#pragma warn "Sleep for 30 ms here"
-	// usleep(30);
+	// msleep(30);
 
 	spiBegin(spi);
 	spiCommand(spi, 0xab); // "Resume from Deep Power-Down" command
@@ -769,11 +773,17 @@ int spiInit(struct ff_spi *spi) {
 	spi_get_id(spi);
 
 	spi->quirks |= SQ_SR2_FROM_SR1;
-//	if (spi->id.manufacturer_id == 0x1f)
 	if (spi->id.manufacturer_id == 0xef)
 		spi->quirks |= SQ_SKIP_SR_WEL | SQ_SECURITY_NYBBLE_SHIFT;
 
 	return 0;
+}
+
+void spiEnableQuad(void) {
+	struct ff_spi *spi = spiAlloc();
+	spiInit(spi);
+	spiWriteStatus(spi, 2, spiReadStatus(spi, 2) | (1 << 1));
+	spiFree();
 }
 
 struct ff_spi *spiAlloc(void) {
