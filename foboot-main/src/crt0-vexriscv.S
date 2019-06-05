@@ -6,9 +6,44 @@
 
 _start:
   j crt_init
+  .word 0x032bd37d // Magic number indicating this is a valid FBM
 
-.global  trap_entry
+crt_init:
+  la sp, _fstack + 4
+  la a0, trap_entry
+  csrw mtvec, a0
+
+bss_init:
+  la a0, _fbss
+  la a1, _ebss
+bss_loop:
+  beq a0,a1,bss_done
+  sw zero,0(a0)
+  add a0,a0,4
+  j bss_loop
+bss_done:
+
+  // Load DATA section
+  la t0, _erodata
+  la t1, _fdata
+  la t2, _edata
+3:
+  lw t3, 0(t0)
+  sw t3, 0(t1)
+  // _edata is aligned to 16 bytes. Use word-xfers.
+  addi t0, t0, 4
+  addi t1, t1, 4
+  bltu t1, t2, 3b
+
+  // 880 enable timer + external interrupt sources.
+  // Until mstatus.MIE is set, they will never trigger an interrupt.
+  li a0, 0x880
+  csrw mie,a0
+
+  call main
+
 .section .ramtext
+.global  trap_entry
 trap_entry:
   sw x1,  - 1*4(sp)
   sw x5,  - 2*4(sp)
@@ -46,38 +81,3 @@ trap_entry:
   lw x31,  0*4(sp)
   addi sp,sp,16*4
   mret
-
-.text
-crt_init:
-  la sp, _fstack + 4
-  la a0, trap_entry
-  csrw mtvec, a0
-
-bss_init:
-  la a0, _fbss
-  la a1, _ebss
-bss_loop:
-  beq a0,a1,bss_done
-  sw zero,0(a0)
-  add a0,a0,4
-  j bss_loop
-bss_done:
-
-  /* Load DATA */
-  la t0, _erodata
-  la t1, _fdata
-  la t2, _edata
-3:
-  lw t3, 0(t0)
-  sw t3, 0(t1)
-  /* _edata is aligned to 16 bytes. Use word-xfers. */
-  addi t0, t0, 4
-  addi t1, t1, 4
-  bltu t1, t2, 3b
-
-  li a0, 0x880  //880 enable timer + external interrupt sources (until mstatus.MIE is set, they will never trigger an interrupt)
-  csrw mie,a0
-
-  call main
-infinit_loop:
-  j infinit_loop

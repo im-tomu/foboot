@@ -2,15 +2,17 @@
 #include <unistd.h>
 #include <usb.h>
 #include <system.h>
-#include <printf.h>
 
 #include <usb-desc.h>
+#include <usb-msc.h>
 
 static uint8_t reply_buffer[8];
 static uint8_t usb_configuration = 0;
 #define USB_MAX_PACKET_SIZE 64
+static uint32_t rx_buffer[USB_MAX_PACKET_SIZE/4];
 uint16_t last_request_and_type;
 
+__attribute__((section(".ramtext")))
 void usb_setup(const struct usb_setup_request *setup)
 {
     const uint8_t *data = NULL;
@@ -20,9 +22,9 @@ void usb_setup(const struct usb_setup_request *setup)
 
     switch (setup->wRequestAndType)
     {
-    case 0x2021: // Set Line Coding
-        break;
-    case 0x2221: // Set control line state
+    case 0xfea1: // Get Max LUN
+        if (usb_msc_setup(setup))
+            return;
         break;
 
     case 0x0500: // SET_ADDRESS
@@ -49,7 +51,7 @@ void usb_setup(const struct usb_setup_request *setup)
     case 0x0082: // GET_STATUS (endpoint)
         if (setup->wIndex > 0)
         {
-            usb_err();
+            usb_stall(0x80);
             return;
         }
         reply_buffer[0] = 0;
@@ -66,7 +68,7 @@ void usb_setup(const struct usb_setup_request *setup)
         if (setup->wIndex > 0 || setup->wValue != 0)
         {
             // TODO: do we need to handle IN vs OUT here?
-            usb_err();
+            usb_stall(0x80);
             return;
         }
         // XXX: Should we clear the stall bit?
@@ -78,7 +80,7 @@ void usb_setup(const struct usb_setup_request *setup)
         if (setup->wIndex > 0 || setup->wValue != 0)
         {
             // TODO: do we need to handle IN vs OUT here?
-            usb_err();
+            usb_stall(0x80);
             return;
         }
         // XXX: Should we set the stall bit?
@@ -109,9 +111,9 @@ void usb_setup(const struct usb_setup_request *setup)
                 goto send;
             }
         }
-        usb_err();
+        usb_stall(0x80);
         return;
-/*
+
     case (MSFT_VENDOR_CODE << 8) | 0xC0: // Get Microsoft descriptor
     case (MSFT_VENDOR_CODE << 8) | 0xC1:
         if (setup->wIndex == 0x0004)
@@ -121,7 +123,7 @@ void usb_setup(const struct usb_setup_request *setup)
             datalen = MSFT_WCID_LEN;
             break;
         }
-        usb_err();
+        usb_stall(0x80);
         return;
 
     case (WEBUSB_VENDOR_CODE << 8) | 0xC0: // Get WebUSB descriptor
@@ -129,19 +131,15 @@ void usb_setup(const struct usb_setup_request *setup)
         {
             if (setup->wValue == 0x0001)
             {
-                // Return landing page URL descriptor
-                data = (uint8_t*)&landing_url_descriptor;
-                datalen = LANDING_PAGE_DESCRIPTOR_SIZE;
+                data = get_landing_url_descriptor(&datalen);
                 break;
             }
         }
-        // printf("%s:%d couldn't find webusb descriptor (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
-        usb_err();
+        usb_stall(0x80);
         return;
-*/
 
     default:
-        usb_err();
+        usb_stall(0x80);
         return;
     }
 
@@ -149,9 +147,9 @@ send:
     if (data && datalen) {
         if (datalen > setup->wLength)
             datalen = setup->wLength;
-        usb_send(data, datalen);
+        usb_send(0, data, datalen);
     }
     else
-        usb_ack_in();
+        usb_ack(0x80);
     return;
 }
