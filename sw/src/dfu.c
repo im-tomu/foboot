@@ -26,8 +26,11 @@
 
 #include <dfu.h>
 #include <rgb.h>
-
-#define RESCUE_IMAGE_OFFSET 262144
+#ifdef CONFIG_RESCUE_IMAGE_OFFSET
+#  define RESCUE_IMAGE_OFFSET CONFIG_RESCUE_IMAGE_OFFSET
+#else
+#  define RESCUE_IMAGE_OFFSET 262144
+#endif
 #define RAM_BOOT_SENTINAL 0x17ab0f23
 
 #define ERASE_SIZE 65536 // Erase block size (in bytes)
