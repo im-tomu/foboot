@@ -78,7 +78,7 @@ static void set_state(dfu_state_t new_state, dfu_status_t new_status) {
     dfu_status = new_status;
 }
 
-static bool ftfl_busy()
+static bool ftfl_busy(void)
 {
     if (ram_mode)
         return 0;
@@ -87,7 +87,7 @@ static bool ftfl_busy()
     return spiIsBusy(spi);
 }
 
-static void ftfl_busy_wait()
+static void ftfl_busy_wait(void)
 {
     // Wait for the flash memory controller to finish any pending operation.
     while (ftfl_busy())
