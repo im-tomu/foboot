@@ -27,6 +27,7 @@
 #include <dfu.h>
 #include <rgb.h>
 #include <generated/mem.h>
+#include <generated/csr.h>
 
 #ifndef CONFIG_RESCUE_IMAGE_OFFSET
 #  define CONFIG_RESCUE_IMAGE_OFFSET 262144
