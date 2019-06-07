@@ -947,7 +947,7 @@ def main():
         160,
         157696,
         262144,
-        266240,
+        262144 + 32768,
     ])
 
     with open(os.path.join(output_dir, 'gateware', 'multiboot-header.bin'), 'rb') as multiboot_header_file:
