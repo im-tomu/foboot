@@ -27,8 +27,11 @@
 #include <dfu.h>
 #include <rgb.h>
 #include <generated/mem.h>
+#include <generated/csr.h>
 
-#define RESCUE_IMAGE_OFFSET 262144
+#ifndef CONFIG_RESCUE_IMAGE_OFFSET
+#  define CONFIG_RESCUE_IMAGE_OFFSET 262144
+#endif
 #define RAM_BOOT_SENTINAL 0x17ab0f23
 
 #define ERASE_SIZE 65536 // Erase block size (in bytes)
@@ -60,7 +63,7 @@ static uint32_t dfu_target_address;
 uint32_t dfu_origin_addr(void) {
     if (ram_mode)
         return ram_mode;
-    return RESCUE_IMAGE_OFFSET + SPIFLASH_BASE;
+    return CONFIG_RESCUE_IMAGE_OFFSET + SPIFLASH_BASE;
 }
 
 static void set_state(dfu_state_t new_state, dfu_status_t new_status) {
@@ -76,7 +79,7 @@ static void set_state(dfu_state_t new_state, dfu_status_t new_status) {
     dfu_status = new_status;
 }
 
-static bool ftfl_busy()
+static bool ftfl_busy(void)
 {
     if (ram_mode)
         return 0;
@@ -85,7 +88,7 @@ static bool ftfl_busy()
     return spiIsBusy(spi);
 }
 
-static void ftfl_busy_wait()
+static void ftfl_busy_wait(void)
 {
     // Wait for the flash memory controller to finish any pending operation.
     while (ftfl_busy())
@@ -136,7 +139,7 @@ static uint32_t address_for_block(unsigned blockNum)
     if (ram_mode)
         starting_offset = ram_mode;
     else
-        starting_offset = RESCUE_IMAGE_OFFSET;
+        starting_offset = CONFIG_RESCUE_IMAGE_OFFSET;
 
     return starting_offset + (blockNum * DFU_TRANSFER_SIZE);
 }
