@@ -124,8 +124,8 @@ void reboot(void) {
     uint32_t *destination_array = (uint32_t *)reboot_addr;
     for (i = 0; i < 32; i++) {
         // Look for FPGA sync pulse.
-        if ((destination_array[i] == 0x7e99aa7e)
-         || (destination_array[i] == 0x7eaa997e)) {
+        if ((destination_array[i] == CONFIG_BITSTREAM_SYNC_HEADER1)
+         || (destination_array[i] == CONFIG_BITSTREAM_SYNC_HEADER2)) {
             riscv_boot = 0;
             break;
         }
