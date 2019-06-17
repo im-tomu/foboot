@@ -379,7 +379,7 @@ class SBLED(Module, AutoCSR):
 
 
 class SBWarmBoot(Module, AutoCSR):
-    def __init__(self):
+    def __init__(self, parent):
         self.ctrl = CSRStorage(size=8)
         self.addr = CSRStorage(size=32)
         do_reset = Signal()
@@ -393,6 +393,9 @@ class SBWarmBoot(Module, AutoCSR):
             i_S1   = self.ctrl.storage[1],
             i_BOOT = do_reset,
         )
+        parent.config["BITSTREAM_SYNC_HEADER1"] = 0x7e99aa7e
+        parent.config["BITSTREAM_SYNC_HEADER2"] = 0x7eaa997e
+
 
 class TouchPads(Module, AutoCSR):
     def __init__(self, pads):
@@ -758,7 +761,7 @@ class BaseSoC(SoCCore):
         self.register_mem("spiflash", self.mem_map["spiflash"],
             self.picorvspi.bus, size=self.picorvspi.size)
 
-        self.submodules.reboot = SBWarmBoot()
+        self.submodules.reboot = SBWarmBoot(self)
         self.cpu.cpu_params.update(
             i_externalResetVector=self.reboot.addr.storage,
         )
