@@ -75,8 +75,8 @@ bss_done:
   addi t1, t1, 4
   bltu t1, t2, 3b
 
-  li a0, 0x880  //880 enable timer + external interrupt sources (until mstatus.MIE is set, they will never trigger an interrupt)
-  csrw mie,a0
+  # li a0, 0x880  //880 enable timer + external interrupt sources (until mstatus.MIE is set, they will never trigger an interrupt)
+  # csrw mie,a0
 
   call fobooster_main
 
