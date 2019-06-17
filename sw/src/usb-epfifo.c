@@ -3,13 +3,14 @@
 #include <generated/csr.h>
 #include <string.h>
 #include <usb.h>
+#include <usb-desc.h>
 
 #ifdef CSR_USB_EP_0_OUT_EV_PENDING_ADDR
 
-#define EP0OUT_BUFFERS 4
+#define EP0OUT_BUFFERS 8
 __attribute__((aligned(4)))
 static uint8_t volatile usb_ep0out_buffer_len[EP0OUT_BUFFERS];
-static uint8_t volatile usb_ep0out_buffer[EP0OUT_BUFFERS][256];
+static uint8_t volatile usb_ep0out_buffer[EP0OUT_BUFFERS][128];
 static uint8_t volatile usb_ep0out_last_tok[EP0OUT_BUFFERS];
 static volatile uint8_t usb_ep0out_wr_ptr;
 static volatile uint8_t usb_ep0out_rd_ptr;
@@ -228,6 +229,9 @@ int usb_recv(void *buffer, unsigned int buffer_len) {
                 usb_ep0out_rd_ptr = (usb_ep0out_rd_ptr + 1) & (EP0OUT_BUFFERS-1);
                 return buffer_len;
             }
+            else if (usb_ep0out_last_tok[usb_ep0out_rd_ptr] == USB_PID_SETUP) {
+                return -1;
+            }
             usb_ep0out_rd_ptr = (usb_ep0out_rd_ptr + 1) & (EP0OUT_BUFFERS-1);
         }
     }
@@ -237,7 +241,7 @@ int usb_recv(void *buffer, unsigned int buffer_len) {
 void usb_poll(void) {
     // If some data was received, then process it.
     while (usb_ep0out_rd_ptr != usb_ep0out_wr_ptr) {
-        const struct usb_setup_request *request = (const struct usb_setup_request *)(usb_ep0out_buffer[usb_ep0out_rd_ptr]);
+        const struct usb_setup_request request = *(const struct usb_setup_request *)(usb_ep0out_buffer[usb_ep0out_rd_ptr]);
         // uint8_t len = usb_ep0out_buffer_len[usb_ep0out_rd_ptr];
         uint8_t last_tok = usb_ep0out_last_tok[usb_ep0out_rd_ptr];
 
@@ -245,7 +249,7 @@ void usb_poll(void) {
         usb_ep0out_rd_ptr = (usb_ep0out_rd_ptr + 1) & (EP0OUT_BUFFERS-1);
 
         if (last_tok == USB_PID_SETUP) {
-            usb_setup(request);
+            usb_setup(&request);
         }
     }
 

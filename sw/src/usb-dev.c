@@ -10,14 +10,12 @@ static uint8_t reply_buffer[8];
 static uint8_t usb_configuration = 0;
 #define USB_MAX_PACKET_SIZE 64
 static uint32_t rx_buffer[USB_MAX_PACKET_SIZE/4];
-uint16_t last_request_and_type;
 
 void usb_setup(const struct usb_setup_request *setup)
 {
     const uint8_t *data = NULL;
     uint32_t datalen = 0;
     const usb_descriptor_list_t *list;
-    last_request_and_type = setup->wRequestAndType;
 
     switch (setup->wRequestAndType)
     {
@@ -162,20 +160,25 @@ void usb_setup(const struct usb_setup_request *setup)
         unsigned int blockNum = setup->wValue;
 
         while (bytes_remaining > 0) {
-            unsigned int i;
-            unsigned int len = blockLength;
+            // unsigned int i;
+            int len = blockLength;
             if (len > sizeof(rx_buffer))
                 len = sizeof(rx_buffer);
-            for (i = 0; i < sizeof(rx_buffer)/4; i++)
-                rx_buffer[i] = 0xffffffff;
+            // for (i = 0; i < sizeof(rx_buffer)/4; i++)
+            //     rx_buffer[i] = 0xffffffff;
 
             // Receive DATA packets (which are automatically ACKed)
             len = usb_recv((void *)rx_buffer, len);
+            if (len == -1)
+                return;
 
             // Append the data to the download buffer.
             dfu_download(blockNum, blockLength, ep0_rx_offset, len, (void *)rx_buffer);
 
-            bytes_remaining -= len;
+            if (len > bytes_remaining)
+                bytes_remaining = 0;
+            else
+                bytes_remaining -= len;
             ep0_rx_offset += len;
         }
 
