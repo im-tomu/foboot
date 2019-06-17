@@ -17,5 +17,6 @@ void spiBeginErase32(uint32_t erase_addr);
 void spiBeginErase64(uint32_t erase_addr);
 int spiIsBusy(void);
 void spiBeginWrite(uint32_t addr, const void *v_data, unsigned int count);
+uint32_t spiId(void);
 
 #endif /* _FOBOOST_SPI_H */

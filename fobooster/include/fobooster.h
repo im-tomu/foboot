@@ -16,6 +16,7 @@ struct fobooster_data
 {
     uint32_t payload_size;
     uint32_t xxhash;
+    uint32_t device_id;
     uint32_t payload[0];
 };
 

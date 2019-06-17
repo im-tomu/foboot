@@ -98,6 +98,13 @@ __attribute__((noreturn)) void fobooster_main(void)
     // Now that everything is copied to RAM, disable memory-mapped SPI mode.
     // This puts the SPI into bit-banged mode, which allows us to write to it.
     picorvspi_cfg4_write(0);
+    ftfl_busy_wait();
+
+    if (fobooster_data.device_id != spiId()) {
+        rgb_mode_error();
+        msleep(3000);
+        reboot();
+    }
 
     bytes_left = fobooster_data.payload_size;
     target_addr = 0;

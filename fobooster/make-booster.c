@@ -19,13 +19,17 @@ int main(int argc, char **argv) {
     int i;
     struct fobooster_data booster_data;
 
-    if (argc != 3) {
-        fprintf(stderr, "Usage: %s [infile] [outfile]\n", argv[0]);
+    if (argc != 4) {
+        fprintf(stderr, "Usage: %s [device-id] [infile] [outfile]\n", argv[0]);
+        fprintf(stderr, "The device-id is one of the following:\n");
+        fprintf(stderr, "    	0xef177018     Evaluation EVT\n");
+        fprintf(stderr, "    	0xc2152815     Production PVT\n");
         return 1;
     }
 
-    char *infile_name = argv[1];
-    char *outfile_name = argv[2];
+    uint32_t device_id = strtoul(argv[1], NULL, 0);
+    char *infile_name = argv[2];
+    char *outfile_name = argv[3];
 
     int booster_fd = open(FOBOOSTER_BIN, O_RDONLY);
     if (booster_fd == -1) {
@@ -71,6 +75,7 @@ int main(int argc, char **argv) {
     }
 
     booster_data.payload_size = htole32(stat_buf.st_size);
+    booster_data.device_id = htole32(device_id);
     booster_data.xxhash = htole32(XXH32(toboot_buffer, sizeof(toboot_buffer), FOBOOSTER_SEED));
 
     if (sizeof(booster_data) != write(outfile_fd, &booster_data, sizeof(booster_data))) {

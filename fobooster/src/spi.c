@@ -15,15 +15,6 @@
 #define PI_OUTPUT 1
 #define PI_INPUT 0
 
-// static void gpioSetMode(int pin, int mode) {
-//     static uint8_t oe_mirror;
-//     if (mode)
-//         oe_mirror |= 1 << pin;
-//     else
-//         oe_mirror &= ~(1 << pin);
-//     picorvspi_cfg2_write(oe_mirror);
-// }
-
 static void gpioWrite(int pin, int val) {
     static uint8_t do_mirror;
     if (val)
@@ -153,4 +144,26 @@ void spiBeginWrite(uint32_t addr, const void *v_data, unsigned int count) {
 	for (i = 0; (i < count) && (i < 256); i++)
 		spiCommand(*data++);
 	spiEnd();
+}
+
+uint32_t spiId(void) {
+	uint32_t id = 0;
+
+	spiBegin();
+	spiCommand(0x90);                // Read manufacturer ID
+	spiCommand(0x00);                // Dummy byte 1
+	spiCommand(0x00);                // Dummy byte 2
+	spiCommand(0x00);                // Dummy byte 3
+	id = (id << 8) | spiCommandRx(); // Manufacturer ID
+	id = (id << 8) | spiCommandRx(); // Device ID
+	spiEnd();
+
+	spiBegin();
+	spiCommand(0x9f);                // Read device id
+	(void)spiCommandRx();            // Manufacturer ID (again)
+	id = (id << 8) | spiCommandRx(); // Memory Type
+	id = (id << 8) | spiCommandRx(); // Memory Size
+	spiEnd();
+
+	return id;
 }
