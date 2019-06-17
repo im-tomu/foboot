@@ -684,6 +684,7 @@ class BaseSoC(SoCCore):
     def __init__(self, platform, boot_source="rand",
                  debug=None, bios_file=None, use_pll=True,
                  use_dsp=False, placer=None, output_dir="build",
+                 pnr_seed=0,
                  **kwargs):
         # Disable integrated RAM as we'll add it later
         self.integrated_sram_size = 0
@@ -796,6 +797,9 @@ class BaseSoC(SoCCore):
         platform.toolchain.build_template[3] = "icepack -s {build_name}.txt {build_name}.bin"
         platform.toolchain.nextpnr_build_template[2] = "icepack -s {build_name}.txt {build_name}.bin"
 
+        # Allow us to set the nextpnr seed
+        platform.toolchain.nextpnr_build_template[1] += " --seed " + str(pnr_seed)
+
         if placer is not None:
             platform.toolchain.nextpnr_build_template[1] += " --placer {}".format(placer)
 
@@ -887,6 +891,9 @@ def main():
         "--placer", choices=["sa", "heap"], help="which placer to use in nextpnr"
     )
     parser.add_argument(
+        "--seed", default=0, help="seed to use in nextpnr"
+    )
+    parser.add_argument(
         "--export-random-rom-file", help="Generate a random ROM file and save it to a file"
     )
     args = parser.parse_args()
@@ -934,6 +941,7 @@ def main():
                             debug=args.with_debug, boot_source=args.boot_source,
                             bios_file=args.bios, use_pll=not args.no_pll,
                             use_dsp=args.with_dsp, placer=args.placer,
+                            pnr_seed=args.seed,
                             output_dir=output_dir)
     builder = Builder(soc, output_dir=output_dir, csr_csv="test/csr.csv", compile_software=compile_software)
     if compile_software:
