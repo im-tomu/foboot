@@ -945,6 +945,7 @@ def main():
 
     make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"), [
         160,
+        160,
         157696,
         262144,
         262144 + 32768,
