@@ -11,13 +11,13 @@
 #include <endian.h>
 #endif
 
-#define BOOSTER_BIN "booster.bin"
+#define FOBOOSTER_BIN "fobooster.bin"
 
-#include "booster.h"
+#include "fobooster.h"
 
 int main(int argc, char **argv) {
     int i;
-    struct booster_data booster_data;
+    struct fobooster_data booster_data;
 
     if (argc != 3) {
         fprintf(stderr, "Usage: %s [infile] [outfile]\n", argv[0]);
@@ -27,9 +27,9 @@ int main(int argc, char **argv) {
     char *infile_name = argv[1];
     char *outfile_name = argv[2];
 
-    int booster_fd = open(BOOSTER_BIN, O_RDONLY);
+    int booster_fd = open(FOBOOSTER_BIN, O_RDONLY);
     if (booster_fd == -1) {
-        perror("Unable to open " BOOSTER_BIN);
+        perror("Unable to open " FOBOOSTER_BIN);
         return 8;
     }
 
@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
     }
 
     booster_data.payload_size = htole32(stat_buf.st_size);
-    booster_data.xxhash = htole32(XXH32(toboot_buffer, sizeof(toboot_buffer), BOOSTER_SEED));
+    booster_data.xxhash = htole32(XXH32(toboot_buffer, sizeof(toboot_buffer), FOBOOSTER_SEED));
 
     if (sizeof(booster_data) != write(outfile_fd, &booster_data, sizeof(booster_data))) {
         perror("Unable to write booster header to output file");
