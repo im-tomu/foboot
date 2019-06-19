@@ -1,7 +1,7 @@
 GIT_VERSION := $(shell git describe --tags)
 
-# There is no 64-bit gcc on Raspberry Pi, so use the 32-bit version
-ifneq (,$(wildcard /etc/rpi-issue))
+# Earlier versions of the Raspberry Pi image only had riscv32-gcc
+ifneq (,$(wildcard /usr/bin/riscv32-unknown-elf-gcc))
 TRGT       ?= riscv32-unknown-elf-
 else
 TRGT       ?= riscv64-unknown-elf-
