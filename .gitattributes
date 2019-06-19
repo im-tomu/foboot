@@ -4,3 +4,9 @@
 *.jpg binary
 *.bin binary
 *.elf binary
+*.h text eol=lf
+*.c text eol=lf
+README.* text eol=lf
+LICENSE text eol=lf
+Makefile text eol=lf
+*.mk text eol=lf
