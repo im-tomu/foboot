@@ -56,11 +56,11 @@ struct usb_string_descriptor_struct {
 
 #define NUM_USB_BUFFERS           8
 #define VENDOR_ID                 0x1209    // pid.codes
-#define PRODUCT_ID                0x70b1    // Assigned to Tomu project
+#define PRODUCT_ID                0x5bf0    // Assigned to Fomu project
 #define DEVICE_VER                0x0101    // Bootloader version
-#define MANUFACTURER_NAME         u"Kosagi"
+#define MANUFACTURER_NAME         u"Foosn"
 #define MANUFACTURER_NAME_LEN     sizeof(MANUFACTURER_NAME)
-#define PRODUCT_NAME              u"Fomu Bootloader (0) " GIT_VERSION
+#define PRODUCT_NAME              u"Fomu Bootloader " GIT_VERSION
 #define PRODUCT_NAME_LEN          sizeof(PRODUCT_NAME)
 
 // Microsoft Compatible ID Feature Descriptor
