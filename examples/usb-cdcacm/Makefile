@@ -24,7 +24,7 @@ endif
 BASE_DIR   := .
 LD_DIR     := $(BASE_DIR)/ld
 LDSCRIPT   := $(BASE_DIR)/ld/linker.ld
-ADD_CFLAGS := -I$(BASE_DIR)/include -D__vexriscv__ -march=rv32im  -mabi=ilp32
+ADD_CFLAGS := -I$(BASE_DIR)/include -D__vexriscv__ -march=rv32i  -mabi=ilp32
 ADD_LFLAGS := 
 PACKAGE    := usb-cdcacm
 
@@ -42,7 +42,6 @@ CFLAGS     := $(ADD_CFLAGS) \
 CXXFLAGS   := $(CFLAGS) -std=c++11 -fno-rtti -fno-exceptions
 LFLAGS     := $(CFLAGS) $(ADD_LFLAGS) -L$(LD_DIR) \
 			  -nostartfiles \
-			  -nostdlib \
 			  -Wl,--gc-sections \
 			  -Wl,--no-warn-mismatch \
 			  -Wl,--script=$(LDSCRIPT) \
