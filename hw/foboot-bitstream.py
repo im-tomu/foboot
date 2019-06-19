@@ -527,9 +527,9 @@ class PicoRVSpi(Module, AutoCSR):
             i_addr  = flash_addr,
             o_rdata = o_rdata,
 
-	        i_cfgreg_we = cfg_we,
+            i_cfgreg_we = cfg_we,
             i_cfgreg_di = cfg,
-	        o_cfgreg_do = cfg_out,
+            o_cfgreg_do = cfg_out,
         )
         platform.add_source("rtl/spimemio.v")
 
