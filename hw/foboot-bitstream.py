@@ -381,7 +381,6 @@ class SBLED(Module, AutoCSR):
 class SBWarmBoot(Module, AutoCSR):
     def __init__(self, parent):
         self.ctrl = CSRStorage(size=8)
-        self.addr = CSRStorage(size=32)
         do_reset = Signal()
         self.comb += [
             # "Reset Key" is 0xac (0b101011xx)
@@ -762,9 +761,6 @@ class BaseSoC(SoCCore):
             self.picorvspi.bus, size=self.picorvspi.size)
 
         self.submodules.reboot = SBWarmBoot(self)
-        self.cpu.cpu_params.update(
-            i_externalResetVector=self.reboot.addr.storage,
-        )
 
         self.submodules.rgb = SBLED(platform.request("led"))
         self.submodules.version = Version()
