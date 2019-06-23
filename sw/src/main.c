@@ -27,6 +27,8 @@ void isr(void)
 }
 
 static void riscv_reboot_to(void *addr, uint32_t boot_config) {
+    reboot_addr_write((uint32_t)addr);
+
     // If requested, just let USB be idle.  Otherwise, reset it.
     if (boot_config & 0x00000020) // NO_USB_RESET
         usb_idle();
