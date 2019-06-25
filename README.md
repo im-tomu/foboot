@@ -65,7 +65,7 @@ To exit DFU and run the bitstream at offset 262144, run:
 $ dfu-util -e
 ```
 
-**Note that, unlike Toboot, Foboot requires you to issue `dfu-util -e` in order to start the program.**
+**Note that, like Toboot, the program will auto-boot once it has finished loading.**
 
 ## Building the Software
 
