@@ -162,7 +162,7 @@ void usb_setup(const struct usb_setup_request *setup)
         while (bytes_remaining > 0) {
             // unsigned int i;
             int len = blockLength;
-            if (len > sizeof(rx_buffer))
+            if (len > (int) sizeof(rx_buffer))
                 len = sizeof(rx_buffer);
             // for (i = 0; i < sizeof(rx_buffer)/4; i++)
             //     rx_buffer[i] = 0xffffffff;
