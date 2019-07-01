@@ -66,17 +66,17 @@ typedef enum {
 #define DFU_TRANSFER_SIZE         1024      // Flash sector size
 
 // Main thread
-void dfu_init();
+void dfu_init(void);
 
 void dfu_poll(void);
 
 // USB entry points. Always successful.
-uint8_t dfu_getstate();
+uint8_t dfu_getstate(void);
 
 // USB entry points. True on success, false for stall.
 bool dfu_getstatus(uint8_t status[8]);
-bool dfu_clrstatus();
-bool dfu_abort();
+bool dfu_clrstatus(void);
+bool dfu_abort(void);
 bool dfu_download(unsigned blockNum, unsigned blockLength,
                   unsigned packetOffset, unsigned packetLength,
                   const uint8_t *data);
