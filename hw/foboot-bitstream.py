@@ -478,8 +478,10 @@ class PicoRVSpi(Module, AutoCSR):
         ]
 
         flash_addr = Signal(24)
-        mem_bits = bits_for(size)
-        self.comb += flash_addr.eq(bus.adr[0:mem_bits-2] << 2),
+        # size/4 because data bus is 32 bits wide, -1 for base 0
+        mem_bits = bits_for(int(size/4)-1)
+        pad = Signal(2)
+        self.comb += flash_addr.eq(Cat(pad, bus.adr[0:mem_bits-1]))
 
         read_active = Signal()
         spi_ready = Signal()
