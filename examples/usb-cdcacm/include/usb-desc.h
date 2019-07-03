@@ -59,9 +59,9 @@ struct usb_string_descriptor_struct {
 #define PRODUCT_ID                0x5bf0    // Assigned to Fomu project
 #define DEVICE_VER                0x0101    // Bootloader version
 #define MANUFACTURER_NAME         u"Foosn"
-#define MANUFACTURER_NAME_LEN     sizeof(MANUFACTURER_NAME)
+#define MANUFACTURER_NAME_LEN     (sizeof(MANUFACTURER_NAME)-1)
 #define PRODUCT_NAME              u"Fomu Bootloader " GIT_VERSION
-#define PRODUCT_NAME_LEN          sizeof(PRODUCT_NAME)
+#define PRODUCT_NAME_LEN          (sizeof(PRODUCT_NAME)-1)
 
 // Microsoft Compatible ID Feature Descriptor
 #define MSFT_VENDOR_CODE    '~'     // Arbitrary, but should be printable ASCII
