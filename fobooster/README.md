@@ -16,8 +16,14 @@ make
 cd ../booster/
 make
 gcc make-booster.c -o make-booster
-./make-booster ../toboot/toboot.bin toboot-booster.bin
+./make-booster [flash-id] ../toboot/toboot.bin toboot-booster.bin
 ```
+
+The following flash-id values are known:
+
+EVT: 0xef177018
+PVT: 0xc2152815
+HAcker: 0x1f148601
 
 The resulting `toboot-booster.bin` can be flashed with Toboot itself, or can be loaded using the legacy serial bootloader.
 
