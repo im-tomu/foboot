@@ -711,7 +711,7 @@ class BaseSoC(SoCCore):
                 self.cpu.use_external_variant("rtl/2-stage-1024-cache-debug.v")
                 self.copy_memory_file("2-stage-1024-cache-debug.v_toplevel_RegFilePlugin_regFile.bin")
                 os.path.join(output_dir, "gateware")
-                self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x10)
+                self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x100)
         else:
             if hasattr(self, "cpu"):
                 self.cpu.use_external_variant("rtl/2-stage-1024-cache.v")
