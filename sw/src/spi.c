@@ -86,6 +86,7 @@ static void spi_set_state(struct ff_spi *spi, enum spi_state state) {
 	return;
 	if (spi->state == state)
 		return;
+#if 0
 #ifndef SPI_ONLY_SINGLE
 	switch (state) {
 	case SS_SINGLE:
@@ -149,6 +150,7 @@ static void spi_set_state(struct ff_spi *spi, enum spi_state state) {
 		return;
 	}
 #endif
+#endif
 	spi->state = state;
 }
 
@@ -204,6 +206,7 @@ static uint8_t spiSingleRx(struct ff_spi *spi) {
 	return spiXfer(spi, 0xff);
 }
 
+#if 0
 static void spiDualTx(struct ff_spi *spi, uint8_t out) {
 
 	int bit;
@@ -300,51 +303,51 @@ static uint8_t spiQuadRx(struct ff_spi *spi) {
 	}
 	return in;
 }
-
+#endif
 int spiTx(struct ff_spi *spi, uint8_t word) {
-	switch (spi->type) {
-	case ST_SINGLE:
-		spiSingleTx(spi, word);
-		break;
-	case ST_DUAL:
-		spiDualTx(spi, word);
-		break;
-	case ST_QUAD:
-	case ST_QPI:
-		spiQuadTx(spi, word);
-		break;
-	default:
-		return -1;
-	}
+	// switch (spi->type) {
+	// case ST_SINGLE:
+	spiSingleTx(spi, word);
+	// 	break;
+	// case ST_DUAL:
+	// 	spiDualTx(spi, word);
+	// 	break;
+	// case ST_QUAD:
+	// case ST_QPI:
+	// 	spiQuadTx(spi, word);
+	// 	break;
+	// default:
+	// 	return -1;
+	// }
 	return 0;
 }
 
 uint8_t spiRx(struct ff_spi *spi) {
-	switch (spi->type) {
-	case ST_SINGLE:
-		return spiSingleRx(spi);
-	case ST_DUAL:
-		return spiDualRx(spi);
-	case ST_QUAD:
-	case ST_QPI:
-		return spiQuadRx(spi);
-	default:
-		return 0xff;
-	}
+	// switch (spi->type) {
+	// case ST_SINGLE:
+	return spiSingleRx(spi);
+	// case ST_DUAL:
+	// 	return spiDualRx(spi);
+	// case ST_QUAD:
+	// case ST_QPI:
+	// 	return spiQuadRx(spi);
+	// default:
+	// 	return 0xff;
+	// }
 }
 
 void spiCommand(struct ff_spi *spi, uint8_t cmd) {
-	if (spi->type == ST_QPI)
-		spiQuadTx(spi, cmd);
-	else
-		spiSingleTx(spi, cmd);
+	// if (spi->type == ST_QPI)
+	// 	spiQuadTx(spi, cmd);
+	// else
+	spiSingleTx(spi, cmd);
 }
 
 uint8_t spiCommandRx(struct ff_spi *spi) {
-	if (spi->type == ST_QPI)
-		return spiQuadRx(spi);
-	else
-		return spiSingleRx(spi);
+	// if (spi->type == ST_QPI)
+	// 	return spiQuadRx(spi);
+	// else
+	return spiSingleRx(spi);
 }
 
 uint8_t spiReadStatus(struct ff_spi *spi, uint8_t sr) {
@@ -384,44 +387,45 @@ uint8_t spiReadStatus(struct ff_spi *spi, uint8_t sr) {
 	return val;
 }
 
-void spiWriteSecurity(struct ff_spi *spi, uint8_t sr, uint8_t security[256]) {
+// void spiWriteSecurity(struct ff_spi *spi, uint8_t sr, uint8_t security[256]) {
 
-	if (spi->quirks & SQ_SECURITY_NYBBLE_SHIFT)
-		sr <<= 4;
+// 	if (spi->quirks & SQ_SECURITY_NYBBLE_SHIFT)
+// 		sr <<= 4;
 
-	spiBegin(spi);
-	spiCommand(spi, 0x06);
-	spiEnd(spi);
+// 	spiBegin(spi);
+// 	spiCommand(spi, 0x06);
+// 	spiEnd(spi);
 
-	// erase the register
-	spiBegin(spi);
-	spiCommand(spi, 0x44);
-	spiCommand(spi, 0x00); // A23-16
-	spiCommand(spi, sr);   // A15-8
-	spiCommand(spi, 0x00); // A0-7
-	spiEnd(spi);
+// 	// erase the register
+// 	spiBegin(spi);
+// 	spiCommand(spi, 0x44);
+// 	spiCommand(spi, 0x00); // A23-16
+// 	spiCommand(spi, sr);   // A15-8
+// 	spiCommand(spi, 0x00); // A0-7
+// 	spiEnd(spi);
 
-	spi_get_id(spi);
-	sleep(1);
+// 	spi_get_id(spi);
+// 	sleep(1);
 
-	// write enable
-	spiBegin(spi);
-	spiCommand(spi, 0x06);
-	spiEnd(spi);
+// 	// write enable
+// 	spiBegin(spi);
+// 	spiCommand(spi, 0x06);
+// 	spiEnd(spi);
 
-	spiBegin(spi);
-	spiCommand(spi, 0x42);
-	spiCommand(spi, 0x00); // A23-16
-	spiCommand(spi, sr);   // A15-8
-	spiCommand(spi, 0x00); // A0-7
-	int i;
-	for (i = 0; i < 256; i++)
-		spiCommand(spi, security[i]);
-	spiEnd(spi);
+// 	spiBegin(spi);
+// 	spiCommand(spi, 0x42);
+// 	spiCommand(spi, 0x00); // A23-16
+// 	spiCommand(spi, sr);   // A15-8
+// 	spiCommand(spi, 0x00); // A0-7
+// 	int i;
+// 	for (i = 0; i < 256; i++)
+// 		spiCommand(spi, security[i]);
+// 	spiEnd(spi);
 
-	spi_get_id(spi);
-}
+// 	spi_get_id(spi);
+// }
 
+#if 0
 void spiReadSecurity(struct ff_spi *spi, uint8_t sr, uint8_t security[256]) {
 	if (spi->quirks & SQ_SECURITY_NYBBLE_SHIFT)
 		sr <<= 4;
@@ -436,7 +440,9 @@ void spiReadSecurity(struct ff_spi *spi, uint8_t sr, uint8_t security[256]) {
 		security[i] = spiCommandRx(spi);
 	spiEnd(spi);
 }
+#endif
 
+#if 0
 void spiWriteStatus(struct ff_spi *spi, uint8_t sr, uint8_t val) {
 
 	switch (sr) {
@@ -510,6 +516,7 @@ void spiWriteStatus(struct ff_spi *spi, uint8_t sr, uint8_t val) {
 		break;
 	}
 }
+#endif
 
 #if 0
 struct spi_id spiId(struct ff_spi *spi) {
@@ -541,6 +548,7 @@ static void spi_decode_id(struct ff_spi *spi) {
 	return;
 }
 #endif
+
 static void spi_get_id(struct ff_spi *spi) {
 	spiBegin(spi);
 	spiCommand(spi, 0x90);	// Read manufacturer ID
@@ -551,111 +559,19 @@ static void spi_get_id(struct ff_spi *spi) {
 	spi->id.device_id = spiCommandRx(spi);
 	spiEnd(spi);
 	return;
-#if 0
-	spiBegin(spi);
-	spiCommand(spi, 0x9f);	// Read device id
-	spi->id._manufacturer_id = spiCommandRx(spi);
-	spi->id.memory_type = spiCommandRx(spi);
-	spi->id.memory_size = spiCommandRx(spi);
-	spiEnd(spi);
-
-	spiBegin(spi);
-	spiCommand(spi, 0xab);	// Read electronic signature
-	spiCommand(spi, 0x00);  // Dummy byte 1
-	spiCommand(spi, 0x00);  // Dummy byte 2
-	spiCommand(spi, 0x00);  // Dummy byte 3
-	spi->id.signature = spiCommandRx(spi);
-	spiEnd(spi);
-
-	spiBegin(spi);
-	spiCommand(spi, 0x4b);	// Read unique ID
-	spiCommand(spi, 0x00);  // Dummy byte 1
-	spiCommand(spi, 0x00);  // Dummy byte 2
-	spiCommand(spi, 0x00);  // Dummy byte 3
-	spiCommand(spi, 0x00);  // Dummy byte 4
-	spi->id.serial[0] = spiCommandRx(spi);
-	spi->id.serial[1] = spiCommandRx(spi);
-	spi->id.serial[2] = spiCommandRx(spi);
-	spi->id.serial[3] = spiCommandRx(spi);
-	spiEnd(spi);
-
-	spi_decode_id(spi);
-	return;
-#endif
 }
-
-#if 0
-void spiOverrideSize(struct ff_spi *spi, uint32_t size) {
-	spi->size_override = size;
-
-	// If size is 0, re-read the capacity
-	if (!size)
-		spi_decode_id(spi);
-	else
-		spi->id.bytes = size;
-}
-#endif
 
 int spiSetType(struct ff_spi *spi, enum spi_type type) {
 
 	if (spi->type == type)
 		return 0;
 
-#ifndef SPI_ONLY_SINGLE
-	switch (type) {
+	spi->type = type;
+	spi_set_state(spi, SS_SINGLE);
 
-	case ST_SINGLE:
-#endif
-		if (spi->type == ST_QPI) {
-			spiBegin(spi);
-			spiCommand(spi, 0xff);	// Exit QPI Mode
-			spiEnd(spi);
-		}
-		spi->type = type;
-		spi_set_state(spi, SS_SINGLE);
-#ifndef SPI_ONLY_SINGLE
-		break;
+	// Enable QE bit
+	// spiWriteStatus(spi, 2, spiReadStatus(spi, 2) | (1 << 1));
 
-	case ST_DUAL:
-		if (spi->type == ST_QPI) {
-			spiBegin(spi);
-			spiCommand(spi, 0xff);	// Exit QPI Mode
-			spiEnd(spi);
-		}
-		spi->type = type;
-		spi_set_state(spi, SS_DUAL_TX);
-		break;
-
-	case ST_QUAD:
-		if (spi->type == ST_QPI) {
-			spiBegin(spi);
-			spiCommand(spi, 0xff);	// Exit QPI Mode
-			spiEnd(spi);
-		}
-
-		// Enable QE bit
-		spiWriteStatus(spi, 2, spiReadStatus(spi, 2) | (1 << 1));
-
-		spi->type = type;
-		spi_set_state(spi, SS_QUAD_TX);
-		break;
-
-	case ST_QPI:
-		// Enable QE bit
-		spiWriteStatus(spi, 2, spiReadStatus(spi, 2) | (1 << 1));
-
-		spiBegin(spi);
-		spiCommand(spi, 0x38);		// Enter QPI Mode
-		spiEnd(spi);
-		spi->type = type;
-		spi_set_state(spi, SS_QUAD_TX);
-		break;
-
-	default:
-		fprintf(stderr, "Unrecognized SPI type: %d\n", type);
-		return 1;
-	}
-#endif
 	return 0;
 }
 
@@ -703,10 +619,6 @@ int spiBeginWrite(struct ff_spi *spi, uint32_t addr, const void *v_data, unsigne
 	spiCommand(spi, 0x06);
 	spiEnd(spi);
 
-	// uint8_t sr1 = spiReadStatus(spi, 1);
-	// if (!(sr1 & (1 << 1)))
-	// 	fprintf(stderr, "error: write-enable latch (WEL) not set, write will probably fail\n");
-
 	spiBegin(spi);
 	spiCommand(spi, write_cmd);
 	spiCommand(spi, addr >> 16);
@@ -720,11 +632,6 @@ int spiBeginWrite(struct ff_spi *spi, uint32_t addr, const void *v_data, unsigne
 }
 
 uint8_t spiReset(struct ff_spi *spi) {
-	// XXX You should check the "Ready" bit before doing this!
-
-	// Shift to QPI mode, then back to Single mode, to ensure
-	// we're actually in Single mode.
-	spiSetType(spi, ST_QPI);
 	spiSetType(spi, ST_SINGLE);
 
 	spiBegin(spi);
@@ -734,8 +641,6 @@ uint8_t spiReset(struct ff_spi *spi) {
 	spiBegin(spi);
 	spiCommand(spi, 0x99); // "Reset Device" command
 	spiEnd(spi);
-
-	// msleep(30);
 
 	spiBegin(spi);
 	spiCommand(spi, 0xab); // "Resume from Deep Power-Down" command
@@ -751,12 +656,6 @@ int spiInit(struct ff_spi *spi) {
 	// Disable memory-mapped mode and enable bit-bang mode
 	picorvspi_cfg4_write(0);
 
-	// Reset the SPI flash, which will return it to SPI mode even
-	// if it's in QPI mode.
-	spiReset(spi);
-
-	spiSetType(spi, ST_SINGLE);
-
 	// Have the SPI flash pay attention to us
 	gpioWrite(spi->pins.hold, 1);
 
@@ -770,6 +669,10 @@ int spiInit(struct ff_spi *spi) {
 	gpioSetMode(spi->pins.hold, PI_OUTPUT);
 	gpioSetMode(spi->pins.wp, PI_OUTPUT);
 
+	// Reset the SPI flash, which will return it to SPI mode even
+	// if it's in QPI mode.
+	spiReset(spi);
+
 	spi_get_id(spi);
 
 	spi->quirks |= SQ_SR2_FROM_SR1;
@@ -779,12 +682,12 @@ int spiInit(struct ff_spi *spi) {
 	return 0;
 }
 
-void spiEnableQuad(void) {
-	struct ff_spi *spi = spiAlloc();
-	spiInit(spi);
-	spiWriteStatus(spi, 2, spiReadStatus(spi, 2) | (1 << 1));
-	spiFree();
-}
+// void spiEnableQuad(void) {
+// 	struct ff_spi *spi = spiAlloc();
+// 	spiInit(spi);
+// 	spiWriteStatus(spi, 2, spiReadStatus(spi, 2) | (1 << 1));
+// 	spiFree();
+// }
 
 struct ff_spi *spiAlloc(void) {
 	static struct ff_spi spi;

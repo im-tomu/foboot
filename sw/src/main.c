@@ -37,7 +37,7 @@ static void riscv_reboot_to(void *addr, uint32_t boot_config) {
 
     // Figure out what mode to put SPI flash into.
     if (boot_config & 0x00000001) { // QPI_EN
-        spiEnableQuad();
+        // spiEnableQuad();
         picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x20);
     }
     if (boot_config & 0x00000002) // DDR_EN
