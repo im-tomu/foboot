@@ -348,9 +348,9 @@ class SBLED(Module, AutoCSR):
             ]
         elif revision == "hacker":
             self.comb += [
-                If(self.ctrl.storage[3], rgba_pwm[0].eq(self.raw.storage[0])).Else(rgba_pwm[0].eq(ledd_value[0])),
+                If(self.ctrl.storage[3], rgba_pwm[2].eq(self.raw.storage[0])).Else(rgba_pwm[2].eq(ledd_value[0])),
                 If(self.ctrl.storage[4], rgba_pwm[1].eq(self.raw.storage[1])).Else(rgba_pwm[1].eq(ledd_value[1])),
-                If(self.ctrl.storage[5], rgba_pwm[2].eq(self.raw.storage[2])).Else(rgba_pwm[2].eq(ledd_value[2])),
+                If(self.ctrl.storage[5], rgba_pwm[0].eq(self.raw.storage[2])).Else(rgba_pwm[0].eq(ledd_value[2])),
             ]
         else:
             self.comb += [
@@ -598,7 +598,7 @@ class BBSpi(Module, AutoCSR):
         ]
 
 class Version(Module, AutoCSR):
-    def __init__(self):
+    def __init__(self, model):
         def makeint(i, base=10):
             try:
                 return int(i, base=base)
@@ -669,6 +669,7 @@ class Version(Module, AutoCSR):
         self.gitrev = CSRStatus(32)
         self.gitextra = CSRStatus(10)
         self.dirty = CSRStatus(1)
+        self.model = CSRStatus(8)
 
         (major, minor, rev, gitrev, gitextra, dirty) = get_gitver()
         self.comb += [
@@ -679,6 +680,16 @@ class Version(Module, AutoCSR):
             self.gitextra.status.eq(gitextra),
             self.dirty.status.eq(dirty),
         ]
+        if model == "evt":
+            self.comb += self.model.status.eq(0x45) # 'E'
+        elif model == "dvt":
+            self.comb += self.model.status.eq(0x44) # 'D'
+        elif model == "pvt":
+            self.comb += self.model.status.eq(0x50) # 'P'
+        elif model == "hacker":
+            self.comb += self.model.status.eq(0x48) # 'H'
+        else:
+            self.comb += self.model.status.eq(0x3f) # '?'
 
 
 class BaseSoC(SoCCore):
@@ -791,7 +802,7 @@ class BaseSoC(SoCCore):
         )
 
         self.submodules.rgb = SBLED(platform.revision, platform.request("led"))
-        self.submodules.version = Version()
+        self.submodules.version = Version(platform.revision)
 
         # Add USB pads
         usb_pads = platform.request("usb")
