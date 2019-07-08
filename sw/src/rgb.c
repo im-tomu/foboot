@@ -67,23 +67,23 @@ static void rgb_switch_mode(uint8_t mode,
             | BREATHE_MODE_MODULATE | BREATHE_RATE(onrate), LEDDBCRR);
     rgb_write(BREATHE_ENABLE | BREATHE_MODE_MODULATE | BREATHE_RATE(offrate), LEDDBCFR);
 
-    rgb_write(r, LEDDPWRG); // Red
-    rgb_write(g, LEDDPWRB); // Green
-    rgb_write(b, LEDDPWRR); // Blue
+    rgb_write(r, LEDDPWRR); // Red
+    rgb_write(g, LEDDPWRG); // Green
+    rgb_write(b, LEDDPWRB); // Blue
 }
 
 void rgb_mode_idle(void) {
-    rgb_switch_mode(IDLE, 12, 14, 2, 3, 0x00/4, 0x4a/4, 0xe1/4);
+    rgb_switch_mode(IDLE, 12, 14, 2, 3, 0x00/4, 0xe1/4, 0x4a/4);
 }
 
 void rgb_mode_writing(void) {
-    rgb_switch_mode(WRITING, 1, 2, 1, 3, 0x00/4, 0x7a/4, 0x51/4);
+    rgb_switch_mode(WRITING, 1, 2, 1, 3, 0x00/4, 0x51/4, 0x7a/4);
 }
 
 void rgb_mode_error(void) {
-    rgb_switch_mode(ERROR, 3, 3, 2, 3, 0xf0/4, 0x0a/4, 0x01/4);
+    rgb_switch_mode(ERROR, 3, 3, 2, 3, 0xf0/4, 0x01/4, 0x0a/4);
 }
 
 void rgb_mode_done(void) {
-    rgb_switch_mode(DONE, 8, 8, 2, 3, 0x14/4, 0xff/4, 0x44/4);
+    rgb_switch_mode(DONE, 8, 8, 2, 3, 0x14/4, 0x44/4, 0xff/4);
 }

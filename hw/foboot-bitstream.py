@@ -315,6 +315,7 @@ class FirmwareROM(wishbone.SRAM):
 
 class Platform(LatticePlatform):
     def __init__(self, revision=None, toolchain="icestorm"):
+        self.revision = revision
         if revision == "evt":
             LatticePlatform.__init__(self, "ice40-up5k-sg48", _io_evt, _connectors, toolchain="icestorm")
         elif revision == "dvt":
@@ -330,12 +331,33 @@ class Platform(LatticePlatform):
         raise ValueError("programming is not supported")
 
 class SBLED(Module, AutoCSR):
-    def __init__(self, pads):
+    def __init__(self, revision, pads):
         rgba_pwm = Signal(3)
 
         self.dat = CSRStorage(8)
         self.addr = CSRStorage(4)
-        self.ctrl = CSRStorage(4)
+        self.ctrl = CSRStorage(6)
+        self.raw = CSRStorage(3)
+
+        ledd_value = Signal(3)
+        if revision == "pvt" or revision == "evt" or revision == "dvt":
+            self.comb += [
+                If(self.ctrl.storage[3], rgba_pwm[1].eq(self.raw.storage[0])).Else(rgba_pwm[1].eq(ledd_value[0])),
+                If(self.ctrl.storage[4], rgba_pwm[0].eq(self.raw.storage[1])).Else(rgba_pwm[0].eq(ledd_value[1])),
+                If(self.ctrl.storage[5], rgba_pwm[2].eq(self.raw.storage[2])).Else(rgba_pwm[2].eq(ledd_value[2])),
+            ]
+        elif revision == "hacker":
+            self.comb += [
+                If(self.ctrl.storage[3], rgba_pwm[0].eq(self.raw.storage[0])).Else(rgba_pwm[0].eq(ledd_value[0])),
+                If(self.ctrl.storage[4], rgba_pwm[1].eq(self.raw.storage[1])).Else(rgba_pwm[1].eq(ledd_value[1])),
+                If(self.ctrl.storage[5], rgba_pwm[2].eq(self.raw.storage[2])).Else(rgba_pwm[2].eq(ledd_value[2])),
+            ]
+        else:
+            self.comb += [
+                If(self.ctrl.storage[3], rgba_pwm[0].eq(self.raw.storage[0])).Else(rgba_pwm[0].eq(ledd_value[0])),
+                If(self.ctrl.storage[4], rgba_pwm[1].eq(self.raw.storage[1])).Else(rgba_pwm[1].eq(ledd_value[1])),
+                If(self.ctrl.storage[5], rgba_pwm[2].eq(self.raw.storage[2])).Else(rgba_pwm[2].eq(ledd_value[2])),
+            ]
 
         self.specials += Instance("SB_RGBA_DRV",
             i_CURREN = self.ctrl.storage[1],
@@ -348,7 +370,7 @@ class SBLED(Module, AutoCSR):
             o_RGB2 = pads.rgb2,
             p_CURRENT_MODE = "0b1",
             p_RGB0_CURRENT = "0b000011",
-            p_RGB1_CURRENT = "0b000001",
+            p_RGB1_CURRENT = "0b000011",
             p_RGB2_CURRENT = "0b000011",
         )
 
@@ -371,10 +393,10 @@ class SBLED(Module, AutoCSR):
             i_LEDDEXE = self.ctrl.storage[0],
             # o_LEDDON = led_is_on, # Indicates whether LED is on or not
             # i_LEDDRST = ResetSignal(), # This port doesn't actually exist
-            o_PWMOUT0 = rgba_pwm[0], 
-            o_PWMOUT1 = rgba_pwm[1], 
-            o_PWMOUT2 = rgba_pwm[2],
-            o_LEDDON = Signal(), 
+            o_PWMOUT0 = ledd_value[0],
+            o_PWMOUT1 = ledd_value[1],
+            o_PWMOUT2 = ledd_value[2],
+            o_LEDDON = Signal(),
         )
 
 
@@ -768,7 +790,7 @@ class BaseSoC(SoCCore):
             i_externalResetVector=self.reboot.addr.storage,
         )
 
-        self.submodules.rgb = SBLED(platform.request("led"))
+        self.submodules.rgb = SBLED(platform.revision, platform.request("led"))
         self.submodules.version = Version()
 
         # Add USB pads
