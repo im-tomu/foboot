@@ -16,3 +16,6 @@
 [submodule "hw/deps/usb"]
 	path = hw/deps/usb
 	url = https://github.com/pyusb/pyusb.git
+[submodule "hw/deps/litedram"]
+	path = hw/deps/litedram
+	url = https://github.com/enjoy-digital/litedram.git
