@@ -29,7 +29,7 @@ from litex.soc.cores.spi_flash import SpiFlash
 
 from valentyusb import usbcore
 from valentyusb.usbcore import io as usbio
-from valentyusb.usbcore.cpu import epmem, unififo, epfifo
+from valentyusb.usbcore.cpu import epmem, unififo, epfifo, dummyusb
 from valentyusb.usbcore.endpoint import EndpointType
 
 from litex.soc.cores import up5kspram
@@ -802,9 +802,10 @@ class BaseSoC(SoCCore):
             self.litexspi.bus, size=spi_size)
 
         self.submodules.reboot = SBWarmBoot(self)
-        self.cpu.cpu_params.update(
-            i_externalResetVector=self.reboot.addr.storage,
-        )
+        if hasattr(self, "cpu"):
+            self.cpu.cpu_params.update(
+                i_externalResetVector=self.reboot.addr.storage,
+            )
 
         self.submodules.rgb = SBLED(platform.revision, platform.request("led"))
         self.submodules.version = Version(platform.revision)
@@ -812,7 +813,10 @@ class BaseSoC(SoCCore):
         # Add USB pads
         usb_pads = platform.request("usb")
         usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
-        self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, debug=usb_debug)
+        if hasattr(self, "cpu"):
+            self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, debug=usb_debug)
+        else:
+            self.submodules.usb = dummyusb.DummyUsb(usb_iobuf, debug=usb_debug)
         if usb_debug:
             self.add_wb_master(self.usb.debug_bridge.wishbone)
         # For the EVT board, ensure the pulldown pin is tristated as an input
