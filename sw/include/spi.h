@@ -48,47 +48,38 @@ struct spi_id {
 	const char *capacity;
 };
 
-struct ff_spi;
+void spi_pause(void);
+void spi_begin(void);
+void spi_end(void);
 
-void spiPause(struct ff_spi *spi);
-void spiBegin(struct ff_spi *spi);
-void spiEnd(struct ff_spi *spi);
-
-//void spiSingleTx(struct ff_spi *spi, uint8_t out);
-//uint8_t spiSingleRx(struct ff_spi *spi);
-//void spiDualTx(struct ff_spi *spi, uint8_t out);
-//void spiQuadTx(struct ff_spi *spi, uint8_t out);
-void spiCommand(struct ff_spi *spi, uint8_t cmd);
-//uint8_t spiDualRx(struct ff_spi *spi);
-//uint8_t spiQuadRx(struct ff_spi *spi);
-int spiTx(struct ff_spi *spi, uint8_t word);
-uint8_t spiRx(struct ff_spi *spi);
-uint8_t spiReadStatus(struct ff_spi *spi, uint8_t sr);
-void spiWriteStatus(struct ff_spi *spi, uint8_t sr, uint8_t val);
-void spiReadSecurity(struct ff_spi *spi, uint8_t sr, uint8_t security[256]);
-void spiWriteSecurity(struct ff_spi *spi, uint8_t sr, uint8_t security[256]);
-int spiSetType(struct ff_spi *spi, enum spi_type type);
-int spiRead(struct ff_spi *spi, uint32_t addr, uint8_t *data, unsigned int count);
-int spiIsBusy(struct ff_spi *spi);
-int spiBeginErase32(struct ff_spi *spi, uint32_t erase_addr);
-int spiBeginErase64(struct ff_spi *spi, uint32_t erase_addr);
-int spiBeginWrite(struct ff_spi *spi, uint32_t addr, const void *data, unsigned int count);
+//void spiSingleTx(uint8_t out);
+//uint8_t spiSingleRx(void);
+//void spiDualTx(uint8_t out);
+//void spiQuadTx(uint8_t out);
+//uint8_t spiDualRx(void);
+//uint8_t spiQuadRx(void);
+uint8_t spi_read_status(uint8_t sr);
+void spiWriteStatus(uint8_t sr, uint8_t val);
+void spiReadSecurity(uint8_t sr, uint8_t security[256]);
+void spiWriteSecurity(uint8_t sr, uint8_t security[256]);
+int spiSetType(enum spi_type type);
+int spiRead(uint32_t addr, uint8_t *data, unsigned int count);
+int spiIsBusy(void);
+int spiBeginErase32(uint32_t erase_addr);
+int spiBeginErase64(uint32_t erase_addr);
+int spiBeginWrite(uint32_t addr, const void *data, unsigned int count);
 void spiEnableQuad(void);
 
-struct spi_id spiId(struct ff_spi *spi);
-void spiOverrideSize(struct ff_spi *spi, uint32_t new_size);
+uint32_t spiId(void);
 
-//int spi_wait_for_not_busy(struct ff_spi *spi);
-int spiWrite(struct ff_spi *spi, uint32_t addr, const uint8_t *data, unsigned int count);
-uint8_t spiReset(struct ff_spi *spi);
-int spiInit(struct ff_spi *spi);
+uint8_t spi_reset(void);
+int spi_init(void);
+void spi_free(void);
 
-void spiHold(struct ff_spi *spi);
-void spiUnhold(struct ff_spi *spi);
-void spiSwapTxRx(struct ff_spi *spi);
+void spi_hold(void);
+void spi_unhold(void);
 
-struct ff_spi *spiAlloc(void);
-void spiSetPin(struct ff_spi *spi, enum spi_pin pin, int val);
-void spiFree(void);
+void write_to_flash_page(unsigned int addr, const unsigned char *c, unsigned int len);
+void erase_flash_sector(unsigned int addr);
 
 #endif /* BB_SPI_H_ */

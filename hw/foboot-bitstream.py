@@ -25,13 +25,14 @@ from litex.soc.integration.builder import Builder
 from litex.soc.integration.soc_core import csr_map_update
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
+from litex.soc.cores.spi_flash import SpiFlash
 
 from valentyusb import usbcore
 from valentyusb.usbcore import io as usbio
 from valentyusb.usbcore.cpu import epmem, unififo, epfifo
 from valentyusb.usbcore.endpoint import EndpointType
 
-from lxsocsupport import up5kspram, spi_flash
+from litex.soc.cores import up5kspram
 
 import argparse
 import os
@@ -83,7 +84,7 @@ _io_evt = [
     ("spiflash4x", 0,
         Subsignal("cs_n", Pins("16"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("15"), IOStandard("LVCMOS33")),
-        Subsignal("dq",   Pins("14 17 19 18"), IOStandard("LVCMOS33")),
+        Subsignal("dq",   Pins("14 17 18 19"), IOStandard("LVCMOS33")),
     ),
     ("clk48", 0, Pins("44"), IOStandard("LVCMOS33"))
 ]
@@ -121,7 +122,7 @@ _io_dvt = [
     ("spiflash4x", 0,
         Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
-        Subsignal("dq",   Pins("E1 F1 F2 B1"), IOStandard("LVCMOS33")),
+        Subsignal("dq",   Pins("F1 E1 F2 B1"), IOStandard("LVCMOS33")),
     ),
     ("clk48", 0, Pins("F4"), IOStandard("LVCMOS33"))
 ]
@@ -156,11 +157,6 @@ _io_hacker = [
         Subsignal("mosi", Pins("F1"), IOStandard("LVCMOS33")),
         Subsignal("wp",   Pins("A1"), IOStandard("LVCMOS33")),
         Subsignal("hold", Pins("B1"), IOStandard("LVCMOS33")),
-    ),
-    ("spiflash4x", 0,
-        Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
-        Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
-        Subsignal("dq",   Pins("E1 F1 A1 B1"), IOStandard("LVCMOS33")),
     ),
     ("clk48", 0, Pins("F5"), IOStandard("LVCMOS33"))
 ]
@@ -707,6 +703,7 @@ class BaseSoC(SoCCore):
         "reboot":         12,
         "rgb":            13,
         "version":        14,
+        "litexspi":       15,
     }
 
     mem_map = {
@@ -756,7 +753,7 @@ class BaseSoC(SoCCore):
         # free up scarce block RAM.
         spram_size = 128*1024
         self.submodules.spram = up5kspram.Up5kSPRAM(size=spram_size)
-        self.register_mem("sram", 0x10000000, self.spram.bus, spram_size)
+        self.register_mem("sram", 0x01000000, self.spram.bus, spram_size)
 
         if boot_source == "rand":
             kwargs['cpu_reset_address']=0
@@ -790,11 +787,19 @@ class BaseSoC(SoCCore):
         else:
             raise ValueError("unrecognized boot_source: {}".format(boot_source))
 
-        # Add a simple bit-banged SPI Flash module
-        spi_pads = platform.request("spiflash")
-        self.submodules.picorvspi = PicoRVSpi(platform, spi_pads)
+        # Add a memory-mapped SPI flash module
+        if platform.revision == "pvt" or platform.revision == "dvt":
+            spi_pads = platform.request("spiflash4x")
+            spi_size = 2*1024*1024
+        elif platform.revision == "evt":
+            spi_pads = platform.request("spiflash4x")
+            spi_size = 16*1024*1024
+        else:
+            spi_pads = platform.request("spiflash")
+            spi_size = 2*1024*1024
+        self.submodules.litexspi = SpiFlash(spi_pads, with_bitbang=True, dummy=12)
         self.register_mem("spiflash", self.mem_map["spiflash"],
-            self.picorvspi.bus, size=self.picorvspi.size)
+            self.litexspi.bus, size=spi_size)
 
         self.submodules.reboot = SBWarmBoot(self)
         self.cpu.cpu_params.update(

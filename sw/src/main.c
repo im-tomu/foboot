@@ -36,14 +36,14 @@ static void riscv_reboot_to(void *addr, uint32_t boot_config) {
         usb_disconnect();
 
     // Figure out what mode to put SPI flash into.
-    if (boot_config & 0x00000001) { // QPI_EN
-        // spiEnableQuad();
-        picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x20);
-    }
-    if (boot_config & 0x00000002) // DDR_EN
-        picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x40);
-    if (boot_config & 0x00000002) // CFM_EN
-        picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x10);
+    // if (boot_config & 0x00000001) { // QPI_EN
+    //     // spiEnableQuad();
+    //     picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x20);
+    // }
+    // if (boot_config & 0x00000002) // DDR_EN
+    //     picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x40);
+    // if (boot_config & 0x00000002) // CFM_EN
+    //     picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x10);
     rgb_mode_error();
 
     // Vexriscv requires three extra nop cycles to flush the cache.
@@ -116,7 +116,7 @@ void reboot(void) {
     uint32_t boot_config = 0;
 
     // Free the SPI controller, which returns it to memory-mapped mode.
-    spiFree();
+    spi_free();
 
     // Scan for configuration data.
     int i;
@@ -148,22 +148,9 @@ void reboot(void) {
 static void init(void)
 {
     rgb_init();
-    spi = spiAlloc();
-    spiSetPin(spi, SP_MOSI, 0);
-    spiSetPin(spi, SP_MISO, 1);
-    spiSetPin(spi, SP_WP, 2);
-    spiSetPin(spi, SP_HOLD, 3);
-    spiSetPin(spi, SP_CLK, 4);
-    spiSetPin(spi, SP_CS, 5);
-    spiSetPin(spi, SP_D0, 0);
-    spiSetPin(spi, SP_D1, 1);
-    spiSetPin(spi, SP_D2, 2);
-    spiSetPin(spi, SP_D3, 3);
-    spiInit(spi);
-    spiFree();
     maybe_boot_fbm();
 
-    spiInit(spi);
+    spi_init();
 #ifdef CSR_UART_BASE
     init_printf(NULL, rv_putchar);
 #endif
