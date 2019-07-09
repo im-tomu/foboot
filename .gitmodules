@@ -10,9 +10,6 @@
 [submodule "hw/deps/pyserial"]
 	path = hw/deps/pyserial
 	url = https://github.com/pyserial/pyserial.git
-[submodule "hw/deps/litedram"]
-	path = hw/deps/litedram
-	url = https://github.com/enjoy-digital/litedram.git
 [submodule "hw/deps/valentyusb"]
 	path = hw/deps/valentyusb
 	url = https://github.com/im-tomu/valentyusb.git
