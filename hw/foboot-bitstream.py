@@ -706,10 +706,13 @@ class BaseSoC(SoCCore):
         "litexspi":       15,
     }
 
-    mem_map = {
+    SoCCore.mem_map = {
+        "rom":      0x00000000,  # (default shadow @0x80000000)
+        "sram":     0x10000000,  # (default shadow @0xa0000000)
         "spiflash": 0x20000000,  # (default shadow @0xa0000000)
+        "main_ram": 0x40000000,  # (default shadow @0xc0000000)
+        "csr":      0x60000000,  # (default shadow @0xe0000000)
     }
-    mem_map.update(SoCCore.mem_map)
 
     interrupt_map = {
         "usb": 3,
