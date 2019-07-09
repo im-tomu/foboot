@@ -756,7 +756,7 @@ class BaseSoC(SoCCore):
         # free up scarce block RAM.
         spram_size = 128*1024
         self.submodules.spram = up5kspram.Up5kSPRAM(size=spram_size)
-        self.register_mem("sram", 0x01000000, self.spram.bus, spram_size)
+        self.register_mem("sram", self.mem_map["sram"], self.spram.bus, spram_size)
 
         if boot_source == "rand":
             kwargs['cpu_reset_address']=0
