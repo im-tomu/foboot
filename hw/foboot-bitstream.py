@@ -158,6 +158,11 @@ _io_hacker = [
         Subsignal("wp",   Pins("A1"), IOStandard("LVCMOS33")),
         Subsignal("hold", Pins("B1"), IOStandard("LVCMOS33")),
     ),
+    ("spiflash4x", 0,
+        Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
+        Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
+        Subsignal("dq",   Pins("F1 E1"), IOStandard("LVCMOS33")),
+    ),
     ("clk48", 0, Pins("F5"), IOStandard("LVCMOS33"))
 ]
 
@@ -794,13 +799,17 @@ class BaseSoC(SoCCore):
         if platform.revision == "pvt" or platform.revision == "dvt":
             spi_pads = platform.request("spiflash4x")
             spi_size = 2*1024*1024
+            spi_dummy = 6
         elif platform.revision == "evt":
             spi_pads = platform.request("spiflash4x")
             spi_size = 16*1024*1024
+            spi_dummy = 6
         else:
-            spi_pads = platform.request("spiflash")
+            spi_pads = platform.request("spiflash4x")
             spi_size = 2*1024*1024
-        self.submodules.litexspi = SpiFlash(spi_pads, with_bitbang=True, dummy=12)
+            raise ValueError("Please figure out what the correct number of dummy cycles is")
+            spi_dummy = 12 # Check if this is correct?!
+        self.submodules.litexspi = SpiFlash(spi_pads, with_bitbang=True, dummy=spi_dummy)
         self.register_mem("spiflash", self.mem_map["spiflash"],
             self.litexspi.bus, size=spi_size)
 
