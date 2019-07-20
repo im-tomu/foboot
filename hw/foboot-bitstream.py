@@ -28,7 +28,7 @@ from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
 
 from valentyusb import usbcore
 from valentyusb.usbcore import io as usbio
-from valentyusb.usbcore.cpu import epmem, unififo, epfifo
+from valentyusb.usbcore.cpu import epmem, unififo, epfifo, dummyusb
 from valentyusb.usbcore.endpoint import EndpointType
 
 from lxsocsupport import up5kspram, spi_flash
@@ -785,7 +785,11 @@ class BaseSoC(SoCCore):
         # Add USB pads
         usb_pads = platform.request("usb")
         usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
-        self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, debug=usb_debug)
+        if hasattr(self, "cpu"):
+            self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, debug=usb_debug)
+        else:
+            self.submodules.usb = dummyusb.DummyUsb(usb_iobuf, debug=usb_debug)
+
         if usb_debug:
             self.add_wb_master(self.usb.debug_bridge.wishbone)
         # For the EVT board, ensure the pulldown pin is tristated as an input
