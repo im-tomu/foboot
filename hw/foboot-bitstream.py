@@ -170,8 +170,6 @@ _connectors = []
 class _CRG(Module):
     def __init__(self, platform, use_pll):
         clk48_raw = platform.request("clk48")
-        clk12_raw = Signal()
-        clk48 = Signal()
         clk12 = Signal()
 
         reset_delay = Signal(13, reset=4095)
@@ -185,9 +183,7 @@ class _CRG(Module):
         platform.add_period_constraint(self.cd_usb_48.clk, 1e9/48e6)
         platform.add_period_constraint(self.cd_sys.clk, 1e9/12e6)
         platform.add_period_constraint(self.cd_usb_12.clk, 1e9/12e6)
-        platform.add_period_constraint(clk48, 1e9/48e6)
         platform.add_period_constraint(clk48_raw, 1e9/48e6)
-        platform.add_period_constraint(clk12_raw, 1e9/12e6)
 
         # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
         # reset.
@@ -198,52 +194,33 @@ class _CRG(Module):
         ]
 
         if use_pll:
-
-            # Divide clk48 down to clk12, to ensure they're synchronized.
-            # By doing this, we avoid needing clock-domain crossing.
-            clk12_counter = Signal(2)
-
-            self.clock_domains.cd_usb_48_raw = ClockDomain()
-
-            platform.add_period_constraint(self.cd_usb_48_raw.clk, 1e9/48e6)
-
             # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
             # reset.
             self.comb += [
                 self.cd_usb_48.rst.eq(reset_delay != 0),
             ]
 
-            self.comb += self.cd_usb_48_raw.clk.eq(clk48_raw)
-            self.comb += self.cd_usb_48.clk.eq(clk48)
-
-            self.sync.usb_48_raw += clk12_counter.eq(clk12_counter + 1)
-
-            self.comb += clk12_raw.eq(clk12_counter[1])
-            self.specials += Instance(
-                "SB_GB",
-                i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk12_raw,
-                o_GLOBAL_BUFFER_OUTPUT=clk12,
-            )
+            self.comb += self.cd_usb_48.clk.eq(clk48_raw)
 
             self.specials += Instance(
                 "SB_PLL40_CORE",
                 # Parameters
                 p_DIVR = 0,
-                p_DIVF = 3,
-                p_DIVQ = 2,
+                p_DIVF = 15,
+                p_DIVQ = 5,
                 p_FILTER_RANGE = 1,
-                p_FEEDBACK_PATH = "PHASE_AND_DELAY",
+                p_FEEDBACK_PATH = "SIMPLE",
                 p_DELAY_ADJUSTMENT_MODE_FEEDBACK = "FIXED",
                 p_FDA_FEEDBACK = 15,
                 p_DELAY_ADJUSTMENT_MODE_RELATIVE = "FIXED",
                 p_FDA_RELATIVE = 0,
                 p_SHIFTREG_DIV_MODE = 1,
-                p_PLLOUT_SELECT = "SHIFTREG_0deg",
+                p_PLLOUT_SELECT = "GENCLK_HALF",
                 p_ENABLE_ICEGATE = 0,
                 # IO
-                i_REFERENCECLK = clk12,
+                i_REFERENCECLK = clk48_raw,
                 # o_PLLOUTCORE = clk12,
-                o_PLLOUTGLOBAL = clk48,
+                o_PLLOUTGLOBAL = clk12,
                 #i_EXTFEEDBACK,
                 #i_DYNAMICDELAY,
                 #o_LOCK,
