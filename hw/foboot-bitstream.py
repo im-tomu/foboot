@@ -797,9 +797,10 @@ class BaseSoC(SoCCore):
             self.picorvspi.bus, size=self.picorvspi.size)
 
         self.submodules.reboot = SBWarmBoot(self)
-        self.cpu.cpu_params.update(
-            i_externalResetVector=self.reboot.addr.storage,
-        )
+        if hasattr(self, "cpu"):
+            self.cpu.cpu_params.update(
+                i_externalResetVector=self.reboot.addr.storage,
+            )
 
         self.submodules.rgb = SBLED(platform.revision, platform.request("led"))
         self.submodules.version = Version(platform.revision)
