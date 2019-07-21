@@ -219,8 +219,8 @@ class _CRG(Module):
                 p_ENABLE_ICEGATE = 0,
                 # IO
                 i_REFERENCECLK = clk48_raw,
-                # o_PLLOUTCORE = clk12,
-                o_PLLOUTGLOBAL = clk12,
+                o_PLLOUTCORE = clk12,
+                # o_PLLOUTGLOBAL = clk12,
                 #i_EXTFEEDBACK,
                 #i_DYNAMICDELAY,
                 #o_LOCK,
