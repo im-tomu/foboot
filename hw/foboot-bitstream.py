@@ -766,12 +766,12 @@ class BaseSoC(SoCCore):
         # Add GPIO pads for the touch buttons
         self.submodules.touch = TouchPads(platform.request("touch"))
 
-        # Add "-relut -dffe_min_ce_use 5" to the synth_ice40 command.
+        # Add "-relut -dffe_min_ce_use 4" to the synth_ice40 command.
         # The "-reult" adds an additional LUT pass to pack more stuff in,
-        # and the "-dffe_min_ce_use 5" flag prevents Yosys from generating a
-        # Clock Enable signal for a LUT that has fewer than 5 flip-flops.
+        # and the "-dffe_min_ce_use 4" flag prevents Yosys from generating a
+        # Clock Enable signal for a LUT that has fewer than 4 flip-flops.
         # This increases density, and lets us use the FPGA more efficiently.
-        platform.toolchain.nextpnr_yosys_template[2] += " -relut -dffe_min_ce_use 5"
+        platform.toolchain.nextpnr_yosys_template[2] += " -relut -dffe_min_ce_use 4"
         if use_dsp:
             platform.toolchain.nextpnr_yosys_template[2] += " -dsp"
 
