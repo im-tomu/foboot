@@ -28,7 +28,7 @@ from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
 
 from valentyusb import usbcore
 from valentyusb.usbcore import io as usbio
-from valentyusb.usbcore.cpu import epmem, unififo, epfifo
+from valentyusb.usbcore.cpu import epmem, unififo, epfifo, dummyusb
 from valentyusb.usbcore.endpoint import EndpointType
 
 from lxsocsupport import up5kspram, spi_flash
@@ -83,7 +83,7 @@ _io_evt = [
     ("spiflash4x", 0,
         Subsignal("cs_n", Pins("16"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("15"), IOStandard("LVCMOS33")),
-        Subsignal("dq",   Pins("14 17 19 18"), IOStandard("LVCMOS33")),
+        Subsignal("dq",   Pins("14 17 18 19"), IOStandard("LVCMOS33")),
     ),
     ("clk48", 0, Pins("44"), IOStandard("LVCMOS33"))
 ]
@@ -121,7 +121,7 @@ _io_dvt = [
     ("spiflash4x", 0,
         Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
-        Subsignal("dq",   Pins("E1 F1 F2 B1"), IOStandard("LVCMOS33")),
+        Subsignal("dq",   Pins("F1 E1 F2 B1"), IOStandard("LVCMOS33")),
     ),
     ("clk48", 0, Pins("F4"), IOStandard("LVCMOS33"))
 ]
@@ -160,7 +160,7 @@ _io_hacker = [
     ("spiflash4x", 0,
         Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
-        Subsignal("dq",   Pins("E1 F1 A1 B1"), IOStandard("LVCMOS33")),
+        Subsignal("dq",   Pins("F1 E1"), IOStandard("LVCMOS33")),
     ),
     ("clk48", 0, Pins("F5"), IOStandard("LVCMOS33"))
 ]
@@ -170,11 +170,9 @@ _connectors = []
 class _CRG(Module):
     def __init__(self, platform, use_pll):
         clk48_raw = platform.request("clk48")
-        clk12_raw = Signal()
-        clk48 = Signal()
         clk12 = Signal()
 
-        reset_delay = Signal(13, reset=4095)
+        reset_delay = Signal(13, reset=8191)
         self.clock_domains.cd_por = ClockDomain()
         self.reset = Signal()
 
@@ -185,9 +183,7 @@ class _CRG(Module):
         platform.add_period_constraint(self.cd_usb_48.clk, 1e9/48e6)
         platform.add_period_constraint(self.cd_sys.clk, 1e9/12e6)
         platform.add_period_constraint(self.cd_usb_12.clk, 1e9/12e6)
-        platform.add_period_constraint(clk48, 1e9/48e6)
         platform.add_period_constraint(clk48_raw, 1e9/48e6)
-        platform.add_period_constraint(clk12_raw, 1e9/12e6)
 
         # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
         # reset.
@@ -198,52 +194,33 @@ class _CRG(Module):
         ]
 
         if use_pll:
-
-            # Divide clk48 down to clk12, to ensure they're synchronized.
-            # By doing this, we avoid needing clock-domain crossing.
-            clk12_counter = Signal(2)
-
-            self.clock_domains.cd_usb_48_raw = ClockDomain()
-
-            platform.add_period_constraint(self.cd_usb_48_raw.clk, 1e9/48e6)
-
             # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
             # reset.
             self.comb += [
                 self.cd_usb_48.rst.eq(reset_delay != 0),
             ]
 
-            self.comb += self.cd_usb_48_raw.clk.eq(clk48_raw)
-            self.comb += self.cd_usb_48.clk.eq(clk48)
-
-            self.sync.usb_48_raw += clk12_counter.eq(clk12_counter + 1)
-
-            self.comb += clk12_raw.eq(clk12_counter[1])
-            self.specials += Instance(
-                "SB_GB",
-                i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk12_raw,
-                o_GLOBAL_BUFFER_OUTPUT=clk12,
-            )
+            self.comb += self.cd_usb_48.clk.eq(clk48_raw)
 
             self.specials += Instance(
                 "SB_PLL40_CORE",
                 # Parameters
                 p_DIVR = 0,
-                p_DIVF = 3,
-                p_DIVQ = 2,
+                p_DIVF = 15,
+                p_DIVQ = 5,
                 p_FILTER_RANGE = 1,
-                p_FEEDBACK_PATH = "PHASE_AND_DELAY",
+                p_FEEDBACK_PATH = "SIMPLE",
                 p_DELAY_ADJUSTMENT_MODE_FEEDBACK = "FIXED",
                 p_FDA_FEEDBACK = 15,
                 p_DELAY_ADJUSTMENT_MODE_RELATIVE = "FIXED",
                 p_FDA_RELATIVE = 0,
                 p_SHIFTREG_DIV_MODE = 1,
-                p_PLLOUT_SELECT = "SHIFTREG_0deg",
+                p_PLLOUT_SELECT = "GENCLK_HALF",
                 p_ENABLE_ICEGATE = 0,
                 # IO
-                i_REFERENCECLK = clk12,
-                # o_PLLOUTCORE = clk12,
-                o_PLLOUTGLOBAL = clk48,
+                i_REFERENCECLK = clk48_raw,
+                o_PLLOUTCORE = clk12,
+                # o_PLLOUTGLOBAL = clk12,
                 #i_EXTFEEDBACK,
                 #i_DYNAMICDELAY,
                 #o_LOCK,
@@ -709,10 +686,13 @@ class BaseSoC(SoCCore):
         "version":        14,
     }
 
-    mem_map = {
+    SoCCore.mem_map = {
+        "rom":      0x00000000,  # (default shadow @0x80000000)
+        "sram":     0x10000000,  # (default shadow @0xa0000000)
         "spiflash": 0x20000000,  # (default shadow @0xa0000000)
+        "main_ram": 0x40000000,  # (default shadow @0xc0000000)
+        "csr":      0x60000000,  # (default shadow @0xe0000000)
     }
-    mem_map.update(SoCCore.mem_map)
 
     interrupt_map = {
         "usb": 3,
@@ -756,7 +736,7 @@ class BaseSoC(SoCCore):
         # free up scarce block RAM.
         spram_size = 128*1024
         self.submodules.spram = up5kspram.Up5kSPRAM(size=spram_size)
-        self.register_mem("sram", 0x10000000, self.spram.bus, spram_size)
+        self.register_mem("sram", self.mem_map["sram"], self.spram.bus, spram_size)
 
         if boot_source == "rand":
             kwargs['cpu_reset_address']=0
@@ -797,9 +777,10 @@ class BaseSoC(SoCCore):
             self.picorvspi.bus, size=self.picorvspi.size)
 
         self.submodules.reboot = SBWarmBoot(self)
-        self.cpu.cpu_params.update(
-            i_externalResetVector=self.reboot.addr.storage,
-        )
+        if hasattr(self, "cpu"):
+            self.cpu.cpu_params.update(
+                i_externalResetVector=self.reboot.addr.storage,
+            )
 
         self.submodules.rgb = SBLED(platform.revision, platform.request("led"))
         self.submodules.version = Version(platform.revision)
@@ -807,7 +788,11 @@ class BaseSoC(SoCCore):
         # Add USB pads
         usb_pads = platform.request("usb")
         usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
-        self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, debug=usb_debug)
+        if hasattr(self, "cpu"):
+            self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, debug=usb_debug)
+        else:
+            self.submodules.usb = dummyusb.DummyUsb(usb_iobuf, debug=usb_debug)
+
         if usb_debug:
             self.add_wb_master(self.usb.debug_bridge.wishbone)
         # For the EVT board, ensure the pulldown pin is tristated as an input
@@ -826,7 +811,7 @@ class BaseSoC(SoCCore):
         # and the "-dffe_min_ce_use 4" flag prevents Yosys from generating a
         # Clock Enable signal for a LUT that has fewer than 4 flip-flops.
         # This increases density, and lets us use the FPGA more efficiently.
-        platform.toolchain.nextpnr_yosys_template[2] += " -relut -dffe_min_ce_use 5"
+        platform.toolchain.nextpnr_yosys_template[2] += " -relut -dffe_min_ce_use 4"
         if use_dsp:
             platform.toolchain.nextpnr_yosys_template[2] += " -dsp"
 
