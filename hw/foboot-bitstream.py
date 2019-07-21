@@ -83,7 +83,7 @@ _io_evt = [
     ("spiflash4x", 0,
         Subsignal("cs_n", Pins("16"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("15"), IOStandard("LVCMOS33")),
-        Subsignal("dq",   Pins("14 17 19 18"), IOStandard("LVCMOS33")),
+        Subsignal("dq",   Pins("14 17 18 19"), IOStandard("LVCMOS33")),
     ),
     ("clk48", 0, Pins("44"), IOStandard("LVCMOS33"))
 ]
@@ -121,7 +121,7 @@ _io_dvt = [
     ("spiflash4x", 0,
         Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
-        Subsignal("dq",   Pins("E1 F1 F2 B1"), IOStandard("LVCMOS33")),
+        Subsignal("dq",   Pins("F1 E1 F2 B1"), IOStandard("LVCMOS33")),
     ),
     ("clk48", 0, Pins("F4"), IOStandard("LVCMOS33"))
 ]
@@ -160,7 +160,7 @@ _io_hacker = [
     ("spiflash4x", 0,
         Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
-        Subsignal("dq",   Pins("E1 F1 A1 B1"), IOStandard("LVCMOS33")),
+        Subsignal("dq",   Pins("F1 E1"), IOStandard("LVCMOS33")),
     ),
     ("clk48", 0, Pins("F5"), IOStandard("LVCMOS33"))
 ]
