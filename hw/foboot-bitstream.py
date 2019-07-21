@@ -172,7 +172,7 @@ class _CRG(Module):
         clk48_raw = platform.request("clk48")
         clk12 = Signal()
 
-        reset_delay = Signal(13, reset=8191)
+        reset_delay = Signal(12, reset=4095)
         self.clock_domains.cd_por = ClockDomain()
         self.reset = Signal()
 
