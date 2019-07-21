@@ -534,46 +534,6 @@ class PicoRVSpi(Module, AutoCSR):
         )
         platform.add_source("rtl/spimemio.v")
 
-class BBSpi(Module, AutoCSR):
-    def __init__(self, platform, pads):
-        self.reset = Signal()
-
-        mosi_pad = TSTriple()
-        miso_pad = TSTriple()
-        cs_n_pad = TSTriple()
-        clk_pad  = TSTriple()
-        wp_pad   = TSTriple()
-        hold_pad = TSTriple()
-
-        self.do = CSRStorage(size=6)
-        self.oe = CSRStorage(size=6)
-        self.di = CSRStatus(size=6)
-        
-        self.specials += mosi_pad.get_tristate(pads.mosi)
-        self.specials += miso_pad.get_tristate(pads.miso)
-        self.specials += cs_n_pad.get_tristate(pads.cs_n)
-        self.specials += clk_pad.get_tristate(pads.clk)
-        self.specials += wp_pad.get_tristate(pads.wp)
-        self.specials += hold_pad.get_tristate(pads.hold)
-
-        self.comb += [
-            mosi_pad.oe.eq(self.oe.storage[0]),
-            miso_pad.oe.eq(self.oe.storage[1]),
-            wp_pad.oe.eq(self.oe.storage[2]),
-            hold_pad.oe.eq(self.oe.storage[3]),
-            clk_pad.oe.eq(self.oe.storage[4]),
-            cs_n_pad.oe.eq(self.oe.storage[5]),
-
-            mosi_pad.o.eq(self.do.storage[0]),
-            miso_pad.o.eq(self.do.storage[1]),
-            wp_pad.o.eq(self.do.storage[2]),
-            hold_pad.o.eq(self.do.storage[3]),
-            clk_pad.o.eq(self.do.storage[4]),
-            cs_n_pad.o.eq(self.do.storage[5]),
-
-            self.di.status.eq(Cat(mosi_pad.i, miso_pad.i, wp_pad.i, hold_pad.i, clk_pad.i, cs_n_pad.i)),
-        ]
-
 class Version(Module, AutoCSR):
     def __init__(self, model):
         def makeint(i, base=10):
