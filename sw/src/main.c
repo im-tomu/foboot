@@ -26,7 +26,7 @@ void isr(void)
         usb_isr();
 }
 
-static void riscv_reboot_to(void *addr, uint32_t boot_config) {
+static void riscv_reboot_to(const void *addr, uint32_t boot_config) {
     reboot_addr_write((uint32_t)addr);
 
     // If requested, just let USB be idle.  Otherwise, reset it.
@@ -79,6 +79,23 @@ static void riscv_reboot_to(void *addr, uint32_t boot_config) {
         :
         : "r"(addr)
     );
+}
+
+void maybe_boot_updater(void) {
+    #pragma warn "Add a hook to bypass updater install"
+    uint32_t booster_base = SPIFLASH_BASE + 0x5a000;
+    if (csr_readl(booster_base + 4) != 0x4260fa37)
+        return;
+    uint32_t booster_size = csr_readl(booster_base + 8);
+    uint32_t target_sum = csr_readl(booster_base + 12);
+    uint32_t computed_sum = 0;
+    uint32_t booster_offset;
+    for (booster_offset = 0x20; booster_offset < booster_size; booster_offset++) {
+        computed_sum += csr_readb(booster_offset + booster_base);
+    }
+    if (target_sum == computed_sum) {
+        riscv_reboot_to((const void *)booster_base, 0x20);
+    }
 }
 
 // If Foboot_Main exists on SPI flash, and if the bypass isn't active,
@@ -148,6 +165,7 @@ void reboot(void) {
 static void init(void)
 {
     rgb_init();
+    picorvspi_cfg4_write(0x80);
     spi = spiAlloc();
     spiSetPin(spi, SP_MOSI, 0);
     spiSetPin(spi, SP_MISO, 1);
@@ -161,6 +179,7 @@ static void init(void)
     spiSetPin(spi, SP_D3, 3);
     spiInit(spi);
     spiFree();
+    maybe_boot_updater();
     maybe_boot_fbm();
 
     spiInit(spi);
