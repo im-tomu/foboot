@@ -1,7 +1,9 @@
 #include <booster.h>
 #include <csr.h>
-#include <spi.h>
+#include <irq.h>
 #include <rgb.h>
+#include <spi.h>
+#include <usb.h>
 
 extern uint32_t booster_signature;
 extern uint32_t booster_length;
@@ -129,7 +131,12 @@ __attribute__((noreturn)) static void error(enum error_code code)
 
 void isr(void)
 {
-    /* unused */
+    unsigned int irqs;
+
+    irqs = irq_pending() & irq_getmask();
+
+    if (irqs & (1 << USB_INTERRUPT))
+        usb_isr();
 }
 
 volatile uint32_t should_continue = 0;
@@ -141,8 +148,13 @@ __attribute__((noreturn)) void fobooster_main(void)
     const void *current_ptr;
     uint32_t page_offset;
 
+    irq_setmask(0);
+    irq_setie(1);
+
     rgb_init();
-    // while(!should_continue);
+    usb_init();
+    usb_connect();
+    while(!should_continue);
 
     // If the booster data doesn't fit in our cached image, error out.
     if (image_length > sizeof(cached_image))
