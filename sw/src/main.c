@@ -81,8 +81,29 @@ static void riscv_reboot_to(const void *addr, uint32_t boot_config) {
     );
 }
 
+
+/// Tell whether the user is doing a "nerve pinch" to bypass
+/// one of the subsequent boot modes.
+static int nerve_pinch(void) {
+    unsigned int i;
+
+    // Set pin 2 as output, and pin 0 as input, and see if it loops back.
+    touch_oe_write((1 << 2) | (0 << 0));
+
+    // Write a sequence of 10 bits out TOUCH2, and check their value
+    // on TOUCH0.  If it doesn't match, then the user isn't doing
+    // the nerve pinch.
+    for (i = 0; i < 10; i++) {
+        touch_o_write((i&1) << 2);
+        if (!((i&1) == (touch_i_read() & (1 << 0))))
+            return 0;
+    }
+    return 1;
+}
+
+/// If the updater exists and has a valid header, then jump
+/// to the updater.
 void maybe_boot_updater(void) {
-    #pragma warn "Add a hook to bypass updater install"
     uint32_t booster_base = SPIFLASH_BASE + 0x5a000;
     if (csr_readl(booster_base + 4) != 0x4260fa37)
         return;
@@ -98,24 +119,10 @@ void maybe_boot_updater(void) {
     }
 }
 
-// If Foboot_Main exists on SPI flash, and if the bypass isn't active,
-// jump to FBM.
+/// If Foboot_Main exists on SPI flash, and if the bypass isn't active,
+/// jump to FBM.
 static void maybe_boot_fbm(void) {
     unsigned int i;
-    int matches = 0;
-    // Write a sequence of 10 bits out TOUCH2, and check their value
-    // on TOUCH0.  Every time it matches, increment a counter.
-    // If the counter matches 10 times, then don't boot FBM.
-    for (i = 0; i < 10; i++) {
-        // Set pin 2 as output, and pin 0 as input, and see if it loops back.
-        touch_oe_write((1 << 2) | (0 << 0));
-        touch_o_write((i&1) << 2);
-        if ((i&1) == (touch_i_read() & (1 << 0)))
-            matches++;
-    }
-    if (matches == 10)
-        return;
-
     // We've determined that we won't force entry into FBR.  Check to see
     // if the FBM signature exists on flash.
     uint32_t *fbr_addr = FBM_OFFSET;
@@ -179,8 +186,11 @@ static void init(void)
     spiSetPin(spi, SP_D3, 3);
     spiInit(spi);
     spiFree();
-    maybe_boot_updater();
-    maybe_boot_fbm();
+
+    if (!nerve_pinch()) {
+        maybe_boot_updater();
+        maybe_boot_fbm();
+    }
 
     spiInit(spi);
 #ifdef CSR_UART_BASE
