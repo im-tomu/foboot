@@ -140,7 +140,7 @@ void isr(void)
         usb_isr();
 }
 
-volatile uint32_t should_continue = 0;
+// volatile uint32_t should_continue = 0;
 uint32_t calculated_hash;
 __attribute__((noreturn)) void fobooster_main(void)
 {
@@ -155,7 +155,7 @@ __attribute__((noreturn)) void fobooster_main(void)
     rgb_init();
     usb_init();
     usb_connect();
-    while(!should_continue);
+    // while(!should_continue);
 
     // If the booster data doesn't fit in our cached image, error out.
     if (image_length > sizeof(cached_image))
