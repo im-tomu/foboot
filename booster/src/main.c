@@ -114,6 +114,7 @@ enum error_code {
     HASH_MISMATCH = 2,
     SPI_MISMATCH = 3,
     MISSING_MULTIBOOT = 4,
+    FINAL_IMAGE_MISMATCH = 5,
 };
 
 volatile enum error_code error_code;
@@ -189,6 +190,14 @@ __attribute__((noreturn)) void fobooster_main(void)
     // This puts the SPI into bit-banged mode, which allows us to write to it.
     cached_spi_id = spi_id; // Copy spi_id over first, since it is still on the flash.
     cached_image_length = image_length;
+
+    int i;
+    for (i = 0; i < cached_image_length; i++) {
+        if (((uint8_t *)cached_image)[i] != ((uint8_t *)0x20000000)[i]) {
+            error(FINAL_IMAGE_MISMATCH);
+        }
+    }
+
     picorvspi_cfg4_write(0);
     ftfl_busy_wait();
 
@@ -237,7 +246,18 @@ __attribute__((noreturn)) void fobooster_main(void)
         }
     }
 
+    // Final check to ensure the target image matches our image
+    picorvspi_cfg4_write(0x80);
+    // Pre-cache due to latency bug when switching between bit-bang and normal mode
+    for (i = 0; i < cached_image_length; i += 4) {
+        uint32_t dummy;
+        memcpy(&dummy, (void *)(0x20000000 + i), 4);
+    }
+    if (memcmp((const void *)0x20000000, cached_image, cached_image_length)) {
+        error(FINAL_IMAGE_MISMATCH);
+    }
+    picorvspi_cfg4_write(0x00);
+
     rgb_mode_writing();
-    msleep(1000);
     finish_flashing();
 }
