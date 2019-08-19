@@ -35,6 +35,7 @@
 #include <stddef.h>
 #include <dfu.h>
 #include <webusb-defs.h>
+#include <generated/csr.h>
 
 struct usb_setup_request {
     union {
@@ -61,7 +62,17 @@ struct usb_string_descriptor_struct {
 #define DEVICE_VER                0x0101    // Bootloader version
 #define MANUFACTURER_NAME         u"Foosn"
 #define MANUFACTURER_NAME_LEN     sizeof(MANUFACTURER_NAME)
+#if defined(CONFIG_FOMU_REV_PVT)
+#define PRODUCT_NAME              u"Fomu PVT running DFU Bootloader " GIT_VERSION
+#elif defined(CONFIG_FOMU_REV_DVT)
+#define PRODUCT_NAME              u"Fomu DVT running DFU Bootloader " GIT_VERSION
+#elif defined(CONFIG_FOMU_REV_EVT)
+#define PRODUCT_NAME              u"Fomu EVT running DFU Bootloader " GIT_VERSION
+#elif defined(CONFIG_FOMU_REV_HACKER)
+#define PRODUCT_NAME              u"Fomu Hacker running DFU Bootloader " GIT_VERSION
+#else
 #define PRODUCT_NAME              u"Fomu DFU Bootloader " GIT_VERSION
+#endif
 #define PRODUCT_NAME_LEN          sizeof(PRODUCT_NAME)
 #define EP0_SIZE                  64
 #define NUM_INTERFACE             1
