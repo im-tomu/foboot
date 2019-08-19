@@ -535,7 +535,7 @@ class PicoRVSpi(Module, AutoCSR):
         platform.add_source("rtl/spimemio.v")
 
 class Version(Module, AutoCSR):
-    def __init__(self, model):
+    def __init__(self, model, parent):
         def makeint(i, base=10):
             try:
                 return int(i, base=base)
@@ -618,12 +618,20 @@ class Version(Module, AutoCSR):
             self.dirty.status.eq(dirty),
         ]
         if model == "evt":
+            parent.config["FOMU_REV"] = "EVT"
+            parent.config["FOMU_REV_EVT"] = 1
             self.comb += self.model.status.eq(0x45) # 'E'
         elif model == "dvt":
+            parent.config["FOMU_REV"] = "DVT"
+            parent.config["FOMU_REV_DVT"] = 1
             self.comb += self.model.status.eq(0x44) # 'D'
         elif model == "pvt":
+            parent.config["FOMU_REV"] = "PVT"
+            parent.config["FOMU_REV_PVT"] = 1
             self.comb += self.model.status.eq(0x50) # 'P'
         elif model == "hacker":
+            parent.config["FOMU_REV"] = "HACKER"
+            parent.config["FOMU_REV_HACKER"] = 1
             self.comb += self.model.status.eq(0x48) # 'H'
         else:
             self.comb += self.model.status.eq(0x3f) # '?'
@@ -743,7 +751,7 @@ class BaseSoC(SoCCore):
             )
 
         self.submodules.rgb = SBLED(platform.revision, platform.request("led"))
-        self.submodules.version = Version(platform.revision)
+        self.submodules.version = Version(platform.revision, self)
 
         # Add USB pads
         usb_pads = platform.request("usb")
