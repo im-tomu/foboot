@@ -242,7 +242,7 @@ class BaseSoC(SoCCore, AutoDoc):
             )
 
         self.submodules.rgb = SBLED(platform.revision, platform.request("rgb_led"))
-        self.submodules.version = Version(platform.revision, pnr_seed, models=[
+        self.submodules.version = Version(platform.revision, self, pnr_seed, models=[
                 ("0x45", "E", "Fomu EVT"),
                 ("0x44", "D", "Fomu DVT"),
                 ("0x50", "P", "Fomu PVT (production)"),

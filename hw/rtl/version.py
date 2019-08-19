@@ -5,7 +5,7 @@ from litex.soc.integration.doc import AutoDoc, ModuleDoc
 from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage, CSRField
 
 class Version(Module, AutoCSR, AutoDoc):
-    def __init__(self, model, seed=0, models=[]):
+    def __init__(self, model, parent, seed=0, models=[]):
         self.intro = ModuleDoc("""SoC Version Information
 
             This block contains various information about the state of the source code
@@ -77,6 +77,7 @@ class Version(Module, AutoCSR, AutoDoc):
             return (major, minor, rev, gitrev, gitextra, dirty)
 
         model_val = 0x3f # '?'
+        parent.config["FOMU_REV"] = model.upper()
         if model == "evt":
             model_val = 0x45 # 'E'
         elif model == "dvt":
