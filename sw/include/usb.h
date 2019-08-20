@@ -1,6 +1,8 @@
 #ifndef __USB_H
 #define __USB_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -22,6 +24,7 @@ void usb_err(void);
 int usb_recv(void *buffer, unsigned int buffer_len);
 void usb_poll(void);
 void usb_wait_for_send_done(void);
+void usb_set_address(uint8_t new_address);
 
 #ifdef __cplusplus
 }

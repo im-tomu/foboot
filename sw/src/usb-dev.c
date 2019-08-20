@@ -5,6 +5,7 @@
 #include <system.h>
 
 #include <usb-desc.h>
+#include <generated/csr.h>
 
 static uint8_t reply_buffer[8];
 static uint8_t usb_configuration = 0;
@@ -20,6 +21,9 @@ void usb_setup(const struct usb_setup_request *setup)
     switch (setup->wRequestAndType)
     {
     case 0x0500: // SET_ADDRESS
+        usb_set_address(((uint8_t *)setup)[2]);
+        break;
+
     case 0x0b01: // SET_INTERFACE
         dfu_clrstatus();
         break;
