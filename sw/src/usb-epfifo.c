@@ -22,6 +22,9 @@ static volatile int data_offset;
 static volatile int data_to_send;
 static int next_packet_is_empty;
 
+static int have_new_address;
+static uint8_t new_address;
+
 // Note that our PIDs are only bits 2 and 3 of the token,
 // since all other bits are effectively redundant at this point.
 enum USB_PID {
@@ -192,6 +195,10 @@ void usb_isr(void) {
     if (ep0i_pending) {
         usb_ep_0_in_respond_write(EPF_NAK);
         usb_ep_0_in_ev_pending_write(ep0i_pending);
+        if (have_new_address) {
+            have_new_address = 0;
+            usb_address_write(new_address);
+        }
     }
     
     return;
@@ -236,6 +243,11 @@ int usb_recv(void *buffer, unsigned int buffer_len) {
         }
     }
     return 0;
+}
+
+void usb_set_address(uint8_t new_address_) {
+    new_address = new_address_;
+    have_new_address = 1;
 }
 
 void usb_poll(void) {
