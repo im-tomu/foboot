@@ -6,6 +6,8 @@
 LX_DEPENDENCIES = ["riscv", "icestorm", "yosys"]
 
 # Import lxbuildenv to integrate the deps/ directory
+import sys
+sys.path.append("")
 import lxbuildenv
 
 # Disable pylint's E1101, which breaks completely on migen
