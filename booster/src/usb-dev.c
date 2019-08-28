@@ -68,6 +68,7 @@ static const uint8_t usb_string_microsoft[18] = {
 static uint8_t reply_buffer[8];
 static uint8_t usb_configuration = 0;
 
+__attribute__((section(".ramtext")))
 void usb_setup(const struct usb_setup_request *setup, uint32_t size)
 {
     const uint8_t *data = NULL;
@@ -77,6 +78,9 @@ void usb_setup(const struct usb_setup_request *setup, uint32_t size)
     switch (setup->wRequestAndType)
     {
     case 0x0500: // SET_ADDRESS
+        usb_set_address(setup->wValue);
+        break;
+
     case 0x0b01: // SET_INTERFACE
         break;
 

@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <csr_accessors.h>
 #include <csr.h>
 
 #define SP_MOSI_PIN 0

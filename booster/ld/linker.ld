@@ -54,7 +54,7 @@ SECTIONS
 		_edata = ALIGN(16); /* Make sure _edata is >= _gp. */
 	} > sram
 
-  	booster_data = ADDR(.data) + SIZEOF(.data);
+/*	booster_data = ADDR(.data) + SIZEOF(.data); */
 	booster_src = ADDR(.startup) + SIZEOF(.startup) + SIZEOF(.data);
 }
 

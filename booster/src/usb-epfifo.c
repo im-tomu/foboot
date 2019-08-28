@@ -1,3 +1,4 @@
+#include <csr_accessors.h>
 #include <csr.h>
 #include <irq.h>
 #include <string.h>
@@ -21,6 +22,9 @@ static volatile int data_offset;
 static volatile int data_to_send;
 static int next_packet_is_empty;
 
+static uint8_t new_address;
+static int have_new_address;
+
 // Note that our PIDs are only bits 2 and 3 of the token,
 // since all other bits are effectively redundant at this point.
 enum USB_PID {
@@ -40,6 +44,11 @@ enum epfifo_response {
 #define USB_EV_ERROR 1
 #define USB_EV_PACKET 2
 
+void usb_set_address(uint8_t address) {
+    new_address = address;
+    have_new_address = 1;
+}
+
 void usb_idle(void) {
     usb_ep_0_out_ev_enable_write(0);
     usb_ep_0_in_ev_enable_write(0);
@@ -58,6 +67,7 @@ void usb_disconnect(void) {
     usb_ep_0_in_ev_enable_write(0);
     irq_setmask(irq_getmask() & ~(1 << USB_INTERRUPT));
     usb_pullup_out_write(0);
+    usb_address_write(0);
 }
 
 void usb_connect(void) {
@@ -81,7 +91,7 @@ void usb_connect(void) {
 void usb_init(void) {
     usb_ep0out_wr_ptr = 0;
     usb_ep0out_rd_ptr = 0;
-    usb_pullup_out_write(0);
+    usb_disconnect();
 }
 
 static void process_tx(void) {
@@ -169,15 +179,23 @@ void usb_isr(void) {
             }
         }
 
-        if (obuf_len >= 2)
-            obuf_len -= 2 /* Strip off CRC16 */;
+//        if (obuf_len >= 2)
+//            obuf_len -= 2 /* Strip off CRC16 */;
 
-        if (last_tok == USB_PID_SETUP) {
+//        if (last_tok == USB_PID_SETUP) {
+        if (obuf_len >= 8) {
+            // HACK: There's no inter-packet indicator, so sometimes we
+            // receive an ACK packet at the start of our SETUP packet.
+            // To work around this, assume that all SETUP packets are 10-
+            // bytes (8 bytes plus CRC16) and work backwards from the end
+            // of the buffer.
+            uint32_t setup_pkt[2];
+            memcpy(setup_pkt, obuf + obuf_len - 10, 8);
             usb_ep_0_in_dtb_write(1);
             data_offset = 0;
             current_length = 0;
             current_data = NULL;
-            usb_setup((const void *)obuf, obuf_len);
+            usb_setup((const void *)setup_pkt, 8);
         }
 
         usb_ep_0_out_ev_pending_write(ep0o_pending);
@@ -188,6 +206,10 @@ void usb_isr(void) {
     if (ep0i_pending) {
         usb_ep_0_in_respond_write(EPF_NAK);
         usb_ep_0_in_ev_pending_write(ep0i_pending);
+        if (have_new_address) {
+            have_new_address = 0;
+            usb_address_write(new_address);
+        }
     }
     
     return;

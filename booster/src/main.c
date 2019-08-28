@@ -1,4 +1,5 @@
 #include <booster.h>
+#include <csr_accessors.h>
 #include <csr.h>
 #include <irq.h>
 #include <rgb.h>
@@ -13,7 +14,7 @@ extern uint32_t hash_length;
 extern uint32_t image_seed;
 extern uint32_t spi_id;
 
-extern struct booster_data booster_data;
+extern struct booster_data booster_src;
 uint32_t read_spi_id;
 uint32_t cached_image_length;
 uint32_t cached_spi_id;
@@ -165,7 +166,7 @@ __attribute__((noreturn)) void fobooster_main(void)
 
     // Ensure the hash matches what's expected.
     calculated_hash = XXH32((const void *)0x20040000, hash_length, image_seed);
-    if (calculated_hash != booster_data.xxhash)
+    if (calculated_hash != booster_src.xxhash)
     {
         error(HASH_MISMATCH);
     }
@@ -182,21 +183,22 @@ __attribute__((noreturn)) void fobooster_main(void)
         }
     }
 
-    // Patch the target image so that it goes to our program if the user
-    // reboots.
-    ((uint8_t *)cached_image)[9] = 0x04;
-
     // Now that everything is copied to RAM, disable memory-mapped SPI mode.
     // This puts the SPI into bit-banged mode, which allows us to write to it.
     cached_spi_id = spi_id; // Copy spi_id over first, since it is still on the flash.
     cached_image_length = image_length;
 
+    // Ensure the cached image matches the image on disk.
     int i;
     for (i = 0; i < cached_image_length; i++) {
-        if (((uint8_t *)cached_image)[i] != ((uint8_t *)0x20000000)[i]) {
+        if (((uint8_t *)cached_image)[i] != ((uint8_t *)0x20040000)[i]) {
             error(FINAL_IMAGE_MISMATCH);
         }
     }
+
+    // Patch the target image so that it goes to our program if the user
+    // reboots.
+    ((uint8_t *)cached_image)[9] = 0x04;
 
     picorvspi_cfg4_write(0);
     ftfl_busy_wait();
