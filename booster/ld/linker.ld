@@ -42,6 +42,7 @@ SECTIONS
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
 		*(.srodata)
+		. = ALIGN(4);
 		_erodata = .;
 
 		. = ALIGN(4);
