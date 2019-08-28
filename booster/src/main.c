@@ -124,7 +124,6 @@ __attribute__((noreturn)) static void error(enum error_code code)
 {
     error_code = code;
     rgb_mode_error();
-    while(1);
     erase_booster();
     ftfl_busy_wait();
 
