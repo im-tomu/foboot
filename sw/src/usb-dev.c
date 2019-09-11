@@ -5,6 +5,7 @@
 #include <system.h>
 
 #include <usb-desc.h>
+#include <generated/csr.h>
 
 static uint8_t reply_buffer[8];
 static uint8_t usb_configuration = 0;
@@ -13,6 +14,7 @@ static uint32_t rx_buffer[USB_MAX_PACKET_SIZE/4];
 
 void usb_setup(const struct usb_setup_request *setup)
 {
+    uint8_t ep_dir = ((const uint8_t *)setup)[0] >> 7;
     const uint8_t *data = NULL;
     uint32_t datalen = 0;
     const usb_descriptor_list_t *list;
@@ -20,6 +22,9 @@ void usb_setup(const struct usb_setup_request *setup)
     switch (setup->wRequestAndType)
     {
     case 0x0500: // SET_ADDRESS
+        usb_set_address(setup->wValue >> 0);
+        break;
+
     case 0x0b01: // SET_INTERFACE
         dfu_clrstatus();
         break;
@@ -44,7 +49,7 @@ void usb_setup(const struct usb_setup_request *setup)
     case 0x0082: // GET_STATUS (endpoint)
         if (setup->wIndex > 0)
         {
-            usb_err();
+            usb_err(ep_dir);
             return;
         }
         reply_buffer[0] = 0;
@@ -61,7 +66,7 @@ void usb_setup(const struct usb_setup_request *setup)
         if (setup->wIndex > 0 || setup->wValue != 0)
         {
             // TODO: do we need to handle IN vs OUT here?
-            usb_err();
+            usb_err(ep_dir);
             return;
         }
         // XXX: Should we clear the stall bit?
@@ -73,7 +78,7 @@ void usb_setup(const struct usb_setup_request *setup)
         if (setup->wIndex > 0 || setup->wValue != 0)
         {
             // TODO: do we need to handle IN vs OUT here?
-            usb_err();
+            usb_err(ep_dir);
             return;
         }
         // XXX: Should we set the stall bit?
@@ -104,7 +109,7 @@ void usb_setup(const struct usb_setup_request *setup)
                 goto send;
             }
         }
-        usb_err();
+        usb_err(ep_dir);
         return;
 
     case (MSFT_VENDOR_CODE << 8) | 0xC0: // Get Microsoft descriptor
@@ -116,7 +121,7 @@ void usb_setup(const struct usb_setup_request *setup)
             datalen = MSFT_WCID_LEN;
             break;
         }
-        usb_err();
+        usb_err(ep_dir);
         return;
 
     case (WEBUSB_VENDOR_CODE << 8) | 0xC0: // Get WebUSB descriptor
@@ -129,13 +134,13 @@ void usb_setup(const struct usb_setup_request *setup)
             }
         }
         // printf("%s:%d couldn't find webusb descriptor (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
-        usb_err();
+        usb_err(ep_dir);
         return;
 
     case 0x0121: // DFU_DNLOAD
         if (setup->wIndex > 0)
         {
-            usb_err();
+            usb_err(ep_dir);
             return;
         }
         // Data comes in the OUT phase. But if it's a zero-length request, handle it now.
@@ -143,7 +148,7 @@ void usb_setup(const struct usb_setup_request *setup)
         {
             if (!dfu_download(setup->wValue, 0, 0, 0, NULL))
             {
-                usb_err();
+                usb_err(ep_dir);
                 return;
             }
             usb_ack_in();
@@ -200,7 +205,7 @@ void usb_setup(const struct usb_setup_request *setup)
     case 0x03a1: // DFU_GETSTATUS
         if (setup->wIndex > 0)
         {
-            usb_err();
+            usb_err(ep_dir);
             return;
         }
         if (dfu_getstatus(reply_buffer))
@@ -221,7 +226,7 @@ void usb_setup(const struct usb_setup_request *setup)
         }
         else
         {
-            usb_err();
+            usb_err(ep_dir);
             return;
         }
         break;
@@ -229,7 +234,7 @@ void usb_setup(const struct usb_setup_request *setup)
     case 0x0421: // DFU_CLRSTATUS
         if (setup->wIndex > 0)
         {
-            usb_err();
+            usb_err(ep_dir);
             return;
         }
         if (dfu_clrstatus())
@@ -238,14 +243,14 @@ void usb_setup(const struct usb_setup_request *setup)
         }
         else
         {
-            usb_err();
+            usb_err(ep_dir);
             return;
         }
 
     case 0x05a1: // DFU_GETSTATE
         if (setup->wIndex > 0)
         {
-            usb_err();
+            usb_err(ep_dir);
             return;
         }
         reply_buffer[0] = dfu_getstate();
@@ -256,7 +261,7 @@ void usb_setup(const struct usb_setup_request *setup)
     case 0x0621: // DFU_ABORT
         if (setup->wIndex > 0)
         {
-            usb_err();
+            usb_err(ep_dir);
             return;
         }
         if (dfu_abort())
@@ -265,12 +270,12 @@ void usb_setup(const struct usb_setup_request *setup)
         }
         else
         {
-            usb_err();
+            usb_err(ep_dir);
             return;
         }
 
     default:
-        usb_err();
+        usb_err(ep_dir);
         return;
     }
 
