@@ -7,36 +7,12 @@
 [submodule "hw/deps/litescope"]
 	path = hw/deps/litescope
 	url = https://github.com/enjoy-digital/litescope.git
-[submodule "hw/deps/pyserial"]
-	path = hw/deps/pyserial
-	url = https://github.com/pyserial/pyserial.git
-[submodule "hw/deps/liteeth"]
-	path = hw/deps/liteeth
-	url = https://github.com/enjoy-digital/liteeth.git
-[submodule "hw/deps/liteusb"]
-	path = hw/deps/liteusb
-	url = https://github.com/enjoy-digital/liteusb.git
 [submodule "hw/deps/litedram"]
 	path = hw/deps/litedram
 	url = https://github.com/enjoy-digital/litedram.git
-[submodule "hw/deps/litepcie"]
-	path = hw/deps/litepcie
-	url = https://github.com/enjoy-digital/litepcie.git
-[submodule "hw/deps/litesdcard"]
-	path = hw/deps/litesdcard
-	url = https://github.com/enjoy-digital/litesdcard.git
-[submodule "hw/deps/liteiclink"]
-	path = hw/deps/liteiclink
-	url = https://github.com/enjoy-digital/liteiclink.git
-[submodule "hw/deps/litevideo"]
-	path = hw/deps/litevideo
-	url = https://github.com/enjoy-digital/litevideo.git
-[submodule "hw/deps/lxsocsupport"]
-	path = hw/deps/lxsocsupport
-	url = https://github.com/xobs/lxsocsupport.git
 [submodule "hw/deps/valentyusb"]
 	path = hw/deps/valentyusb
 	url = https://github.com/im-tomu/valentyusb.git
-[submodule "hw/deps/usb"]
-	path = hw/deps/usb
-	url = https://github.com/pyusb/pyusb.git
+[submodule "hw/deps/litex-boards"]
+	path = hw/deps/litex-boards
+	url = https://github.com/litex-hub/litex-boards.git
