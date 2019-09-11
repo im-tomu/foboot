@@ -172,6 +172,7 @@ void reboot(void) {
 static void init(void)
 {
     rgb_init();
+    usb_init();
     picorvspi_cfg4_write(0x80);
     spi = spiAlloc();
     spiSetPin(spi, SP_MOSI, 0);
@@ -198,11 +199,8 @@ static void init(void)
 #endif
     irq_setmask(0);
     irq_setie(1);
-    uart_init();
-    usb_init();
-    dfu_init();
     time_init();
-
+    dfu_init();
 }
 
 int main(int argc, char **argv)
