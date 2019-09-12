@@ -65,7 +65,6 @@ struct usb_string_descriptor_struct {
 #define PRODUCT_NAME_LEN          sizeof(PRODUCT_NAME)
 #define EP0_SIZE                  64
 #define NUM_INTERFACE             1
-#define CONFIG_DESC_SIZE          (9+9+9)
 
 // Microsoft Compatible ID Feature Descriptor
 #define MSFT_VENDOR_CODE    '~'     // Arbitrary, but should be printable ASCII
@@ -91,5 +90,40 @@ extern const usb_descriptor_list_t usb_descriptor_list[];
                                     + sizeof(LANDING_PAGE_URL) - 1)
 
 const uint8_t *get_landing_url_descriptor(uint32_t *datalen);
+
+/* USB Descriptor Types - Table 9-5 */
+#define USB_DT_DEVICE				1
+#define USB_DT_CONFIGURATION			2
+#define USB_DT_STRING				3
+#define USB_DT_INTERFACE			4
+#define USB_DT_ENDPOINT				5
+#define USB_DT_DEVICE_QUALIFIER			6
+#define USB_DT_OTHER_SPEED_CONFIGURATION	7
+#define USB_DT_INTERFACE_POWER			8
+#define USB_DT_INTERFACE_SIZE			9
+#define USB_DT_ENDPOINT_SIZE		7
+
+/* USB bEndpointAddress helper macros */
+#define USB_ENDPOINT_ADDR_OUT(x) (x)
+#define USB_ENDPOINT_ADDR_IN(x) (0x80 | (x))
+
+/* USB Endpoint Descriptor bmAttributes bit definitions - Table 9-13 */
+/* bits 1..0 : transfer type */
+#define USB_ENDPOINT_ATTR_CONTROL		0x00
+#define USB_ENDPOINT_ATTR_ISOCHRONOUS		0x01
+#define USB_ENDPOINT_ATTR_BULK			0x02
+#define USB_ENDPOINT_ATTR_INTERRUPT		0x03
+#define USB_ENDPOINT_ATTR_TYPE		0x03
+/* bits 3..2 : Sync type (only if ISOCHRONOUS) */
+#define USB_ENDPOINT_ATTR_NOSYNC		0x00
+#define USB_ENDPOINT_ATTR_ASYNC			0x04
+#define USB_ENDPOINT_ATTR_ADAPTIVE		0x08
+#define USB_ENDPOINT_ATTR_SYNC			0x0C
+#define USB_ENDPOINT_ATTR_SYNCTYPE		0x0C
+/* bits 5..4 : usage type (only if ISOCHRONOUS) */
+#define USB_ENDPOINT_ATTR_DATA			0x00
+#define USB_ENDPOINT_ATTR_FEEDBACK		0x10
+#define USB_ENDPOINT_ATTR_IMPLICIT_FEEDBACK_DATA 0x20
+#define USB_ENDPOINT_ATTR_USAGETYPE		0x30
 
 #endif

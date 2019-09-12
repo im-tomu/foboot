@@ -215,7 +215,7 @@ void usb_setup(const struct usb_setup_request *setup)
             // If the state is dfuMANIFEST-WAIT-RESET, then perform a reset
             // once the host acknowledges the packet.
             if (reply_buffer[4] == 8) {
-                usb_send(data, datalen);
+                usb_send(0, data, datalen);
                 usb_wait_for_send_done();
                 int i;
                 for (i = 0; i < 10000; i++)
@@ -283,7 +283,7 @@ send:
     if (data && datalen) {
         if (datalen > setup->wLength)
             datalen = setup->wLength;
-        usb_send(data, datalen);
+        usb_send(0, data, datalen);
     }
     else
         usb_ack_in();

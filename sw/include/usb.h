@@ -17,7 +17,7 @@ void usb_disconnect(void);
 
 int usb_irq_happened(void);
 void usb_setup(const struct usb_setup_request *setup);
-void usb_send(const void *data, int total_count);
+void usb_send(uint8_t epno, const void *data, int total_count);
 void usb_ack_in(void);
 void usb_ack_out(void);
 void usb_err(uint8_t ep);
