@@ -17,6 +17,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.fhdl.specials import TSTriple
 from migen.fhdl.bitcontainer import bits_for
 from migen.fhdl.structure import ClockSignal, ResetSignal, Replicate, Cat
+from migen.fhdl.decorators import ClockDomainsRenamer
 
 from litex.build.lattice.platform import LatticePlatform
 from litex.build.generic_platform import Pins, IOStandard, Misc, Subsignal
@@ -26,236 +27,20 @@ from litex.soc.integration.soc_core import csr_map_update
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
 
+from litex.soc.cores import up5kspram, spi_flash
+
+from litex_boards.partner.targets.fomu import _CRG
+
 from valentyusb import usbcore
 from valentyusb.usbcore import io as usbio
-from valentyusb.usbcore.cpu import epmem, unififo, epfifo, dummyusb
+from valentyusb.usbcore.cpu import epmem, unififo, epfifo, dummyusb, eptri
 from valentyusb.usbcore.endpoint import EndpointType
 
-from lxsocsupport import up5kspram, spi_flash
+import spibone
 
 import argparse
 import os
 
-_io_evt = [
-    ("serial", 0,
-        Subsignal("rx", Pins("21")),
-        Subsignal("tx", Pins("13"), Misc("PULLUP")),
-        IOStandard("LVCMOS33")
-    ),
-    ("usb", 0,
-        Subsignal("d_p", Pins("34")),
-        Subsignal("d_n", Pins("37")),
-        Subsignal("pullup", Pins("35")),
-        Subsignal("pulldown", Pins("36")),
-        IOStandard("LVCMOS33")
-    ),
-    ("touch", 0,
-        Subsignal("t1", Pins("48"), IOStandard("LVCMOS33")),
-        Subsignal("t2", Pins("47"), IOStandard("LVCMOS33")),
-        Subsignal("t3", Pins("46"), IOStandard("LVCMOS33")),
-        Subsignal("t4", Pins("45"), IOStandard("LVCMOS33")),
-    ),
-    ("pmoda", 0,
-        Subsignal("p1", Pins("28"), IOStandard("LVCMOS33")),
-        Subsignal("p2", Pins("27"), IOStandard("LVCMOS33")),
-        Subsignal("p3", Pins("26"), IOStandard("LVCMOS33")),
-        Subsignal("p4", Pins("23"), IOStandard("LVCMOS33")),
-    ),
-    ("pmodb", 0,
-        Subsignal("p1", Pins("48"), IOStandard("LVCMOS33")),
-        Subsignal("p2", Pins("47"), IOStandard("LVCMOS33")),
-        Subsignal("p3", Pins("46"), IOStandard("LVCMOS33")),
-        Subsignal("p4", Pins("45"), IOStandard("LVCMOS33")),
-    ),
-    ("led", 0,
-        Subsignal("rgb0", Pins("39"), IOStandard("LVCMOS33")),
-        Subsignal("rgb1", Pins("40"), IOStandard("LVCMOS33")),
-        Subsignal("rgb2", Pins("41"), IOStandard("LVCMOS33")),
-    ),
-    ("spiflash", 0,
-        Subsignal("cs_n", Pins("16"), IOStandard("LVCMOS33")),
-        Subsignal("clk",  Pins("15"), IOStandard("LVCMOS33")),
-        Subsignal("miso", Pins("17"), IOStandard("LVCMOS33")),
-        Subsignal("mosi", Pins("14"), IOStandard("LVCMOS33")),
-        Subsignal("wp",   Pins("18"), IOStandard("LVCMOS33")),
-        Subsignal("hold", Pins("19"), IOStandard("LVCMOS33")),
-    ),
-    ("spiflash4x", 0,
-        Subsignal("cs_n", Pins("16"), IOStandard("LVCMOS33")),
-        Subsignal("clk",  Pins("15"), IOStandard("LVCMOS33")),
-        Subsignal("dq",   Pins("14 17 18 19"), IOStandard("LVCMOS33")),
-    ),
-    ("clk48", 0, Pins("44"), IOStandard("LVCMOS33"))
-]
-_io_dvt = [
-    ("serial", 0,
-        Subsignal("rx", Pins("C3")),
-        Subsignal("tx", Pins("B3"), Misc("PULLUP")),
-        IOStandard("LVCMOS33")
-    ),
-    ("usb", 0,
-        Subsignal("d_p", Pins("A1")),
-        Subsignal("d_n", Pins("A2")),
-        Subsignal("pullup", Pins("A4")),
-        IOStandard("LVCMOS33")
-    ),
-    ("touch", 0,
-        Subsignal("t1", Pins("E4"), IOStandard("LVCMOS33")),
-        Subsignal("t2", Pins("D5"), IOStandard("LVCMOS33")),
-        Subsignal("t3", Pins("E5"), IOStandard("LVCMOS33")),
-        Subsignal("t4", Pins("F5"), IOStandard("LVCMOS33")),
-    ),
-    ("led", 0,
-        Subsignal("rgb0", Pins("A5"), IOStandard("LVCMOS33")),
-        Subsignal("rgb1", Pins("B5"), IOStandard("LVCMOS33")),
-        Subsignal("rgb2", Pins("C5"), IOStandard("LVCMOS33")),
-    ),
-    ("spiflash", 0,
-        Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
-        Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
-        Subsignal("miso", Pins("E1"), IOStandard("LVCMOS33")),
-        Subsignal("mosi", Pins("F1"), IOStandard("LVCMOS33")),
-        Subsignal("wp",   Pins("F2"), IOStandard("LVCMOS33")),
-        Subsignal("hold", Pins("B1"), IOStandard("LVCMOS33")),
-    ),
-    ("spiflash4x", 0,
-        Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
-        Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
-        Subsignal("dq",   Pins("F1 E1 F2 B1"), IOStandard("LVCMOS33")),
-    ),
-    ("clk48", 0, Pins("F4"), IOStandard("LVCMOS33"))
-]
-_io_pvt = _io_dvt
-_io_hacker = [
-    ("serial", 0,
-        Subsignal("rx", Pins("C3")),
-        Subsignal("tx", Pins("B3"), Misc("PULLUP")),
-        IOStandard("LVCMOS33")
-    ),
-    ("usb", 0,
-        Subsignal("d_p", Pins("A4")),
-        Subsignal("d_n", Pins("A2")),
-        Subsignal("pullup", Pins("D5")),
-        IOStandard("LVCMOS33")
-    ),
-    ("touch", 0,
-        Subsignal("t1", Pins("F4"), IOStandard("LVCMOS33")),
-        Subsignal("t2", Pins("E5"), IOStandard("LVCMOS33")),
-        Subsignal("t3", Pins("E4"), IOStandard("LVCMOS33")),
-        Subsignal("t4", Pins("F2"), IOStandard("LVCMOS33")),
-    ),
-    ("led", 0,
-        Subsignal("rgb0", Pins("A5"), IOStandard("LVCMOS33")),
-        Subsignal("rgb1", Pins("B5"), IOStandard("LVCMOS33")),
-        Subsignal("rgb2", Pins("C5"), IOStandard("LVCMOS33")),
-    ),
-    ("spiflash", 0,
-        Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
-        Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
-        Subsignal("miso", Pins("E1"), IOStandard("LVCMOS33")),
-        Subsignal("mosi", Pins("F1"), IOStandard("LVCMOS33")),
-        Subsignal("wp",   Pins("A1"), IOStandard("LVCMOS33")),
-        Subsignal("hold", Pins("B1"), IOStandard("LVCMOS33")),
-    ),
-    ("spiflash4x", 0,
-        Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
-        Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
-        Subsignal("dq",   Pins("F1 E1"), IOStandard("LVCMOS33")),
-    ),
-    ("clk48", 0, Pins("F5"), IOStandard("LVCMOS33"))
-]
-
-_connectors = []
-
-class _CRG(Module):
-    def __init__(self, platform, use_pll):
-        clk48_raw = platform.request("clk48")
-        clk12 = Signal()
-
-        reset_delay = Signal(12, reset=4095)
-        self.clock_domains.cd_por = ClockDomain()
-        self.reset = Signal()
-
-        self.clock_domains.cd_sys = ClockDomain()
-        self.clock_domains.cd_usb_12 = ClockDomain()
-        self.clock_domains.cd_usb_48 = ClockDomain()
-
-        platform.add_period_constraint(self.cd_usb_48.clk, 1e9/48e6)
-        platform.add_period_constraint(self.cd_sys.clk, 1e9/12e6)
-        platform.add_period_constraint(self.cd_usb_12.clk, 1e9/12e6)
-        platform.add_period_constraint(clk48_raw, 1e9/48e6)
-
-        # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
-        # reset.
-        self.comb += [
-            self.cd_por.clk.eq(self.cd_sys.clk),
-            self.cd_sys.rst.eq(reset_delay != 0),
-            self.cd_usb_12.rst.eq(reset_delay != 0),
-        ]
-
-        if use_pll:
-            # POR reset logic- POR generated from sys clk, POR logic feeds sys clk
-            # reset.
-            self.comb += [
-                self.cd_usb_48.rst.eq(reset_delay != 0),
-            ]
-
-            self.comb += self.cd_usb_48.clk.eq(clk48_raw)
-
-            self.specials += Instance(
-                "SB_PLL40_CORE",
-                # Parameters
-                p_DIVR = 0,
-                p_DIVF = 15,
-                p_DIVQ = 5,
-                p_FILTER_RANGE = 1,
-                p_FEEDBACK_PATH = "SIMPLE",
-                p_DELAY_ADJUSTMENT_MODE_FEEDBACK = "FIXED",
-                p_FDA_FEEDBACK = 15,
-                p_DELAY_ADJUSTMENT_MODE_RELATIVE = "FIXED",
-                p_FDA_RELATIVE = 0,
-                p_SHIFTREG_DIV_MODE = 1,
-                p_PLLOUT_SELECT = "GENCLK_HALF",
-                p_ENABLE_ICEGATE = 0,
-                # IO
-                i_REFERENCECLK = clk48_raw,
-                o_PLLOUTCORE = clk12,
-                # o_PLLOUTGLOBAL = clk12,
-                #i_EXTFEEDBACK,
-                #i_DYNAMICDELAY,
-                #o_LOCK,
-                i_BYPASS = 0,
-                i_RESETB = 1,
-                #i_LATCHINPUTVALUE,
-                #o_SDO,
-                #i_SDI,
-            )
-        else:
-            self.specials += Instance(
-                "SB_GB",
-                i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk48_raw,
-                o_GLOBAL_BUFFER_OUTPUT=clk48,
-            )
-            self.comb += self.cd_usb_48.clk.eq(clk48)
-
-            clk12_counter = Signal(2)
-            self.sync.usb_48 += clk12_counter.eq(clk12_counter + 1)
-
-            self.comb += clk12_raw.eq(clk12_counter[1])
-            self.specials += Instance(
-                "SB_GB",
-                i_USER_SIGNAL_TO_GLOBAL_BUFFER=clk12_raw,
-                o_GLOBAL_BUFFER_OUTPUT=clk12,
-            )
-
-        self.comb += self.cd_sys.clk.eq(clk12)
-        self.comb += self.cd_usb_12.clk.eq(clk12)
-
-        self.sync.por += \
-            If(reset_delay != 0,
-                reset_delay.eq(reset_delay - 1)
-            )
-        self.specials += AsyncResetSynchronizer(self.cd_por, self.reset)
 
 class RandomFirmwareROM(wishbone.SRAM):
     """
@@ -294,13 +79,17 @@ class Platform(LatticePlatform):
     def __init__(self, revision=None, toolchain="icestorm"):
         self.revision = revision
         if revision == "evt":
-            LatticePlatform.__init__(self, "ice40-up5k-sg48", _io_evt, _connectors, toolchain="icestorm")
+            from litex_boards.partner.platforms.fomu_evt import _io, _connectors
+            LatticePlatform.__init__(self, "ice40-up5k-sg48", _io, _connectors, toolchain="icestorm")
         elif revision == "dvt":
-            LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io_dvt, _connectors, toolchain="icestorm")
+            from litex_boards.partner.platforms.fomu_pvt import _io, _connectors
+            LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io, _connectors, toolchain="icestorm")
         elif revision == "pvt":
-            LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io_pvt, _connectors, toolchain="icestorm")
+            from litex_boards.partner.platforms.fomu_pvt import _io, _connectors
+            LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io, _connectors, toolchain="icestorm")
         elif revision == "hacker":
-            LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io_hacker, _connectors, toolchain="icestorm")
+            from litex_boards.partner.platforms.fomu_hacker import _io, _connectors
+            LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io, _connectors, toolchain="icestorm")
         else:
             raise ValueError("Unrecognized reivsion: {}.  Known values: evt, dvt, pvt, hacker".format(revision))
 
@@ -342,9 +131,9 @@ class SBLED(Module, AutoCSR):
             i_RGB0PWM = rgba_pwm[0],
             i_RGB1PWM = rgba_pwm[1],
             i_RGB2PWM = rgba_pwm[2],
-            o_RGB0 = pads.rgb0,
-            o_RGB1 = pads.rgb1,
-            o_RGB2 = pads.rgb2,
+            o_RGB0 = pads.r,
+            o_RGB1 = pads.g,
+            o_RGB2 = pads.b,
             p_CURRENT_MODE = "0b1",
             p_RGB0_CURRENT = "0b000011",
             p_RGB1_CURRENT = "0b000011",
@@ -397,6 +186,14 @@ class SBWarmBoot(Module, AutoCSR):
 
 
 class TouchPads(Module, AutoCSR):
+    touch_device = [
+        ("touch_pads", 0,
+            Subsignal("t1", Pins("touch_pins:0")),
+            Subsignal("t2", Pins("touch_pins:1")),
+            Subsignal("t3", Pins("touch_pins:2")),
+            Subsignal("t4", Pins("touch_pins:3")),
+        )
+    ]
     def __init__(self, pads):
         touch1 = TSTriple()
         touch2 = TSTriple()
@@ -644,6 +441,7 @@ class BaseSoC(SoCCore):
         "reboot":         12,
         "rgb":            13,
         "version":        14,
+        "lxspi":          15,
     }
 
     SoCCore.mem_map = {
@@ -660,7 +458,7 @@ class BaseSoC(SoCCore):
     interrupt_map.update(SoCCore.interrupt_map)
 
     def __init__(self, platform, boot_source="rand",
-                 debug=None, bios_file=None, use_pll=True,
+                 debug=None, bios_file=None,
                  use_dsp=False, placer=None, output_dir="build",
                  pnr_seed=0,
                  **kwargs):
@@ -670,7 +468,7 @@ class BaseSoC(SoCCore):
         self.output_dir = output_dir
 
         clk_freq = int(12e6)
-        self.submodules.crg = _CRG(platform, use_pll=use_pll)
+        self.submodules.crg = _CRG(platform)
 
         SoCCore.__init__(self, platform, clk_freq, integrated_sram_size=0, with_uart=False, **kwargs)
 
@@ -691,6 +489,11 @@ class BaseSoC(SoCCore):
             if hasattr(self, "cpu"):
                 self.cpu.use_external_variant("rtl/2-stage-1024-cache.v")
                 self.copy_memory_file("2-stage-1024-cache.v_toplevel_RegFilePlugin_regFile.bin")
+
+        # # Add SPI Wishbone bridge
+        # spi_pads = platform.request("spidebug")
+        # self.submodules.spibone = ClockDomainsRenamer("usb_12")(spibone.SpiWishboneBridge(spi_pads, wires=4))
+        # self.add_wb_master(self.spibone.wishbone)
 
         # SPRAM- UP5K has single port RAM, might as well use it as SRAM to
         # free up scarce block RAM.
@@ -731,10 +534,18 @@ class BaseSoC(SoCCore):
             raise ValueError("unrecognized boot_source: {}".format(boot_source))
 
         # Add a simple bit-banged SPI Flash module
-        spi_pads = platform.request("spiflash")
-        self.submodules.picorvspi = PicoRVSpi(platform, spi_pads)
+        spi_pads = platform.request("spiflash4x")
+        if spi_pads is not None:
+            self.submodules.lxspi = spi_flash.SpiFlashDualQuad(spi_pads)
+        else:
+            spi_pads = platform.request("spiflash")
+            self.submodules.lxspi = spi_flash.SpiFlashSingle(spi_pads)
         self.register_mem("spiflash", self.mem_map["spiflash"],
-            self.picorvspi.bus, size=self.picorvspi.size)
+            self.lxspi.bus, size=2 * 1024 * 1024) # NOTE: EVT is 16 * 1024 * 1024
+
+        # self.submodules.picorvspi = PicoRVSpi(platform, spi_pads)
+        # self.register_mem("spiflash", self.mem_map["spiflash"],
+        #     self.picorvspi.bus, size=self.picorvspi.size)
 
         self.submodules.reboot = SBWarmBoot(self)
         if hasattr(self, "cpu"):
@@ -742,14 +553,15 @@ class BaseSoC(SoCCore):
                 i_externalResetVector=self.reboot.addr.storage,
             )
 
-        self.submodules.rgb = SBLED(platform.revision, platform.request("led"))
+        self.submodules.rgb = SBLED(platform.revision, platform.request("rgb_led"))
         self.submodules.version = Version(platform.revision)
 
         # Add USB pads
         usb_pads = platform.request("usb")
         usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
         if hasattr(self, "cpu"):
-            self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, debug=usb_debug)
+            self.submodules.usb = eptri.TriEndpointInterface(usb_iobuf, debug=usb_debug)
+            # self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, debug=usb_debug)
         else:
             self.submodules.usb = dummyusb.DummyUsb(usb_iobuf, debug=usb_debug)
 
@@ -760,11 +572,10 @@ class BaseSoC(SoCCore):
             pulldown = TSTriple()
             self.specials += pulldown.get_tristate(usb_pads.pulldown)
             self.comb += pulldown.oe.eq(0)
-        # self.submodules.usb = epmem.MemInterface(usb_iobuf)
-        # self.submodules.usb = unififo.UsbUniFifo(usb_iobuf)
 
         # Add GPIO pads for the touch buttons
-        self.submodules.touch = TouchPads(platform.request("touch"))
+        platform.add_extension(TouchPads.touch_device)
+        self.submodules.touch = TouchPads(platform.request("touch_pads"))
 
         # Add "-relut -dffe_min_ce_use 4" to the synth_ice40 command.
         # The "-reult" adds an additional LUT pass to pack more stuff in,
@@ -862,9 +673,6 @@ def main():
         "--with-debug", help="enable debug support", choices=["usb", "uart", None]
     )
     parser.add_argument(
-        "--no-pll", help="disable pll -- this is easier to route, but may not work", action="store_true"
-    )
-    parser.add_argument(
         "--with-dsp", help="use dsp inference in yosys (not all yosys builds have -dsp)", action="store_true"
     )
     parser.add_argument(
@@ -922,7 +730,7 @@ def main():
     platform = Platform(revision=args.revision)
     soc = BaseSoC(platform, cpu_type=cpu_type, cpu_variant=cpu_variant,
                             debug=args.with_debug, boot_source=args.boot_source,
-                            bios_file=args.bios, use_pll=not args.no_pll,
+                            bios_file=args.bios,
                             use_dsp=args.with_dsp, placer=args.placer,
                             pnr_seed=args.seed,
                             output_dir=output_dir)
