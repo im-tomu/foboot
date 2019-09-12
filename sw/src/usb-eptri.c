@@ -19,6 +19,7 @@ volatile uint32_t previous_setup_length;
 static uint8_t volatile out_buffer_length;
 static uint8_t volatile out_buffer[128];
 static uint8_t volatile out_ep;
+static uint8_t volatile out_have;
 static const int max_byte_length = 64;
 
 static const uint8_t * volatile current_data;
@@ -115,16 +116,6 @@ static void process_tx(void) {
         return;
     }
 
-    // uint8_t stage_num = usb_stage_num_read();
-    // switch (stage_num) {
-    // case 1:
-    // case 3:
-    // case 5:
-    // case 7:
-    // case 9:
-    //     return;
-    // }
-
     // Don't send empty data
     if (!current_data || !current_length) {
         return;
@@ -176,18 +167,36 @@ static void process_tx(void) {
     }
 
     // Updating the epno queues the data
-    usb_in_ctrl_write(current_epno);
+    usb_in_ctrl_write(current_epno & 0xf);
     return;
 }
 
-void usb_send(const void *data, int total_count) {
-    while ((current_length || current_data) && usb_stage_num_read() != 0)
+static void process_rx(void) {
+    // If we already have data in our buffer, don't do anything.
+    if (out_have)
+        return;
+
+    // If there isn't any data in the FIFO, don't do anything.
+    if (!(usb_out_status_read() & 1))
+        return;
+
+    out_have = 1;
+    out_ep = (usb_out_status_read() >> 2) & 0xf;
+    out_buffer_length = 0;
+    while (usb_out_status_read() & 1) {
+        out_buffer[out_buffer_length++] = usb_out_data_read();
+        usb_out_ctrl_write(1);
+    }
+}
+
+void usb_send(uint8_t epno, const void *data, int total_count) {
+    while ((current_length || current_data) && !(usb_in_status_read() & 2))
         process_tx();
     last_epno = current_epno;
 
     current_data = (uint8_t *)data;
     current_length = total_count;
-    current_epno = 0;
+    current_epno = epno;
     data_offset = 0;
     data_to_send = 0;
     process_tx();
@@ -224,11 +233,10 @@ void usb_isr(void) {
             usb_setup_ctrl_write(1);
         }
 
-        // If we have 10 bytes, that's a full SETUP packet + CRC16.
+        // If we have 8 bytes, that's a full SETUP packet.
         // Otherwise, it was an RX error.
-        if (setup_length == 10) {
+        if (setup_length == 8) {
             setup_packet_count++;
-            setup_length = setup_length - 2 /* Strip off CRC16 */;
         }
         else {
             rgb_mode_error();
@@ -244,12 +252,9 @@ void usb_isr(void) {
 
     // An "OUT" transaction just completed so we have new data.
     // (But only if we can accept the data)
-    if (out_pending && !out_buffer_length) {
-        out_ep = (usb_out_status_read() >> 2) & 0xf;
-        while (usb_out_status_read() & 1) {
-            out_buffer[out_buffer_length++] = usb_out_data_read();
-            usb_out_ctrl_write(1);
-        }
+    if (out_pending) {
+        // out_buffer_length -= 2; // Strip CRC16
+        process_rx();
     }
     return;
 }
@@ -263,6 +268,7 @@ void usb_ack_in(void) {
 void usb_ack_out(void) {
     // while (usb_out_status_read() & 1)
     //     ;
+    out_have = 0;
     usb_out_ctrl_write(2);
 }
 
@@ -276,15 +282,15 @@ void usb_err(uint8_t ep) {
 int usb_recv(void *buffer, unsigned int buffer_len) {
     usb_setup_ctrl_write(2); // Acknowledge we've handled the SETUP packet
     // Set the OUT response to ACK, since we are in a position to receive data now.
-    if (out_buffer_length == 0)
-        usb_out_ctrl_write(2);
+    if (out_have) {
+        usb_ack_out();
+    }
     while (1) {
         if (out_buffer_length) {
             if (buffer_len > out_buffer_length)
                 buffer_len = out_buffer_length;
             memcpy(buffer, out_buffer, buffer_len);
-            out_buffer_length = 0;
-            usb_out_ctrl_write(2);
+            usb_ack_out();
             return buffer_len;
         }
     }
@@ -303,20 +309,20 @@ void usb_poll(void) {
         if (setup_length == 0)
             usb_setup_ctrl_write(2); // Acknowledge we've handled the SETUP packet
     }
-    // while (usb_ep0out_rd_ptr != usb_ep0out_wr_ptr) {
-    //     const struct usb_setup_request request = *(const struct usb_setup_request *)(usb_ep0out_buffer[usb_ep0out_rd_ptr]);
-    //     // uint8_t len = usb_ep0out_buffer_len[usb_ep0out_rd_ptr];
-    //     uint8_t last_tok = usb_ep0out_last_tok[usb_ep0out_rd_ptr];
 
-    //     // usb_ep0out_buffer_len[usb_ep0out_rd_ptr] = 0;
-    //     usb_ep0out_rd_ptr = (usb_ep0out_rd_ptr + 1) & (EP0OUT_BUFFERS-1);
-
-    //     if (last_tok == USB_PID_SETUP) {
-    //         usb_setup(&request);
-    //     }
-    // }
+    if (out_have) {
+        out_have = 0;
+        if (out_ep > 0) {
+            int i;
+            for (i = 0; i < out_buffer_length; i++)
+                out_buffer[i] += 1;
+            usb_send(out_ep, out_buffer, out_buffer_length - 2);
+        }
+        usb_ack_out();
+    }
 
     process_tx();
+    process_rx();
 }
 
 // struct usb_status {
