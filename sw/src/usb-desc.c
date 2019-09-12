@@ -29,6 +29,7 @@
  */
 
 #include <usb-desc.h>
+#include <usbcdc.h>
 
 // USB Descriptors are binary data which the USB host reads to
 // automatically detect a USB device's capabilities.  The format
@@ -72,9 +73,9 @@ static const uint8_t device_descriptor[] = {
         18,                                     // bLength
         1,                                      // bDescriptorType
         0x01, 0x02,                             // bcdUSB
-        0x00,                                   // bDeviceClass
-        0x00,                                   // bDeviceSubClass
-        0x00,                                   // bDeviceProtocol
+        0xEF,                                   // bDeviceClass
+        0x02,                                   // bDeviceSubClass
+        0x01,                                   // bDeviceProtocol
         EP0_SIZE,                               // bMaxPacketSize0
         LSB(VENDOR_ID), MSB(VENDOR_ID),         // idVendor
         LSB(PRODUCT_ID), MSB(PRODUCT_ID),       // idProduct
@@ -96,13 +97,14 @@ static const uint8_t device_descriptor[] = {
 
 // USB Configuration Descriptor.  This huge descriptor tells all
 // of the devices capbilities.
+#define CONFIG_DESC_SIZE 143
 static const uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
         // configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
         9,                                      // bLength;
         2,                                      // bDescriptorType;
         LSB(CONFIG_DESC_SIZE),                  // wTotalLength
         MSB(CONFIG_DESC_SIZE),
-        NUM_INTERFACE,                          // bNumInterfaces
+        5,                                      // bNumInterfaces
         1,                                      // bConfigurationValue
         1,                                      // iConfiguration
         0x80,                                   // bmAttributes
@@ -117,7 +119,7 @@ static const uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
         0xFE,                                   // bInterfaceClass
         0x01,                                   // bInterfaceSubClass
         0x02,                                   // bInterfaceProtocol
-        2,                                      // iInterface
+        0,                                      // iInterface
 
         // DFU Functional Descriptor (DFU spec Table 4.2)
         9,                                      // bLength
@@ -128,6 +130,163 @@ static const uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
         LSB(DFU_TRANSFER_SIZE),                 // wTransferSize
         MSB(DFU_TRANSFER_SIZE),
         0x01,0x01,                              // bcdDFUVersion
+
+
+        // CDC INTERFACE #1
+
+        // interface descriptor, CDC
+        USB_DT_INTERFACE_SIZE,                  // bLength
+        USB_DT_INTERFACE,                       // bDescriptorType
+        1,                                      // bInterfaceNumber
+        0,                                      // bAlternateSetting
+        1,                                      // bNumEndpoints
+        USB_CLASS_CDC,                          // bInterfaceClass
+        USB_CDC_SUBCLASS_ACM,                   // bInterfaceSubClass
+        USB_CDC_PROTOCOL_AT,                    // bInterfaceProtocol
+        0,                                      // iInterface
+
+        // Header Functional Descriptor
+        0x05,                                   // bLength: Endpoint Descriptor size
+        CS_INTERFACE,                           // bDescriptorType: CS_INTERFACE
+        USB_CDC_TYPE_HEADER,                    // bDescriptorSubtype: Header Func Desc
+        0x10,                                   // bcdCDC: spec release number
+        0x01,
+
+        // Call Managment Functional Descriptor
+        0x05,                                   // bFunctionLength
+        CS_INTERFACE,                           // bDescriptorType: CS_INTERFACE
+        USB_CDC_TYPE_CALL_MANAGEMENT,           // bDescriptorSubtype: Call Management Func Desc
+        0,                                      // bmCapabilities: D0+D1
+        1,                                      // bDataInterface: 1
+
+        // ACM Functional Descriptor
+        0x04,                                   // bFunctionLength
+        CS_INTERFACE,                           // bDescriptorType: CS_INTERFACE
+        USB_CDC_TYPE_ACM,                       // bDescriptorSubtype: Abstract Control Management desc
+        6,                                      // bmCapabilities
+
+        // Union Functional Descriptor
+        0x05,                                   // bFunctionLength
+        CS_INTERFACE,                           // bDescriptorType: CS_INTERFACE
+        USB_CDC_TYPE_UNION,                     // bDescriptorSubtype: Union func desc
+        0,                                      // bMasterInterface: Communication class interface
+        1,                                      // bSlaveInterface0: Data Class Interface
+
+        // Endpoint descriptor
+        USB_DT_ENDPOINT_SIZE,                   // bLength
+        USB_DT_ENDPOINT,                        // bDescriptorType
+        0x81,                                   // bEndpointAddress
+        USB_ENDPOINT_ATTR_INTERRUPT,            // bmAttributes
+        LSB(16),                                // wMaxPacketSize
+        MSB(16),                                // wMaxPacketSize
+        255,                                    // bInterval
+
+        // interface descriptor, CDC
+        USB_DT_INTERFACE_SIZE,                  // bLength
+        USB_DT_INTERFACE,                       // bDescriptorType
+        2,                                      // bInterfaceNumber
+        0,                                      // bAlternateSetting
+        2,                                      // bNumEndpoints
+        USB_CLASS_DATA,                         // bInterfaceClass
+        0,                                      // bInterfaceSubClass
+        0,                                      // bInterfaceProtocol
+        0,                                      // iInterface
+
+        // Endpoint descriptor
+        USB_DT_ENDPOINT_SIZE,                   // bLength
+        USB_DT_ENDPOINT,                        // bDescriptorType
+        0x82,                                   // bEndpointAddress
+        USB_ENDPOINT_ATTR_BULK,                 // bmAttributes
+        LSB(64),                                // wMaxPacketSize
+        MSB(64),                                // wMaxPacketSize
+        1,                                      // bInterval
+
+        // Endpoint descriptor
+        USB_DT_ENDPOINT_SIZE,                   // bLength
+        USB_DT_ENDPOINT,                        // bDescriptorType
+        0x02,                                   // bEndpointAddress
+        USB_ENDPOINT_ATTR_BULK,                 // bmAttributes
+        LSB(64),                                // wMaxPacketSize
+        MSB(64),                                // wMaxPacketSize
+        1,                                      // bInterval
+        
+        // CDC INTERFACE #2
+
+        // interface descriptor, CDC
+        USB_DT_INTERFACE_SIZE,                  // bLength
+        USB_DT_INTERFACE,                       // bDescriptorType
+        3,                                      // bInterfaceNumber
+        0,                                      // bAlternateSetting
+        1,                                      // bNumEndpoints
+        USB_CLASS_CDC,                          // bInterfaceClass
+        USB_CDC_SUBCLASS_ACM,                   // bInterfaceSubClass
+        USB_CDC_PROTOCOL_AT,                    // bInterfaceProtocol
+        0,                                      // iInterface
+
+        // Header Functional Descriptor
+        0x05,                                   // bLength: Endpoint Descriptor size
+        CS_INTERFACE,                           // bDescriptorType: CS_INTERFACE
+        USB_CDC_TYPE_HEADER,                    // bDescriptorSubtype: Header Func Desc
+        0x10,                                   // bcdCDC: spec release number
+        0x01,
+
+        // Call Managment Functional Descriptor
+        0x05,                                   // bFunctionLength
+        CS_INTERFACE,                           // bDescriptorType: CS_INTERFACE
+        USB_CDC_TYPE_CALL_MANAGEMENT,           // bDescriptorSubtype: Call Management Func Desc
+        0,                                      // bmCapabilities: D0+D1
+        1,                                      // bDataInterface: 1
+
+        // ACM Functional Descriptor
+        0x04,                                   // bFunctionLength
+        CS_INTERFACE,                           // bDescriptorType: CS_INTERFACE
+        USB_CDC_TYPE_ACM,                       // bDescriptorSubtype: Abstract Control Management desc
+        6,                                      // bmCapabilities
+
+        // Union Functional Descriptor
+        0x05,                                   // bFunctionLength
+        CS_INTERFACE,                           // bDescriptorType: CS_INTERFACE
+        USB_CDC_TYPE_UNION,                     // bDescriptorSubtype: Union func desc
+        0,                                      // bMasterInterface: Communication class interface
+        1,                                      // bSlaveInterface0: Data Class Interface
+
+        // Endpoint descriptor
+        USB_DT_ENDPOINT_SIZE,                   // bLength
+        USB_DT_ENDPOINT,                        // bDescriptorType
+        0x83,                                   // bEndpointAddress
+        USB_ENDPOINT_ATTR_INTERRUPT,            // bmAttributes
+        LSB(16),                                // wMaxPacketSize
+        MSB(16),                                // wMaxPacketSize
+        255,                                    // bInterval
+
+        // interface descriptor, CDC
+        USB_DT_INTERFACE_SIZE,                  // bLength
+        USB_DT_INTERFACE,                       // bDescriptorType
+        4,                                      // bInterfaceNumber
+        0,                                      // bAlternateSetting
+        2,                                      // bNumEndpoints
+        USB_CLASS_DATA,                         // bInterfaceClass
+        0,                                      // bInterfaceSubClass
+        0,                                      // bInterfaceProtocol
+        0,                                      // iInterface
+
+        // Endpoint descriptor
+        USB_DT_ENDPOINT_SIZE,                   // bLength
+        USB_DT_ENDPOINT,                        // bDescriptorType
+        0x84,                                   // bEndpointAddress
+        USB_ENDPOINT_ATTR_BULK,                 // bmAttributes
+        LSB(64),                                // wMaxPacketSize
+        MSB(64),                                // wMaxPacketSize
+        1,                                      // bInterval
+
+        // Endpoint descriptor
+        USB_DT_ENDPOINT_SIZE,                   // bLength
+        USB_DT_ENDPOINT,                        // bDescriptorType
+        0x04,                                   // bEndpointAddress
+        USB_ENDPOINT_ATTR_BULK,                 // bmAttributes
+        LSB(64),                                // wMaxPacketSize
+        MSB(64),                                // wMaxPacketSize
+        1,                                      // bInterval
 };
 
 
