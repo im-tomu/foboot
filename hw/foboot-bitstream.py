@@ -36,7 +36,7 @@ from valentyusb.usbcore import io as usbio
 from valentyusb.usbcore.cpu import epmem, unififo, epfifo, dummyusb, eptri
 from valentyusb.usbcore.endpoint import EndpointType
 
-import spibone
+# import spibone
 
 import argparse
 import os
@@ -459,7 +459,7 @@ class BaseSoC(SoCCore):
 
     def __init__(self, platform, boot_source="rand",
                  debug=None, bios_file=None,
-                 use_dsp=False, placer=None, output_dir="build",
+                 use_dsp=False, placer="heap", output_dir="build",
                  pnr_seed=0,
                  **kwargs):
         # Disable integrated RAM as we'll add it later
