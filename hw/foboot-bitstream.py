@@ -25,7 +25,7 @@ from litex.soc.integration import SoCCore
 from litex.soc.integration.builder import Builder
 from litex.soc.integration.soc_core import csr_map_update
 from litex.soc.interconnect import wishbone
-from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
+from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage, CSRField
 
 from litex.soc.cores import up5kspram, spi_flash
 
@@ -37,6 +37,7 @@ from valentyusb.usbcore.cpu import epmem, unififo, epfifo, dummyusb, eptri
 from valentyusb.usbcore.endpoint import EndpointType
 
 import spibone
+import lxsocdoc
 
 import argparse
 import os
@@ -100,10 +101,30 @@ class SBLED(Module, AutoCSR):
     def __init__(self, revision, pads):
         rgba_pwm = Signal(3)
 
-        self.dat = CSRStorage(8)
-        self.addr = CSRStorage(4)
-        self.ctrl = CSRStorage(6)
-        self.raw = CSRStorage(3)
+        self.dat = CSRStorage(8, description="""This is the value for the `SB_LEDDA_IP.DAT` register.  It is
+                            directly written into the `SB_LEDDA_IP` hardware block, so you should
+                            refer to http://www.latticesemi.com/view_document?document_id=50668.  The
+                            contents of this register are written to the address specified in `ADDR`
+                            immediately upon writing this register.""")
+        self.addr = CSRStorage(4, description="""This register is directly connected to `SB_LEDDA_IP.ADDR`.
+                            This register controls the address that is updated whenever `DAT` is written.
+                            Writing to this register has no immediate effect -- data isn't written until
+                            the `DAT` register is written.""")
+        self.ctrl = CSRStorage(fields=[
+            CSRField("exe", description="Connected to `SB_LEDDA_IP.LEDDEXE`.  Set this to `1` to enable the fading pattern."),
+            CSRField("curren", description="Connected to `SB_RGBA_DRV.CURREN`.  Set this to `1` to enable the current source."),
+            CSRField("rgbleden", description="Connected to `SB_RGBA_DRV.RGBLEDEN`.  Set this to `1` to enable the RGB PWM control logic."),
+            CSRField("rraw", description="Set this to `1` to enable raw control of the red LED via the `RAW.R` register."),
+            CSRField("graw", description="Set this to `1` to enable raw control of the green LED via the `RAW.G` register."),
+            CSRField("braw", description="Set this to `1` to enable raw control of the blue LED via the `RAW.B` register."),
+        ], description="Control logic for the RGB LED and LEDDA hardware PWM LED block.")
+        self.raw = CSRStorage(fields=[
+            CSRField("r", description="Raw value for the red LED when `CTRL.RRAW` is `1`."),
+            CSRField("g", description="Raw value for the green LED when `CTRL.GRAW` is `1`."),
+            CSRField("b", description="Raw value for the blue LED when `CTRL.BRAW` is `1`."),
+        ], description="""Normally the hardware `SB_LEDDA_IP` block controls the brightness of the LED,
+                creating a gentle fading pattern.  However, by setting the appropriate bit in `CTRL`,
+                it is possible to manually control the three individual LEDs.""")
 
         ledd_value = Signal(3)
         if revision == "pvt" or revision == "evt" or revision == "dvt":
@@ -168,8 +189,14 @@ class SBLED(Module, AutoCSR):
 
 class SBWarmBoot(Module, AutoCSR):
     def __init__(self, parent):
-        self.ctrl = CSRStorage(size=8)
-        self.addr = CSRStorage(size=32)
+        self.ctrl = CSRStorage(fields=[
+            CSRField("image", size=2, description="Which image to reboot to.  `SB_WARMBOOT` supports four images that are configured at startup.  The bootloader is image 0, so set these bits to 0 to reboot back into the bootloader."),
+            CSRField("key", size=6, description="A reboot key used to prevent accidental reboots.  Set this to 0b101011.")
+        ], description="Support rebooting the FPGA.  You can select which of the four images to reboot to, just be sure to OR the image number with 0xac.  For example, to reboot to the bootloader (image 0), write `0xac` to this register.")
+        self.addr = CSRStorage(size=32, description="""This sets the reset vector for the VexRiscv.
+                                            This address will be used whenever the CPU is reset, for example
+                                            through a debug bridge.  You should update this address whenever
+                                            you load a new program, to enable the debugger to run `mon reset`""")
         do_reset = Signal()
         self.comb += [
             # "Reset Key" is 0xac (0b101011xx)
@@ -204,9 +231,15 @@ class TouchPads(Module, AutoCSR):
         self.specials += touch3.get_tristate(pads.t3)
         self.specials += touch4.get_tristate(pads.t4)
 
-        self.o  = CSRStorage(size=4)
-        self.oe = CSRStorage(size=4)
-        self.i  = CSRStatus(size=4)
+        self.o  = CSRStorage(fields=[
+            CSRField("o", 4, description="Output values for pads 1-4")
+        ])
+        self.oe = CSRStorage(fields=[
+            CSRField("oe", 4, description="Output enable control for pads 1-4")
+        ])
+        self.i  = CSRStatus(fields=[
+            CSRField("i", 4, description="Input value for pads 1-4")
+        ])
 
         self.comb += [
             touch1.o.eq(self.o.storage[0]),
@@ -231,15 +264,30 @@ class PicoRVSpi(Module, AutoCSR):
 
         self.reset = Signal()
 
-        self.cfg1 = CSRStorage(size=8)
-        self.cfg2 = CSRStorage(size=8)
-        self.cfg3 = CSRStorage(size=8)
-        self.cfg4 = CSRStorage(size=8)
+        self.cfg1 = CSRStorage(fields=[
+            CSRField("bb_out", size=4, description="Output bits in bit-bang mode"),
+            CSRField("bb_clk", description="Serial clock line in bit-bang mode"),
+            CSRField("bb_cs", description="Chip select line in bit-bang mode"),
+        ])
+        self.cfg2 = CSRStorage(fields=[
+            CSRField("bb_oe", size=4, description="Output Enable bits in bit-bang mode"),
+        ])
+        self.cfg3 = CSRStorage(fields=[
+            CSRField("rlat", size=4, description="Read latency/dummy cycle count"),
+            CSRField("crm", description="Continuous Read Mode enable bit"),
+            CSRField("qspi", description="Quad-SPI enable bit"),
+            CSRField("ddr", description="Double Data Rate enable bit"),
+        ])
+        self.cfg4 = CSRStorage(fields=[
+            CSRField("memio", offset=7, reset=1, description="Enable memory-mapped mode (set to 0 to enable bit-bang mode)")
+        ])
 
-        self.stat1 = CSRStatus(size=8)
-        self.stat2 = CSRStatus(size=8)
-        self.stat3 = CSRStatus(size=8)
-        self.stat4 = CSRStatus(size=8)
+        self.stat1 = CSRStatus(fields=[
+            CSRField("bb_in", size=4, description="Input bits in bit-bang mode"),
+        ])
+        self.stat2 = CSRStatus(1, fields=[], description="Reserved")
+        self.stat3 = CSRStatus(1, fields=[], description="Reserved")
+        self.stat4 = CSRStatus(1, fields=[], description="Reserved")
 
         cfg = Signal(32)
         cfg_we = Signal(4)
@@ -397,13 +445,23 @@ class Version(Module, AutoCSR):
 
             return (major, minor, rev, gitrev, gitextra, dirty)
 
-        self.major = CSRStatus(8)
-        self.minor = CSRStatus(8)
-        self.revision = CSRStatus(8)
-        self.gitrev = CSRStatus(32)
-        self.gitextra = CSRStatus(10)
-        self.dirty = CSRStatus(1)
-        self.model = CSRStatus(8)
+        self.major = CSRStatus(8, description="Major git tag version.  For example, if this repository was built from git tag `v1.9.2`, then this value would be `1`.")
+        self.minor = CSRStatus(8, description="Minor git tag version.  For example, if this repository was built from git tag `v1.9.2`, then this value would be `9`.")
+        self.revision = CSRStatus(8, description="Revision git tag version.  For example, if this repository was built from git tag `v1.9.2`, then this value would be `2`.")
+        self.gitrev = CSRStatus(32, description="First 32-bits of the git revision.  This should be enough to check out the exact git version used to build this firmware.")
+        self.gitextra = CSRStatus(10, description="The number of additional commits beyond the git tag.  For example, if this value is `1`, then the repository this was built from has one additional commit beyond the tag indicated in `MAJOR`, `MINOR`, and `REVISION`.")
+        self.dirty = CSRStatus(fields=[
+            CSRField("dirty", description="Set to `1` if this device was built from a git repo with uncommitted modifications.")
+        ])
+        self.model = CSRStatus(fields=[
+            CSRField("model", size=8, description="Contains information on which model device this was built for.", values=[
+                ("0x45", "E", "Fomu EVT"),
+                ("0x44", "D", "Fomu DVT"),
+                ("0x50", "P", "Fomu PVT (production)"),
+                ("0x48", "H", "Fomu Hacker"),
+                ("0x3f", "?", "Unknown model"),
+            ])
+        ])
 
         (major, minor, rev, gitrev, gitextra, dirty) = get_gitver()
         self.comb += [
@@ -534,18 +592,18 @@ class BaseSoC(SoCCore):
             raise ValueError("unrecognized boot_source: {}".format(boot_source))
 
         # Add a simple bit-banged SPI Flash module
-        spi_pads = platform.request("spiflash4x")
-        if spi_pads is not None:
-            self.submodules.lxspi = spi_flash.SpiFlashDualQuad(spi_pads)
-        else:
-            spi_pads = platform.request("spiflash")
-            self.submodules.lxspi = spi_flash.SpiFlashSingle(spi_pads)
-        self.register_mem("spiflash", self.mem_map["spiflash"],
-            self.lxspi.bus, size=2 * 1024 * 1024) # NOTE: EVT is 16 * 1024 * 1024
-
-        # self.submodules.picorvspi = PicoRVSpi(platform, spi_pads)
+        # spi_pads = platform.request("spiflash4x")
+        # if spi_pads is not None:
+        #     self.submodules.lxspi = spi_flash.SpiFlashDualQuad(spi_pads)
+        # else:
+        #     spi_pads = platform.request("spiflash")
+        #     self.submodules.lxspi = spi_flash.SpiFlashSingle(spi_pads)
         # self.register_mem("spiflash", self.mem_map["spiflash"],
-        #     self.picorvspi.bus, size=self.picorvspi.size)
+        #     self.lxspi.bus, size=2 * 1024 * 1024) # NOTE: EVT is 16 * 1024 * 1024
+
+        self.submodules.picorvspi = PicoRVSpi(platform, platform.request("spiflash"))
+        self.register_mem("spiflash", self.mem_map["spiflash"],
+            self.picorvspi.bus, size=self.picorvspi.size)
 
         self.submodules.reboot = SBWarmBoot(self)
         if hasattr(self, "cpu"):
@@ -734,13 +792,14 @@ def main():
                             use_dsp=args.with_dsp, placer=args.placer,
                             pnr_seed=args.seed,
                             output_dir=output_dir)
-    builder = Builder(soc, output_dir=output_dir, csr_csv="test/csr.csv", compile_software=compile_software)
+    builder = Builder(soc, output_dir=output_dir, csr_csv="test/csr.csv", compile_software=False, compile_gateware=False)
     if compile_software:
         builder.software_packages = [
             ("bios", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "sw")))
         ]
     vns = builder.build()
     soc.do_exit(vns)
+    lxsocdoc.generate_docs(soc, "../doc/soc/source/")
 
     make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"), [
         160,
