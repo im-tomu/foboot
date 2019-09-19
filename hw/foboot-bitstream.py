@@ -792,7 +792,7 @@ def main():
                             use_dsp=args.with_dsp, placer=args.placer,
                             pnr_seed=args.seed,
                             output_dir=output_dir)
-    builder = Builder(soc, output_dir=output_dir, csr_csv="test/csr.csv", compile_software=False, compile_gateware=False)
+    builder = Builder(soc, output_dir=output_dir, csr_csv="test/csr.csv", compile_software=compile_software)
     if compile_software:
         builder.software_packages = [
             ("bios", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "sw")))
