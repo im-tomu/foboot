@@ -35,6 +35,7 @@ static void riscv_reboot_to(const void *addr, uint32_t boot_config) {
     else
         usb_disconnect();
 
+#if defined(CSR_PICORVSPI_BASE)
     // Figure out what mode to put SPI flash into.
     if (boot_config & 0x00000001) { // QPI_EN
         // spiEnableQuad();
@@ -44,6 +45,7 @@ static void riscv_reboot_to(const void *addr, uint32_t boot_config) {
         picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x40);
     if (boot_config & 0x00000002) // CFM_EN
         picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x10);
+#endif
     rgb_mode_error();
 
     // Vexriscv requires three extra nop cycles to flush the cache.
@@ -173,19 +175,10 @@ static void init(void)
 {
     rgb_init();
     usb_init();
+#if defined(CSR_PICORVSPI_BASE)
     picorvspi_cfg4_write(0x80);
-    spi = spiAlloc();
-    spiSetPin(spi, SP_MOSI, 0);
-    spiSetPin(spi, SP_MISO, 1);
-    spiSetPin(spi, SP_WP, 2);
-    spiSetPin(spi, SP_HOLD, 3);
-    spiSetPin(spi, SP_CLK, 4);
-    spiSetPin(spi, SP_CS, 5);
-    spiSetPin(spi, SP_D0, 0);
-    spiSetPin(spi, SP_D1, 1);
-    spiSetPin(spi, SP_D2, 2);
-    spiSetPin(spi, SP_D3, 3);
-    spiInit(spi);
+#endif
+   spiInit();
     spiFree();
 
     if (!nerve_pinch()) {
@@ -193,7 +186,7 @@ static void init(void)
         maybe_boot_fbm();
     }
 
-    spiInit(spi);
+    spiInit();
 #ifdef CSR_UART_BASE
     init_printf(NULL, rv_putchar);
 #endif

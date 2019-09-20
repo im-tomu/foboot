@@ -235,7 +235,7 @@ void usb_isr(void) {
 
         // If we have 8 bytes, that's a full SETUP packet.
         // Otherwise, it was an RX error.
-        if (setup_length == 8) {
+        if (setup_length == 10) {
             setup_packet_count++;
         }
         else {

@@ -38,7 +38,6 @@
 #define WRITE_SIZE 256 // Number of bytes we can write
 
 #include <spi.h>
-extern struct ff_spi *spi; // Defined in main.c
 
 // Internal flash-programming state machine
 static unsigned fl_current_addr = 0;
@@ -85,7 +84,7 @@ static bool ftfl_busy(void)
         return 0;
 
     // Is the flash memory controller busy?
-    return spiIsBusy(spi);
+    return spiIsBusy();
 }
 
 static void ftfl_busy_wait(void)
@@ -101,7 +100,7 @@ static void ftfl_begin_erase_sector(uint32_t address)
         ftfl_busy_wait();
         // Only erase if it's on the page boundry.
         if ((address & ~(ERASE_SIZE - 1) ) == address)
-            spiBeginErase64(spi, address);
+            spiBeginErase64(address);
     }
     fl_state = flsERASING;
 }
@@ -116,7 +115,7 @@ static void ftfl_write_more_bytes(void)
     }
     else {
         ftfl_busy_wait();
-        spiBeginWrite(spi, dfu_target_address, &dfu_buffer[dfu_buffer_offset/4], bytes_to_write);
+        spiBeginWrite(dfu_target_address, &dfu_buffer[dfu_buffer_offset/4], bytes_to_write);
     }
 
     dfu_bytes_remaining -= bytes_to_write;
@@ -218,7 +217,7 @@ static void fl_state_poll(void)
 {
     // Try to advance the state of our own flash programming state machine.
 
-    if (spiIsBusy(spi))
+    if (spiIsBusy())
         return;
 
     switch (fl_state) {
