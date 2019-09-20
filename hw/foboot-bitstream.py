@@ -13,6 +13,7 @@ import lxbuildenv
 
 #from migen import *
 from migen import Module, Signal, Instance, ClockDomain, If
+from migen.genlib import fifo
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.fhdl.specials import TSTriple
 from migen.fhdl.bitcontainer import bits_for
@@ -378,6 +379,32 @@ class PicoRVSpi(Module, AutoCSR):
         )
         platform.add_source("rtl/spimemio.v")
 
+class Messible(Module, AutoCSR):
+    """Messaging-style Ansible"""
+    def __init__(self):
+        self.submodules.fifo = f = fifo.SyncFIFOBuffered(width=8, depth=64)
+        in_reg = CSRStorage(8, name="in", description="Write half of the FIFO to send data out the Messible.")
+        out_reg = CSRStatus(8, name="out", description="Read half of the FIFO to receive data on the Messible.")
+
+        self.__setattr__("in", in_reg)
+        self.__setattr__("out", out_reg)
+        self.status = status = CSRStatus(fields=[
+            CSRField("full", description="`0` if more data can fit into the IN FIFO."),
+            CSRField("have", description="`1 if data can be read from the OUT FIFO."),
+        ])
+        self.ctrl = ctrl = CSRStorage(fields=[
+            CSRField("adv", description="Write a `1` here to advance the OUT FIFO.", pulse=True),
+        ])
+
+        self.comb += [
+            f.din.eq(in_reg.storage),
+            f.we.eq(in_reg.re),
+            out_reg.status.eq(f.dout),
+            f.re.eq(ctrl.fields.adv),
+            status.fields.full.eq(~f.writable),
+            status.fields.have.eq(f.readable),
+        ]
+
 class Version(Module, AutoCSR):
     def __init__(self, model):
         def makeint(i, base=10):
@@ -499,6 +526,7 @@ class BaseSoC(SoCCore):
         "rgb":            13,
         "version":        14,
         "lxspi":          15,
+        "messible":       16,
     }
 
     SoCCore.mem_map = {
@@ -538,14 +566,12 @@ class BaseSoC(SoCCore):
             elif debug == "usb":
                 usb_debug = True
             if hasattr(self, "cpu"):
-                self.cpu.use_external_variant("rtl/2-stage-1024-cache-debug.v")
-                self.copy_memory_file("2-stage-1024-cache-debug.v_toplevel_RegFilePlugin_regFile.bin")
+                self.cpu.use_external_variant("rtl/VexRiscv_Fomu_Debug.v")
                 os.path.join(output_dir, "gateware")
                 self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x100)
         else:
             if hasattr(self, "cpu"):
-                self.cpu.use_external_variant("rtl/2-stage-1024-cache.v")
-                self.copy_memory_file("2-stage-1024-cache.v_toplevel_RegFilePlugin_regFile.bin")
+                self.cpu.use_external_variant("rtl/VexRiscv_Fomu.v")
 
         # # Add SPI Wishbone bridge
         # spi_pads = platform.request("spidebug")
@@ -557,6 +583,9 @@ class BaseSoC(SoCCore):
         spram_size = 128*1024
         self.submodules.spram = up5kspram.Up5kSPRAM(size=spram_size)
         self.register_mem("sram", self.mem_map["sram"], self.spram.bus, spram_size)
+
+        # Add a Messible for device->host communications
+        self.submodules.messible = Messible()
 
         if boot_source == "rand":
             kwargs['cpu_reset_address']=0
@@ -591,18 +620,18 @@ class BaseSoC(SoCCore):
             raise ValueError("unrecognized boot_source: {}".format(boot_source))
 
         # Add a simple bit-banged SPI Flash module
-        # spi_pads = platform.request("spiflash4x")
-        # if spi_pads is not None:
-        #     self.submodules.lxspi = spi_flash.SpiFlashDualQuad(spi_pads)
-        # else:
-        #     spi_pads = platform.request("spiflash")
-        #     self.submodules.lxspi = spi_flash.SpiFlashSingle(spi_pads)
-        # self.register_mem("spiflash", self.mem_map["spiflash"],
-        #     self.lxspi.bus, size=2 * 1024 * 1024) # NOTE: EVT is 16 * 1024 * 1024
-
-        self.submodules.picorvspi = PicoRVSpi(platform, platform.request("spiflash"))
+        spi_pads = platform.request("spiflash4x")
+        if spi_pads is not None:
+            self.submodules.lxspi = spi_flash.SpiFlashDualQuad(spi_pads)
+        else:
+            spi_pads = platform.request("spiflash")
+            self.submodules.lxspi = spi_flash.SpiFlashSingle(spi_pads)
         self.register_mem("spiflash", self.mem_map["spiflash"],
-            self.picorvspi.bus, size=self.picorvspi.size)
+            self.lxspi.bus, size=2 * 1024 * 1024) # NOTE: EVT is 16 * 1024 * 1024
+
+        # self.submodules.picorvspi = PicoRVSpi(platform, platform.request("spiflash"))
+        # self.register_mem("spiflash", self.mem_map["spiflash"],
+        #     self.picorvspi.bus, size=self.picorvspi.size)
 
         self.submodules.reboot = SBWarmBoot(self)
         if hasattr(self, "cpu"):
@@ -639,7 +668,7 @@ class BaseSoC(SoCCore):
         # and the "-dffe_min_ce_use 4" flag prevents Yosys from generating a
         # Clock Enable signal for a LUT that has fewer than 4 flip-flops.
         # This increases density, and lets us use the FPGA more efficiently.
-        platform.toolchain.nextpnr_yosys_template[2] += " -relut -dffe_min_ce_use 4"
+        platform.toolchain.nextpnr_yosys_template[2] += " -relut -abc2 -dffe_min_ce_use 3 -relut"
         if use_dsp:
             platform.toolchain.nextpnr_yosys_template[2] += " -dsp"
 
@@ -720,6 +749,10 @@ def main():
         help="where to have the CPU obtain its executable code from"
     )
     parser.add_argument(
+        "--document-only", default=False, action="store_true",
+        help="Don't build gateware or software, only build documentation"
+    )
+    parser.add_argument(
         "--revision", choices=["evt", "dvt", "pvt", "hacker"], required=True,
         help="build foboot for a particular hardware revision"
     )
@@ -783,6 +816,11 @@ def main():
         cpu_type = None
         cpu_variant = None
 
+    compile_gateware = True
+    if args.document_only:
+        compile_gateware = False
+        compile_software = False
+
     os.environ["LITEX"] = "1" # Give our Makefile something to look for
     platform = Platform(revision=args.revision)
     soc = BaseSoC(platform, cpu_type=cpu_type, cpu_variant=cpu_variant,
@@ -791,14 +829,16 @@ def main():
                             use_dsp=args.with_dsp, placer=args.placer,
                             pnr_seed=args.seed,
                             output_dir=output_dir)
-    builder = Builder(soc, output_dir=output_dir, csr_csv="test/csr.csv", compile_software=compile_software)
+    builder = Builder(soc, output_dir=output_dir, csr_csv="test/csr.csv",
+                      compile_software=compile_software, compile_gateware=compile_gateware)
     if compile_software:
         builder.software_packages = [
             ("bios", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "sw")))
         ]
     vns = builder.build()
     soc.do_exit(vns)
-    lxsocdoc.generate_docs(soc, "../doc/soc/source/")
+    lxsocdoc.generate_docs(soc, "build/documentation/")
+    lxsocdoc.generate_svd(soc, "build/software", vendor="Foosn", name="Fomu")
 
     make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"), [
         160,

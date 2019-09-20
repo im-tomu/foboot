@@ -1,1 +1,0 @@
-debug: !!vexriscv.DebugReport {hardwareBreakpointCount: 4}
