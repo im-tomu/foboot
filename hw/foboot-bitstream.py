@@ -840,30 +840,31 @@ def main():
     lxsocdoc.generate_docs(soc, "build/documentation/")
     lxsocdoc.generate_svd(soc, "build/software", vendor="Foosn", name="Fomu")
 
-    make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"), [
-        160,
-        160,
-        157696,
-        262144,
-        262144 + 32768,
-    ])
+    if not args.document_only:
+        make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"), [
+            160,
+            160,
+            157696,
+            262144,
+            262144 + 32768,
+        ])
 
-    with open(os.path.join(output_dir, 'gateware', 'multiboot-header.bin'), 'rb') as multiboot_header_file:
-        multiboot_header = multiboot_header_file.read()
-        with open(os.path.join(output_dir, 'gateware', 'top.bin'), 'rb') as top_file:
-            top = top_file.read()
-            with open(os.path.join(output_dir, 'gateware', 'top-multiboot.bin'), 'wb') as top_multiboot_file:
-                top_multiboot_file.write(multiboot_header)
-                top_multiboot_file.write(top)
+        with open(os.path.join(output_dir, 'gateware', 'multiboot-header.bin'), 'rb') as multiboot_header_file:
+            multiboot_header = multiboot_header_file.read()
+            with open(os.path.join(output_dir, 'gateware', 'top.bin'), 'rb') as top_file:
+                top = top_file.read()
+                with open(os.path.join(output_dir, 'gateware', 'top-multiboot.bin'), 'wb') as top_multiboot_file:
+                    top_multiboot_file.write(multiboot_header)
+                    top_multiboot_file.write(top)
 
-    print(
-"""Foboot build complete.  Output files:
-    {}/gateware/top.bin             Bitstream file.  Load this onto the FPGA for testing.
-    {}/gateware/top-multiboot.bin   Multiboot-enabled bitstream file.  Flash this onto FPGA ROM.
-    {}/gateware/top.v               Source Verilog file.  Useful for debugging issues.
-    {}/software/include/generated/  Directory with header files for API access.
-    {}/software/bios/bios.elf       ELF file for debugging bios.
-""".format(output_dir, output_dir, output_dir, output_dir, output_dir))
+        print(
+    """Foboot build complete.  Output files:
+        {}/gateware/top.bin             Bitstream file.  Load this onto the FPGA for testing.
+        {}/gateware/top-multiboot.bin   Multiboot-enabled bitstream file.  Flash this onto FPGA ROM.
+        {}/gateware/top.v               Source Verilog file.  Useful for debugging issues.
+        {}/software/include/generated/  Directory with header files for API access.
+        {}/software/bios/bios.elf       ELF file for debugging bios.
+    """.format(output_dir, output_dir, output_dir, output_dir, output_dir))
 
 if __name__ == "__main__":
     main()
