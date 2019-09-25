@@ -852,7 +852,7 @@ def main():
                             use_dsp=args.with_dsp, placer=args.placer,
                             pnr_seed=args.seed,
                             output_dir=output_dir)
-    builder = Builder(soc, output_dir=output_dir, csr_csv="test/csr.csv",
+    builder = Builder(soc, output_dir=output_dir, csr_csv="build/csr.csv",
                       compile_software=compile_software, compile_gateware=compile_gateware)
     if compile_software:
         builder.software_packages = [
