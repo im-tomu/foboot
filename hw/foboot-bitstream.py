@@ -527,8 +527,8 @@ class Version(Module, AutoCSR):
             self.revision.status.eq(rev),
             self.gitrev.status.eq(gitrev),
             self.gitextra.status.eq(gitextra),
-            self.dirty.status.eq(dirty),
-            self.model.status.eq(model_val),
+            self.dirty.fields.dirty.eq(dirty),
+            self.model.fields.model.eq(model_val),
         ]
 
 
