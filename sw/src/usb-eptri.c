@@ -185,7 +185,6 @@ static void process_rx(void) {
     out_buffer_length = 0;
     while (usb_out_status_read() & 1) {
         out_buffer[out_buffer_length++] = usb_out_data_read();
-        usb_out_ctrl_write(1);
     }
 }
 
@@ -230,7 +229,6 @@ void usb_isr(void) {
         memset(setup_packet, 0, sizeof(setup_packet));
         while (usb_setup_status_read() & 1) {
             setup_packet[setup_length++] = usb_setup_data_read();
-            usb_setup_ctrl_write(1);
         }
 
         // If we have 8 bytes, that's a full SETUP packet.
