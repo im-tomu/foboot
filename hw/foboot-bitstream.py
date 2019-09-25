@@ -22,6 +22,7 @@ from migen.fhdl.decorators import ClockDomainsRenamer
 
 from litex.build.lattice.platform import LatticePlatform
 from litex.build.generic_platform import Pins, IOStandard, Misc, Subsignal
+from litex.soc.integration.doc import AutoDoc, ModuleDoc
 from litex.soc.integration import SoCCore
 from litex.soc.integration.builder import Builder
 from litex.soc.integration.soc_core import csr_map_update
@@ -379,28 +380,48 @@ class PicoRVSpi(Module, AutoCSR):
         )
         platform.add_source("rtl/spimemio.v")
 
-class Messible(Module, AutoCSR):
+class Messible(Module, AutoCSR, AutoDoc):
     """Messaging-style Ansible"""
     def __init__(self):
         self.submodules.fifo = f = fifo.SyncFIFOBuffered(width=8, depth=64)
-        in_reg = CSRStorage(8, name="in", description="Write half of the FIFO to send data out the Messible.")
-        out_reg = CSRStatus(8, name="out", description="Read half of the FIFO to receive data on the Messible.")
+        in_reg = CSRStorage(8, name="in", description="""Write half of the FIFO to send data out the Messible.
+        Writing to this register advances the write pointer automatically.""")
+        out_reg = CSRStatus(8, name="out", description="""Read half of the FIFO to receive data on the Messible.
+        Reading from this register advances the read pointer automatically.""")
 
         self.__setattr__("in", in_reg)
         self.__setattr__("out", out_reg)
         self.status = status = CSRStatus(fields=[
             CSRField("full", description="`0` if more data can fit into the IN FIFO."),
-            CSRField("have", description="`1 if data can be read from the OUT FIFO."),
+            CSRField("have", description="`1` if data can be read from the OUT FIFO."),
         ])
-        self.ctrl = ctrl = CSRStorage(fields=[
-            CSRField("adv", description="Write a `1` here to advance the OUT FIFO.", pulse=True),
-        ])
+
+        self.intro = ModuleDoc("""Messible: An Ansible for Messages
+
+                An Ansible is a system for instant communication across vast distances, from
+                a small portable device to a huge terminal far away.  A Messible is a message-
+                passing system from embedded devices to a host system.  You can use it to get
+                very simple printf()-style support over a debug channel.
+
+                The Messible assumes the host has a way to peek into the device's memory space.
+                This is the case with the Wishbone bridge, which allows both the device and
+                the host to access the same memory.
+
+                At its core, a Messible is a FIFO.  As long as the ``STATUS.FULL`` bit is ``0``, the
+                device can write data into the Messible by writing into the ``IN``.  However, if this
+                value is ``1``, you need to decide if you want to wait for it to empty (if the other
+                side is just slow), or if you want to drop the message.
+
+                From the host side, you need to read ``STATUS.HAVE`` to see if there is data
+                in the FIFO.  If there is, read ``OUT`` to get the most recent byte, which automatically
+                advances the ``READ`` pointer.
+                """)
 
         self.comb += [
             f.din.eq(in_reg.storage),
             f.we.eq(in_reg.re),
             out_reg.status.eq(f.dout),
-            f.re.eq(ctrl.fields.adv),
+            f.re.eq(out_reg.we),
             status.fields.full.eq(~f.writable),
             status.fields.have.eq(f.readable),
         ]
@@ -435,10 +456,10 @@ class Version(Module, AutoCSR):
                 return
             raw_git_rev = git_stdout.decode().strip()
 
-            dirty = False
+            dirty = 0
             if raw_git_rev[-1] == "+":
                 raw_git_rev = raw_git_rev[:-1]
-                dirty = True
+                dirty = 1
 
             parts = raw_git_rev.split("-")
             major = 0
@@ -471,16 +492,27 @@ class Version(Module, AutoCSR):
 
             return (major, minor, rev, gitrev, gitextra, dirty)
 
-        self.major = CSRStatus(8, description="Major git tag version.  For example, if this repository was built from git tag `v1.9.2`, then this value would be `1`.")
-        self.minor = CSRStatus(8, description="Minor git tag version.  For example, if this repository was built from git tag `v1.9.2`, then this value would be `9`.")
-        self.revision = CSRStatus(8, description="Revision git tag version.  For example, if this repository was built from git tag `v1.9.2`, then this value would be `2`.")
-        self.gitrev = CSRStatus(32, description="First 32-bits of the git revision.  This should be enough to check out the exact git version used to build this firmware.")
-        self.gitextra = CSRStatus(10, description="The number of additional commits beyond the git tag.  For example, if this value is `1`, then the repository this was built from has one additional commit beyond the tag indicated in `MAJOR`, `MINOR`, and `REVISION`.")
+        model_val = 0x3f # '?'
+        if model == "evt":
+            model_val = 0x45 # 'E'
+        elif model == "dvt":
+            model_val = 0x44 # 'D'
+        elif model == "pvt":
+            model_val = 0x50 # 'P'
+        elif model == "hacker":
+            model_val = 0x48 # 'H'
+        (major, minor, rev, gitrev, gitextra, dirty) = get_gitver()
+
+        self.major = CSRStatus(8, reset=major, description="Major git tag version.  For example, this firmware was built from git tag ``v{}.{}.{}``, so this value is ``{}``.".format(major, minor, rev, major))
+        self.minor = CSRStatus(8, reset=minor, description="Minor git tag version.  For example, this firmware was built from git tag ``v{}.{}.{}``, so this value is ``{}``.".format(major, minor, rev, minor))
+        self.revision = CSRStatus(8, reset=rev, description="Revision git tag version.  For example, this firmware was built from git tag ``v{}.{}.{}``, so this value is ``{}``.".format(major, minor, rev, rev))
+        self.gitrev = CSRStatus(32, reset=gitrev, description="First 32-bits of the git revision.  This documentation was built from git rev {:08x}, so this value is {}, which should be enough to check out the exact git version used to build this firmware.".format(gitrev, gitrev))
+        self.gitextra = CSRStatus(10, reset=gitextra, description="The number of additional commits beyond the git tag.  For example, if this value is `1`, then the repository this was built from has one additional commit beyond the tag indicated in `MAJOR`, `MINOR`, and `REVISION`.")
         self.dirty = CSRStatus(fields=[
-            CSRField("dirty", description="Set to `1` if this device was built from a git repo with uncommitted modifications.")
+            CSRField("dirty", reset=dirty, description="Set to `1` if this device was built from a git repo with uncommitted modifications.")
         ])
         self.model = CSRStatus(fields=[
-            CSRField("model", size=8, description="Contains information on which model device this was built for.", values=[
+            CSRField("model", reset=model_val, size=8, description="Contains information on which model device this was built for.", values=[
                 ("0x45", "E", "Fomu EVT"),
                 ("0x44", "D", "Fomu DVT"),
                 ("0x50", "P", "Fomu PVT (production)"),
@@ -489,7 +521,6 @@ class Version(Module, AutoCSR):
             ])
         ])
 
-        (major, minor, rev, gitrev, gitextra, dirty) = get_gitver()
         self.comb += [
             self.major.status.eq(major),
             self.minor.status.eq(minor),
@@ -497,17 +528,8 @@ class Version(Module, AutoCSR):
             self.gitrev.status.eq(gitrev),
             self.gitextra.status.eq(gitextra),
             self.dirty.status.eq(dirty),
+            self.model.status.eq(model_val),
         ]
-        if model == "evt":
-            self.comb += self.model.status.eq(0x45) # 'E'
-        elif model == "dvt":
-            self.comb += self.model.status.eq(0x44) # 'D'
-        elif model == "pvt":
-            self.comb += self.model.status.eq(0x50) # 'P'
-        elif model == "hacker":
-            self.comb += self.model.status.eq(0x48) # 'H'
-        else:
-            self.comb += self.model.status.eq(0x3f) # '?'
 
 
 class BaseSoC(SoCCore):
@@ -574,7 +596,7 @@ class BaseSoC(SoCCore):
                 self.cpu.use_external_variant("rtl/VexRiscv_Fomu.v")
 
         # # Add SPI Wishbone bridge
-        # spi_pads = platform.request("spidebug")
+        # spi_pads = platform.request("spiflash")
         # self.submodules.spibone = ClockDomainsRenamer("usb_12")(spibone.SpiWishboneBridge(spi_pads, wires=4))
         # self.add_wb_master(self.spibone.wishbone)
 
