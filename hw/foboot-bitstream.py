@@ -862,7 +862,7 @@ def main():
         ]
     vns = builder.build()
     soc.do_exit(vns)
-    lxsocdoc.generate_docs(soc, "build/documentation/")
+    lxsocdoc.generate_docs(soc, "build/documentation/", project_name="Fomu Bootloader", author="Sean Cross")
     lxsocdoc.generate_svd(soc, "build/software", vendor="Foosn", name="Fomu")
 
     if not args.document_only:
