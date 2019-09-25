@@ -427,7 +427,7 @@ class Messible(Module, AutoCSR, AutoDoc):
         ]
 
 class Version(Module, AutoCSR):
-    def __init__(self, model):
+    def __init__(self, model, seed):
         def makeint(i, base=10):
             try:
                 return int(i, base=base)
@@ -520,6 +520,7 @@ class Version(Module, AutoCSR):
                 ("0x3f", "?", "Unknown model"),
             ])
         ])
+        self.seed = CSRStatus(32, reset=seed, description="32-bit seed used for the place-and-route")
 
         self.comb += [
             self.major.status.eq(major),
@@ -529,6 +530,7 @@ class Version(Module, AutoCSR):
             self.gitextra.status.eq(gitextra),
             self.dirty.fields.dirty.eq(dirty),
             self.model.fields.model.eq(model_val),
+            self.seed.status.eq(seed),
         ]
 
 
@@ -663,7 +665,7 @@ class BaseSoC(SoCCore):
             )
 
         self.submodules.rgb = SBLED(platform.revision, platform.request("rgb_led"))
-        self.submodules.version = Version(platform.revision)
+        self.submodules.version = Version(platform.revision, pnr_seed)
 
         # Add USB pads
         usb_pads = platform.request("usb")
@@ -850,7 +852,7 @@ def main():
                             debug=args.with_debug, boot_source=args.boot_source,
                             bios_file=args.bios,
                             use_dsp=args.with_dsp, placer=args.placer,
-                            pnr_seed=args.seed,
+                            pnr_seed=int(args.seed),
                             output_dir=output_dir)
     builder = Builder(soc, output_dir=output_dir, csr_csv="build/csr.csv",
                       compile_software=compile_software, compile_gateware=compile_gateware)
