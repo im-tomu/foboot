@@ -560,6 +560,7 @@ class BaseSoC(SoCCore):
     }
 
     interrupt_map = {
+        "timer0": 2,
         "usb": 3,
     }
     interrupt_map.update(SoCCore.interrupt_map)
