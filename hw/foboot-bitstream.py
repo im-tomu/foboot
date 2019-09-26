@@ -118,7 +118,7 @@ class SBLED(Module, AutoCSR):
                 """)
 
         self.dat = CSRStorage(8, description="""
-                            This is the value for the `SB_LEDDA_IP.DAT` register.  It is directly
+                            This is the value for the ``SB_LEDDA_IP.DAT`` register.  It is directly
                             written into the ``SB_LEDDA_IP`` hardware block, so you should
                             refer to http://www.latticesemi.com/view_document?document_id=50668.
                             The contents of this register are written to the address specified in
@@ -129,9 +129,9 @@ class SBLED(Module, AutoCSR):
                             written.  Writing to this register has no immediate effect -- data
                             isn't written until the ``DAT`` register is written.""")
         self.ctrl = CSRStorage(fields=[
-            CSRField("exe", description="Connected to ``SB_LEDDA_IP.LEDDEXE`.  Set this to ``1`` to enable the fading pattern."),
-            CSRField("curren", description="Connected to ``SB_RGBA_DRV.CURREN`.  Set this to ``1`` to enable the current source."),
-            CSRField("rgbleden", description="Connected to ``SB_RGBA_DRV.RGBLEDEN`.  Set this to ``1`` to enable the RGB PWM control logic."),
+            CSRField("exe", description="Connected to ``SB_LEDDA_IP.LEDDEXE``.  Set this to ``1`` to enable the fading pattern."),
+            CSRField("curren", description="Connected to ``SB_RGBA_DRV.CURREN``.  Set this to ``1`` to enable the current source."),
+            CSRField("rgbleden", description="Connected to ``SB_RGBA_DRV.RGBLEDEN``.  Set this to ``1`` to enable the RGB PWM control logic."),
             CSRField("rraw", description="Set this to ``1`` to enable raw control of the red LED via the ``RAW.R`` register."),
             CSRField("graw", description="Set this to ``1`` to enable raw control of the green LED via the ``RAW.G`` register."),
             CSRField("braw", description="Set this to ``1`` to enable raw control of the blue LED via the ``RAW.B`` register."),
@@ -142,7 +142,7 @@ class SBLED(Module, AutoCSR):
             CSRField("b", description="Raw value for the blue LED when ``CTRL.BRAW`` is ``1``."),
         ], description="""
                 Normally the hardware ``SB_LEDDA_IP`` block controls the brightness of the LED,
-                creating a gentle fading pattern.  However, by setting the appropriate bit in `CTRL`,
+                creating a gentle fading pattern.  However, by setting the appropriate bit in ``CTRL``,
                 it is possible to manually control the three individual LEDs.""")
 
         ledd_value = Signal(3)
