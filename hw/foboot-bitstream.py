@@ -93,7 +93,7 @@ class Platform(LatticePlatform):
             from litex_boards.partner.platforms.fomu_hacker import _io, _connectors
             LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io, _connectors, toolchain="icestorm")
         else:
-            raise ValueError("Unrecognized reivsion: {}.  Known values: evt, dvt, pvt, hacker".format(revision))
+            raise ValueError("Unrecognized revision: {}.  Known values: evt, dvt, pvt, hacker".format(revision))
 
     def create_programmer(self):
         raise ValueError("programming is not supported")
@@ -102,28 +102,46 @@ class SBLED(Module, AutoCSR):
     def __init__(self, revision, pads):
         rgba_pwm = Signal(3)
 
-        self.dat = CSRStorage(8, description="""This is the value for the `SB_LEDDA_IP.DAT` register.  It is
-                            directly written into the `SB_LEDDA_IP` hardware block, so you should
-                            refer to http://www.latticesemi.com/view_document?document_id=50668.  The
-                            contents of this register are written to the address specified in `ADDR`
-                            immediately upon writing this register.""")
-        self.addr = CSRStorage(4, description="""This register is directly connected to `SB_LEDDA_IP.ADDR`.
-                            This register controls the address that is updated whenever `DAT` is written.
-                            Writing to this register has no immediate effect -- data isn't written until
-                            the `DAT` register is written.""")
+        self.intro = ModuleDoc("""RGB LED Controller
+
+                The ICE40 contains two different RGB LED control devices.  The first is a
+                constant-current LED source, which is fixed to deliver 4 mA to each of the
+                three LEDs.  This block is called ``SB_RGBA_DRV``.
+
+                The other is used for creating interesting fading effects, particularly
+                for "breathing" effects used to indicate a given state.  This block is called
+                ``SB_LEDDA_IP``.  This block feeds directly into ``SB_RGBA_DRV``.
+
+                The RGB LED controller available on this device allows for control of these
+                two LED control devices.  Additionally, it is possible to disable ``SB_LEDDA_IP``
+                and directly control the individual LEDs.
+                """)
+
+        self.dat = CSRStorage(8, description="""
+                            This is the value for the `SB_LEDDA_IP.DAT` register.  It is directly
+                            written into the ``SB_LEDDA_IP`` hardware block, so you should
+                            refer to http://www.latticesemi.com/view_document?document_id=50668.
+                            The contents of this register are written to the address specified in
+                            ``ADDR`` immediately upon writing this register.""")
+        self.addr = CSRStorage(4, description="""
+                            This register is directly connected to ``SB_LEDDA_IP.ADDR``.  This
+                            register controls the address that is updated whenever ``DAT`` is
+                            written.  Writing to this register has no immediate effect -- data
+                            isn't written until the ``DAT`` register is written.""")
         self.ctrl = CSRStorage(fields=[
-            CSRField("exe", description="Connected to `SB_LEDDA_IP.LEDDEXE`.  Set this to `1` to enable the fading pattern."),
-            CSRField("curren", description="Connected to `SB_RGBA_DRV.CURREN`.  Set this to `1` to enable the current source."),
-            CSRField("rgbleden", description="Connected to `SB_RGBA_DRV.RGBLEDEN`.  Set this to `1` to enable the RGB PWM control logic."),
-            CSRField("rraw", description="Set this to `1` to enable raw control of the red LED via the `RAW.R` register."),
-            CSRField("graw", description="Set this to `1` to enable raw control of the green LED via the `RAW.G` register."),
-            CSRField("braw", description="Set this to `1` to enable raw control of the blue LED via the `RAW.B` register."),
+            CSRField("exe", description="Connected to ``SB_LEDDA_IP.LEDDEXE`.  Set this to ``1`` to enable the fading pattern."),
+            CSRField("curren", description="Connected to ``SB_RGBA_DRV.CURREN`.  Set this to ``1`` to enable the current source."),
+            CSRField("rgbleden", description="Connected to ``SB_RGBA_DRV.RGBLEDEN`.  Set this to ``1`` to enable the RGB PWM control logic."),
+            CSRField("rraw", description="Set this to ``1`` to enable raw control of the red LED via the ``RAW.R`` register."),
+            CSRField("graw", description="Set this to ``1`` to enable raw control of the green LED via the ``RAW.G`` register."),
+            CSRField("braw", description="Set this to ``1`` to enable raw control of the blue LED via the ``RAW.B`` register."),
         ], description="Control logic for the RGB LED and LEDDA hardware PWM LED block.")
         self.raw = CSRStorage(fields=[
-            CSRField("r", description="Raw value for the red LED when `CTRL.RRAW` is `1`."),
-            CSRField("g", description="Raw value for the green LED when `CTRL.GRAW` is `1`."),
-            CSRField("b", description="Raw value for the blue LED when `CTRL.BRAW` is `1`."),
-        ], description="""Normally the hardware `SB_LEDDA_IP` block controls the brightness of the LED,
+            CSRField("r", description="Raw value for the red LED when ``CTRL.RRAW`` is ``1``."),
+            CSRField("g", description="Raw value for the green LED when ``CTRL.GRAW`` is ``1``."),
+            CSRField("b", description="Raw value for the blue LED when ``CTRL.BRAW`` is ``1``."),
+        ], description="""
+                Normally the hardware ``SB_LEDDA_IP`` block controls the brightness of the LED,
                 creating a gentle fading pattern.  However, by setting the appropriate bit in `CTRL`,
                 it is possible to manually control the three individual LEDs.""")
 
@@ -189,15 +207,44 @@ class SBLED(Module, AutoCSR):
 
 
 class SBWarmBoot(Module, AutoCSR):
-    def __init__(self, parent):
+    def __init__(self, parent, offsets=None):
+
+        table = ""
+        if offsets is not None:
+            arr = [["Image", "Offset"]]
+            for i,offset in enumerate(offsets):
+                arr.append([str(i), str(offset)])
+            table = "\nYou can use this block to reboot into one of these four addresses:\n\n" \
+                  + lxsocdoc.rst.make_table(arr)
+        self.intro = ModuleDoc("""FPGA Reboot Interface
+
+            This module provides the ability to reboot the FPGA.  It is based on the
+            ``SB_WARMBOOT`` primitive built in to the FPGA.
+
+            When power is applied to the FPGA, it reads configuration data from the
+            onboard flash chip.  This contains reboot offsets for four images.  It then
+            booted from the first image, but kept note of the other addresses.
+            {}""".format(table))
         self.ctrl = CSRStorage(fields=[
-            CSRField("image", size=2, description="Which image to reboot to.  `SB_WARMBOOT` supports four images that are configured at startup.  The bootloader is image 0, so set these bits to 0 to reboot back into the bootloader."),
-            CSRField("key", size=6, description="A reboot key used to prevent accidental reboots.  Set this to 0b101011.")
-        ], description="Support rebooting the FPGA.  You can select which of the four images to reboot to, just be sure to OR the image number with 0xac.  For example, to reboot to the bootloader (image 0), write `0xac` to this register.")
-        self.addr = CSRStorage(size=32, description="""This sets the reset vector for the VexRiscv.
-                                            This address will be used whenever the CPU is reset, for example
-                                            through a debug bridge.  You should update this address whenever
-                                            you load a new program, to enable the debugger to run `mon reset`""")
+            CSRField("image", size=2, description="""
+                        Which image to reboot to.  ``SB_WARMBOOT`` supports four images that
+                        are configured at FPGA startup.  The bootloader is image 0, so set
+                        these bits to 0 to reboot back into the bootloader.
+                        """),
+            CSRField("key", size=6, description="""
+                        A reboot key used to prevent accidental reboots when writing to random
+                        areas of memory.  To initiate a reboot, set this to ``0b101011``.""")
+        ], description="""
+                Provides support for rebooting the FPGA.  You can select which of the four images
+                to reboot to, just be sure to OR the image number with ``0xac``.  For example,
+                to reboot to the bootloader (image 0), write ``0xac``` to this register."""
+        )
+        self.addr = CSRStorage(size=32, description="""
+                This sets the reset vector for the VexRiscv.  This address will be used whenever
+                the CPU is reset, for example through a debug bridge.  You should update this
+                address whenever you load a new program, to enable the debugger to run ``mon reset``
+                """
+            )
         do_reset = Signal()
         self.comb += [
             # "Reset Key" is 0xac (0b101011xx)
@@ -223,6 +270,16 @@ class TouchPads(Module, AutoCSR):
         )
     ]
     def __init__(self, pads):
+        self.intro = ModuleDoc("""Fomu Touchpads
+
+        Fomu has four single-ended exposed pads on its side.  These pads are designed
+        to be connected to some captouch block, or driven in a resistive touch mode
+        in order to get simple touchpad support.
+
+        This block simply provides CPU-controlled GPIO support for this block.  It has
+        three registers which control the In, Out, and Output Enable functionality of
+        each of these pins.
+        """)
         touch1 = TSTriple()
         touch2 = TSTriple()
         touch3 = TSTriple()
@@ -384,19 +441,22 @@ class Messible(Module, AutoCSR, AutoDoc):
     """Messaging-style Ansible"""
     def __init__(self):
         self.submodules.fifo = f = fifo.SyncFIFOBuffered(width=8, depth=64)
-        in_reg = CSRStorage(8, name="in", description="""Write half of the FIFO to send data out the Messible.
-        Writing to this register advances the write pointer automatically.""")
-        out_reg = CSRStatus(8, name="out", description="""Read half of the FIFO to receive data on the Messible.
-        Reading from this register advances the read pointer automatically.""")
+        in_reg = CSRStorage(8, name="in", description="""
+                    Write half of the FIFO to send data out the Messible.
+                    Writing to this register advances the write pointer automatically.""")
+        out_reg = CSRStatus(8, name="out", description="""
+                    Read half of the FIFO to receive data on the Messible.
+                    Reading from this register advances the read pointer automatically.""")
 
         self.__setattr__("in", in_reg)
         self.__setattr__("out", out_reg)
         self.status = status = CSRStatus(fields=[
-            CSRField("full", description="`0` if more data can fit into the IN FIFO."),
-            CSRField("have", description="`1` if data can be read from the OUT FIFO."),
+            CSRField("full", description="``0`` if more data can fit into the IN FIFO."),
+            CSRField("have", description="``1`` if data can be read from the OUT FIFO."),
         ])
 
-        self.intro = ModuleDoc("""Messible: An Ansible for Messages
+        self.intro = ModuleDoc("""
+                Messible: An Ansible for Messages
 
                 An Ansible is a system for instant communication across vast distances, from
                 a small portable device to a huge terminal far away.  A Messible is a message-
@@ -428,6 +488,12 @@ class Messible(Module, AutoCSR, AutoDoc):
 
 class Version(Module, AutoCSR):
     def __init__(self, model, seed):
+        self.intro = ModuleDoc("""SoC Version Information
+
+            This block contains various information about the state of the source code
+            repository when this SoC was built.
+            """)
+
         def makeint(i, base=10):
             try:
                 return int(i, base=base)
@@ -571,6 +637,7 @@ class BaseSoC(SoCCore):
                  debug=None, bios_file=None,
                  use_dsp=False, placer="heap", output_dir="build",
                  pnr_seed=0,
+                 warmboot_offsets=None,
                  **kwargs):
         # Disable integrated RAM as we'll add it later
         self.integrated_sram_size = 0
@@ -658,7 +725,7 @@ class BaseSoC(SoCCore):
         # self.register_mem("spiflash", self.mem_map["spiflash"],
         #     self.picorvspi.bus, size=self.picorvspi.size)
 
-        self.submodules.reboot = SBWarmBoot(self)
+        self.submodules.reboot = SBWarmBoot(self, warmboot_offsets)
         if hasattr(self, "cpu"):
             self.cpu.cpu_params.update(
                 i_externalResetVector=self.reboot.addr.storage,
@@ -846,6 +913,14 @@ def main():
         compile_gateware = False
         compile_software = False
 
+    warmboot_offsets = [
+        160,
+        160,
+        157696,
+        262144,
+        262144 + 32768,
+    ]
+
     os.environ["LITEX"] = "1" # Give our Makefile something to look for
     platform = Platform(revision=args.revision)
     soc = BaseSoC(platform, cpu_type=cpu_type, cpu_variant=cpu_variant,
@@ -853,7 +928,8 @@ def main():
                             bios_file=args.bios,
                             use_dsp=args.with_dsp, placer=args.placer,
                             pnr_seed=int(args.seed),
-                            output_dir=output_dir)
+                            output_dir=output_dir,
+                            warmboot_offsets=warmboot_offsets[1:])
     builder = Builder(soc, output_dir=output_dir, csr_csv="build/csr.csv",
                       compile_software=compile_software, compile_gateware=compile_gateware)
     if compile_software:
@@ -866,13 +942,8 @@ def main():
     lxsocdoc.generate_svd(soc, "build/software", vendor="Foosn", name="Fomu")
 
     if not args.document_only:
-        make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"), [
-            160,
-            160,
-            157696,
-            262144,
-            262144 + 32768,
-        ])
+        make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"),
+                            warmboot_offsets)
 
         with open(os.path.join(output_dir, 'gateware', 'multiboot-header.bin'), 'rb') as multiboot_header_file:
             multiboot_header = multiboot_header_file.read()
