@@ -572,10 +572,10 @@ class Version(Module, AutoCSR):
         self.major = CSRStatus(8, reset=major, description="Major git tag version.  For example, this firmware was built from git tag ``v{}.{}.{}``, so this value is ``{}``.".format(major, minor, rev, major))
         self.minor = CSRStatus(8, reset=minor, description="Minor git tag version.  For example, this firmware was built from git tag ``v{}.{}.{}``, so this value is ``{}``.".format(major, minor, rev, minor))
         self.revision = CSRStatus(8, reset=rev, description="Revision git tag version.  For example, this firmware was built from git tag ``v{}.{}.{}``, so this value is ``{}``.".format(major, minor, rev, rev))
-        self.gitrev = CSRStatus(32, reset=gitrev, description="First 32-bits of the git revision.  This documentation was built from git rev {:08x}, so this value is {}, which should be enough to check out the exact git version used to build this firmware.".format(gitrev, gitrev))
-        self.gitextra = CSRStatus(10, reset=gitextra, description="The number of additional commits beyond the git tag.  For example, if this value is `1`, then the repository this was built from has one additional commit beyond the tag indicated in `MAJOR`, `MINOR`, and `REVISION`.")
+        self.gitrev = CSRStatus(32, reset=gitrev, description="First 32-bits of the git revision.  This documentation was built from git rev ``{:08x}``, so this value is {}, which should be enough to check out the exact git version used to build this firmware.".format(gitrev, gitrev))
+        self.gitextra = CSRStatus(10, reset=gitextra, description="The number of additional commits beyond the git tag.  For example, if this value is ``1``, then the repository this was built from has one additional commit beyond the tag indicated in `MAJOR`, `MINOR`, and `REVISION`.")
         self.dirty = CSRStatus(fields=[
-            CSRField("dirty", reset=dirty, description="Set to `1` if this device was built from a git repo with uncommitted modifications.")
+            CSRField("dirty", reset=dirty, description="Set to ``1`` if this device was built from a git repo with uncommitted modifications.")
         ])
         self.model = CSRStatus(fields=[
             CSRField("model", reset=model_val, size=8, description="Contains information on which model device this was built for.", values=[
@@ -586,7 +586,7 @@ class Version(Module, AutoCSR):
                 ("0x3f", "?", "Unknown model"),
             ])
         ])
-        self.seed = CSRStatus(32, reset=seed, description="32-bit seed used for the place-and-route")
+        self.seed = CSRStatus(32, reset=seed, description="32-bit seed used for the place-and-route.")
 
         self.comb += [
             self.major.status.eq(major),
