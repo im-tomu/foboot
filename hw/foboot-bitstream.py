@@ -486,7 +486,7 @@ class Messible(Module, AutoCSR, AutoDoc):
             status.fields.have.eq(f.readable),
         ]
 
-class Version(Module, AutoCSR):
+class Version(Module, AutoCSR, AutoDoc):
     def __init__(self, model, seed):
         self.intro = ModuleDoc("""SoC Version Information
 
