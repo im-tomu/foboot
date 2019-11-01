@@ -657,18 +657,28 @@ class BaseSoC(SoCCore):
                 self.add_wb_master(self.uart_bridge.wishbone)
             elif debug == "usb":
                 usb_debug = True
+            elif debug == "spi":
+                import spibone
+                # Add SPI Wishbone bridge
+                debug_device = [
+                    ("spidebug", 0,
+                        Subsignal("mosi", Pins("dbg:0")),
+                        Subsignal("miso", Pins("dbg:1")),
+                        Subsignal("clk", Pins("dbg:2")),
+                        Subsignal("cs_n", Pins("dbg:3")),
+                    )
+                ]
+                platform.add_extension(debug_device)
+                spi_pads = platform.request("spidebug")
+                self.submodules.spibone = ClockDomainsRenamer("usb_12")(spibone.SpiWishboneBridge(spi_pads, wires=4))
+                self.add_wb_master(self.spibone.wishbone)
             if hasattr(self, "cpu"):
-                self.cpu.use_external_variant("rtl/VexRiscv_Fomu_Debug.v")
+                # self.cpu.use_external_variant("rtl/VexRiscv_Fomu_Debug.v")
                 os.path.join(output_dir, "gateware")
                 self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x100)
-        else:
-            if hasattr(self, "cpu"):
-                self.cpu.use_external_variant("rtl/VexRiscv_Fomu.v")
-
-        # # Add SPI Wishbone bridge
-        # spi_pads = platform.request("spiflash")
-        # self.submodules.spibone = ClockDomainsRenamer("usb_12")(spibone.SpiWishboneBridge(spi_pads, wires=4))
-        # self.add_wb_master(self.spibone.wishbone)
+        # else:
+        #     if hasattr(self, "cpu"):
+        #         self.cpu.use_external_variant("rtl/VexRiscv_Fomu.v")
 
         # SPRAM- UP5K has single port RAM, might as well use it as SRAM to
         # free up scarce block RAM.
@@ -698,32 +708,31 @@ class BaseSoC(SoCCore):
                 self.register_rom(self.firmware_rom.bus, bios_size)
 
         elif boot_source == "spi":
-            bios_size = 0x8000
-            kwargs['cpu_reset_address']=self.mem_map["spiflash"]+platform.gateware_size
-            self.add_memory_region("rom", kwargs['cpu_reset_address'], bios_size)
-            self.add_constant("ROM_DISABLE", 1)
-            self.flash_boot_address = self.mem_map["spiflash"]+platform.gateware_size+bios_size
-            self.add_memory_region("user_flash",
-                self.flash_boot_address,
-                # Leave a grace area- possible one-by-off bug in add_memory_region?
-                # Possible fix: addr < origin + length - 1
-                platform.spiflash_total_size - (self.flash_boot_address - self.mem_map["spiflash"]) - 0x100)
+            platform.gateware_size = 0x1a000
+            self.integrated_rom_size = bios_size = 0x2000
+            kwargs["cpu_reset_address"] = 0
+            self.add_constant("SPI_BOOT", 1)
+            self.add_constant("SPI_ENTRYPOINT", self.mem_map["spiflash"] + platform.gateware_size)
+            self.submodules.rom = wishbone.SRAM(bios_size, read_only=True, init=[])
+            self.register_rom(self.rom.bus, bios_size)
         else:
             raise ValueError("unrecognized boot_source: {}".format(boot_source))
 
-        # Add a simple bit-banged SPI Flash module
-        spi_pads = platform.request("spiflash4x")
-        if spi_pads is not None:
-            self.submodules.lxspi = spi_flash.SpiFlashDualQuad(spi_pads, dummy=5)
+        # Add a SPI Flash module
+        if True:
+            spi_pads = platform.request("spiflash4x")
+            if spi_pads is not None:
+                self.submodules.lxspi = spi_flash.SpiFlashDualQuad(spi_pads, dummy=6, endianness="little")
+            else:
+                raise "Error"
+                spi_pads = platform.request("spiflash")
+                self.submodules.lxspi = spi_flash.SpiFlashSingle(spi_pads, dummy=6, endianness="little")
+            self.register_mem("spiflash", self.mem_map["spiflash"],
+                self.lxspi.bus, size=2 * 1024 * 1024) # NOTE: EVT is 16 * 1024 * 1024
         else:
-            spi_pads = platform.request("spiflash")
-            self.submodules.lxspi = spi_flash.SpiFlashSingle(spi_pads, dummy=5)
-        self.register_mem("spiflash", self.mem_map["spiflash"],
-            self.lxspi.bus, size=2 * 1024 * 1024) # NOTE: EVT is 16 * 1024 * 1024
-
-        # self.submodules.picorvspi = PicoRVSpi(platform, platform.request("spiflash"))
-        # self.register_mem("spiflash", self.mem_map["spiflash"],
-        #     self.picorvspi.bus, size=self.picorvspi.size)
+            self.submodules.picorvspi = PicoRVSpi(platform, platform.request("spiflash"))
+            self.register_mem("spiflash", self.mem_map["spiflash"],
+                self.picorvspi.bus, size=self.picorvspi.size)
 
         self.submodules.reboot = SBWarmBoot(self, warmboot_offsets)
         if hasattr(self, "cpu"):
@@ -739,7 +748,6 @@ class BaseSoC(SoCCore):
         usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
         if hasattr(self, "cpu"):
             self.submodules.usb = eptri.TriEndpointInterface(usb_iobuf, debug=usb_debug)
-            # self.submodules.usb = epfifo.PerEndpointFifoInterface(usb_iobuf, debug=usb_debug)
         else:
             self.submodules.usb = dummyusb.DummyUsb(usb_iobuf, debug=usb_debug)
 
@@ -760,7 +768,7 @@ class BaseSoC(SoCCore):
         # and the "-dffe_min_ce_use 4" flag prevents Yosys from generating a
         # Clock Enable signal for a LUT that has fewer than 4 flip-flops.
         # This increases density, and lets us use the FPGA more efficiently.
-        platform.toolchain.nextpnr_yosys_template[2] += " -relut -abc2 -dffe_min_ce_use 3 -relut"
+        platform.toolchain.nextpnr_yosys_template[2] += " -relut -abc2 -dffe_min_ce_use 4 -relut"
         if use_dsp:
             platform.toolchain.nextpnr_yosys_template[2] += " -dsp"
 
@@ -852,7 +860,7 @@ def main():
         "--bios", help="use specified file as a BIOS, rather than building one"
     )
     parser.add_argument(
-        "--with-debug", help="enable debug support", choices=["usb", "uart", None]
+        "--with-debug", help="enable debug support", choices=["usb", "uart", "spi", None]
     )
     parser.add_argument(
         "--with-dsp", help="use dsp inference in yosys (not all yosys builds have -dsp)", action="store_true"
@@ -861,7 +869,7 @@ def main():
         "--no-cpu", help="disable cpu generation for debugging purposes", action="store_true"
     )
     parser.add_argument(
-        "--placer", choices=["sa", "heap"], help="which placer to use in nextpnr"
+        "--placer", choices=["sa", "heap"], default="heap", help="which placer to use in nextpnr"
     )
     parser.add_argument(
         "--seed", default=0, help="seed to use in nextpnr"
@@ -896,7 +904,7 @@ def main():
         return 0
 
     compile_software = False
-    if args.boot_source == "bios" and args.bios is None:
+    if (args.boot_source == "bios" or args.boot_source == "spi") and args.bios is None:
         compile_software = True
 
     cpu_type = "vexriscv"
