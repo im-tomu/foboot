@@ -23,7 +23,7 @@ gcc make-booster.c -o make-booster
 The following flash-id values are known:
 
 * EVT: 0xef177018
-* PVT: 0xc2152815
+* PVT: 0xc2152815 / 0xc8144015
 * Hacker: 0x1f148601
 
 The resulting `foboot-booster.bin` can be flashed with Foboot itself as
