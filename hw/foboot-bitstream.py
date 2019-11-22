@@ -299,15 +299,9 @@ class TouchPads(Module, AutoCSR):
         self.specials += touch3.get_tristate(pads.t3)
         self.specials += touch4.get_tristate(pads.t4)
 
-        self.o  = CSRStorage(fields=[
-            CSRField("o", 4, description="Output values for pads 1-4")
-        ])
-        self.oe = CSRStorage(fields=[
-            CSRField("oe", 4, description="Output enable control for pads 1-4")
-        ])
-        self.i  = CSRStatus(fields=[
-            CSRField("i", 4, description="Input value for pads 1-4")
-        ])
+        self.o  = CSRStorage(4, description="Output values for pads 1-4")
+        self.oe = CSRStorage(4, description="Output enable control for pads 1-4")
+        self.i  = CSRStatus(4, description="Input value for pads 1-4")
 
         self.comb += [
             touch1.o.eq(self.o.storage[0]),
