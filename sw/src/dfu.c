@@ -47,9 +47,14 @@ static enum {
     flsPROGRAMMING
 } fl_state;
 
+#define BUSY_POLL_TIMEOUT_MS 5
+#define MANIFEST_POLL_TIMEOUT_MS 1
+#define MANIFEST_TIMEOUT_MS 1000
+#define IDLE_TIMEOUT_MS 5
+
 static dfu_state_t dfu_state = dfuIDLE;
 static dfu_status_t dfu_status = OK;
-static unsigned dfu_poll_timeout_ms = 5;
+static unsigned dfu_poll_timeout_ms = IDLE_TIMEOUT_MS;
 
 static uint32_t dfu_buffer[DFU_TRANSFER_SIZE/4];
 static uint32_t dfu_buffer_offset;
@@ -260,23 +265,24 @@ bool dfu_getstatus(uint8_t status[8])
             } else {
                 set_state(dfuDNBUSY, OK);
             }
+            dfu_poll_timeout_ms = BUSY_POLL_TIMEOUT_MS;
             break;
 
         case dfuMANIFEST_SYNC:
             // Ready to reboot. The main thread will take care of this. Also let the DFU tool
             // know to leave us alone until this happens.
             set_state(dfuMANIFEST, OK);
-            dfu_poll_timeout_ms = 1;
+            dfu_poll_timeout_ms = MANIFEST_POLL_TIMEOUT_MS;
             break;
 
         case dfuMANIFEST:
             // Perform the reboot
             set_state(dfuMANIFEST_WAIT_RESET, OK);
-            dfu_poll_timeout_ms = 1000;
+            dfu_poll_timeout_ms = MANIFEST_TIMEOUT_MS;
             break;
 
         case dfuIDLE:
-            dfu_poll_timeout_ms = 5;
+            dfu_poll_timeout_ms = IDLE_TIMEOUT_MS;
             break;
 
         default:
