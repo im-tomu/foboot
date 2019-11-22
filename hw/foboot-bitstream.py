@@ -674,7 +674,7 @@ class BaseSoC(SoCCore):
                     ("spidebug", 0,
                         Subsignal("mosi", Pins("dbg:0")),
                         Subsignal("miso", Pins("dbg:1")),
-                        Subsignal("clk", Pins("dbg:2")),
+                        Subsignal("clk",  Pins("dbg:2")),
                         Subsignal("cs_n", Pins("dbg:3")),
                     )
                 ]
@@ -683,27 +683,12 @@ class BaseSoC(SoCCore):
                 self.submodules.spibone = ClockDomainsRenamer("usb_12")(spibone.SpiWishboneBridge(spi_pads, wires=4))
                 self.add_wb_master(self.spibone.wishbone)
             if hasattr(self, "cpu"):
-                # self.cpu.use_external_variant("rtl/VexRiscv_Fomu_Debug.v")
+                self.cpu.use_external_variant("rtl/VexRiscv_Fomu_Debug.v")
                 os.path.join(output_dir, "gateware")
                 self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x100)
         else:
             if hasattr(self, "cpu"):
                 self.cpu.use_external_variant("rtl/VexRiscv_Fomu.v")
-
-        # Add SPI Wishbone bridge
-        if debug == "spi":
-            spibone_device = [
-                ("spibone_pins", 0,
-                    Subsignal("mosi", Pins("dbg:0")),
-                    Subsignal("miso", Pins("dbg:1")),
-                    Subsignal("clk",  Pins("dbg:2")),
-                    Subsignal("cs_n", Pins("dbg:3")),
-                )
-            ]
-            platform.add_extension(spibone_device)
-            spi_pads = platform.request("spibone_pins")
-            self.submodules.spibone = ClockDomainsRenamer("usb_12")(spibone.SpiWishboneBridge(spi_pads, wires=4))
-            self.add_wb_master(self.spibone.wishbone)
 
         # SPRAM- UP5K has single port RAM, might as well use it as SRAM to
         # free up scarce block RAM.
