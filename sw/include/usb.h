@@ -20,7 +20,7 @@ void usb_setup(const struct usb_setup_request *setup);
 void usb_send(uint8_t epno, const void *data, int total_count);
 void usb_ack(uint8_t ep);
 void usb_err(uint8_t ep);
-int usb_recv(void *buffer, unsigned int buffer_len);
+int usb_recv(void *buffer, int buffer_len);
 void usb_poll(void);
 void usb_wait_for_send_done(void);
 void usb_set_address(uint8_t new_address);

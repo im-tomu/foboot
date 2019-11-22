@@ -222,7 +222,7 @@ void usb_err(uint8_t epdir) {
     usb_ep_0_in_respond_write(EPF_STALL);
 }
 
-int usb_recv(void *buffer, unsigned int buffer_len) {
+int usb_recv(void *buffer, int buffer_len) {
 
     // Set the OUT response to ACK, since we are in a position to receive data now.
     usb_ep_0_out_respond_write(EPF_ACK);

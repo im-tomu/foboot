@@ -233,10 +233,10 @@ void usb_isr(void) {
         if (!(usb_setup_status_read() & (1 << CSR_USB_SETUP_STATUS_HAVE_OFFSET)))
             rgb_mode_error();
         previous_setup_length = setup_length;
-        memcpy(previous_setup_packet, setup_packet, sizeof(setup_packet));
+        memcpy((void *)previous_setup_packet, (void *)setup_packet, sizeof(setup_packet));
 
         setup_length = 0;
-        memset(setup_packet, 0, sizeof(setup_packet));
+        memset((void *)setup_packet, 0, sizeof(setup_packet));
         while (usb_setup_status_read() & (1 << CSR_USB_SETUP_STATUS_HAVE_OFFSET)) {
             setup_packet[setup_length++] = usb_setup_data_read();
         }
@@ -297,16 +297,16 @@ void usb_err(uint8_t ep) {
         usb_out_ctrl_write(1 << CSR_USB_OUT_CTRL_STALL_OFFSET);
 }
 
-int usb_recv(void *buffer, unsigned int buffer_len) {
+int usb_recv(void *buffer, int buffer_len) {
     // Set the OUT response to ACK, since we are in a position to receive data now.
     if (out_have) {
         usb_ack(0);
     }
     while (1) {
-        if (out_buffer_length) {
+        if (out_have) {
             if (buffer_len > out_buffer_length)
                 buffer_len = out_buffer_length;
-            memcpy(buffer, out_buffer, buffer_len);
+            memcpy(buffer, (void *)out_buffer, buffer_len);
             usb_ack(0);
             return buffer_len;
         }
@@ -321,7 +321,7 @@ void usb_poll(void) {
     // If some data was received, then process it.
     if (setup_length) {
         setup_length = 0;
-        usb_setup(setup_packet);
+        usb_setup((const struct usb_setup_request *)setup_packet);
     }
 
     // process_tx();

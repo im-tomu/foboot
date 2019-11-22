@@ -14,7 +14,7 @@ static uint32_t rx_buffer[USB_MAX_PACKET_SIZE/4];
 
 void usb_setup(const struct usb_setup_request *setup)
 {
-    uint8_t ep_dir = ((const uint8_t *)setup)[0] >> 7;
+    uint8_t ep_dir = setup->bmRequestType >> 7;
     const uint8_t *data = NULL;
     uint32_t datalen = 0;
     const usb_descriptor_list_t *list;
@@ -142,9 +142,6 @@ void usb_setup(const struct usb_setup_request *setup)
             return;
         }
 
-        // ACK the setup packet
-        usb_ack(1);
-
         int bytes_remaining = setup->wLength;
         int ep0_rx_offset = 0;
         // Fill the buffer, or if there is enough space transfer the whole packet.
@@ -158,8 +155,9 @@ void usb_setup(const struct usb_setup_request *setup)
 
             // Receive DATA packets (which are automatically ACKed)
             len = usb_recv((void *)rx_buffer, len);
-            if (len == -1)
+            if (len == -1) {
                 return;
+            }
 
             // Append the data to the download buffer.
             dfu_download(blockNum, blockLength, ep0_rx_offset, len, (void *)rx_buffer);
@@ -200,10 +198,7 @@ void usb_setup(const struct usb_setup_request *setup)
             // once the host acknowledges the packet.
             if (reply_buffer[4] == 8) {
                 usb_send(0, data, datalen);
-                usb_wait_for_send_done();
-                int i;
-                for (i = 0; i < 10000; i++)
-                    asm("nop");
+                usb_recv((void *)rx_buffer, sizeof(rx_buffer));
                 reboot();
             }
             break;
