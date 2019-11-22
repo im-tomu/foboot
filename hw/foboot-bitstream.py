@@ -730,10 +730,10 @@ class BaseSoC(SoCCore):
         # Add a simple bit-banged SPI Flash module
         spi_pads = platform.request("spiflash4x")
         if spi_pads is not None:
-            self.submodules.lxspi = spi_flash.SpiFlashDualQuad(spi_pads, dummy=6)
+            self.submodules.lxspi = spi_flash.SpiFlashDualQuad(spi_pads, dummy=6, endianness="little")
         else:
             spi_pads = platform.request("spiflash")
-            self.submodules.lxspi = spi_flash.SpiFlashSingle(spi_pads, dummy=6)
+            self.submodules.lxspi = spi_flash.SpiFlashSingle(spi_pads, dummy=6, endianness="little")
         self.register_mem("spiflash", self.mem_map["spiflash"],
             self.lxspi.bus, size=2 * 1024 * 1024) # NOTE: EVT is 16 * 1024 * 1024
 
