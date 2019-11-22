@@ -36,7 +36,7 @@ DBG_LFLAGS := -ggdb -g -Wall
 CFLAGS     := $(ADD_CFLAGS) \
 			  -Wall -Wextra \
 			  -ffunction-sections -fdata-sections -fno-common \
-			  -fomit-frame-pointer -O0 \
+			  -fomit-frame-pointer -O2 \
 			  -march=rv32i \
 			  -flto \
 			  -DGIT_VERSION=u\"$(GIT_VERSION)\" -std=gnu11
