@@ -173,6 +173,11 @@ void reboot(void) {
 
 static void init(void)
 {
+#ifdef FLASH_BOOT_ADDRESS
+    spiInit();
+    spiFree();
+    riscv_reboot_to((void *)FLASH_BOOT_ADDRESS, 0);
+#endif
     rgb_init();
     usb_init();
 #if defined(CSR_PICORVSPI_BASE)
@@ -181,12 +186,6 @@ static void init(void)
     spiInit();
     spiFree();
 
-    // These variables are defined when the FPGA is compiled
-    // with --boot-source=spi.  Reboot to the target binary
-    // as soon as SPI is initialized and responding to commands.
-#if defined(SPI_BOOT) && defined(SPI_ENTRYPOINT)
-    riscv_reboot_to(SPI_ENTRYPOINT, 0);
-#endif
 
     if (!nerve_pinch()) {
         maybe_boot_updater();

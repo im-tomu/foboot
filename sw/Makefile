@@ -40,8 +40,8 @@ endif
 LDSCRIPTS  := $(LDSCRIPT) $(LD_DIR)/output_format.ld $(LD_DIR)/regions.ld
 SRC_DIR    := $(BASE_DIR)/src
 THIRD_PARTY := $(BASE_DIR)/third_party
-DBG_CFLAGS := -ggdb -g -DDEBUG -Wall
-DBG_LFLAGS := -ggdb -g -Wall
+DBG_CFLAGS := -ggdb3 -DDEBUG -Wall
+DBG_LFLAGS := -ggdb3 -Wall
 CFLAGS     := $(ADD_CFLAGS) \
 			  -D__vexriscv__ -march=rv32i  -mabi=ilp32 \
 			  -Wall -Wextra \

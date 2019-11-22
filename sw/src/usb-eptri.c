@@ -42,21 +42,7 @@ int last_data_to_send;
 __attribute__((used))
 int last_packet_was_empty;
 
-// Note that our PIDs are only bits 2 and 3 of the token,
-// since all other bits are effectively redundant at this point.
-enum USB_PID {
-    USB_PID_OUT   = 0,
-    USB_PID_SOF   = 1,
-    USB_PID_IN    = 2,
-    USB_PID_SETUP = 3,
-};
-
-enum epfifo_response {
-    EPF_ACK = 0,
-    EPF_NAK = 1,
-    EPF_NONE = 2,
-    EPF_STALL = 3,
-};
+static uint8_t next_address = 0;
 
 #define USB_EV_ERROR 1
 #define USB_EV_PACKET 2
@@ -74,12 +60,23 @@ void usb_connect(void) {
     usb_setup_ev_pending_write(usb_setup_ev_pending_read());
     usb_in_ev_pending_write(usb_in_ev_pending_read());
     usb_out_ev_pending_write(usb_out_ev_pending_read());
-    usb_setup_ev_enable_write(1);
+    usb_setup_ev_enable_write(3);
     usb_in_ev_enable_write(1);
     usb_out_ev_enable_write(1);
 
+    // Reset the IN handler
+    usb_in_ctrl_write(1 << CSR_USB_IN_CTRL_RESET_OFFSET);
+
+    // Reset the SETUP handler
+    usb_setup_ctrl_write(1 << CSR_USB_SETUP_CTRL_RESET_OFFSET);
+
+    // Reset the OUT handler
+    usb_out_ctrl_write(1 << CSR_USB_OUT_CTRL_RESET_OFFSET);
+
     // Accept incoming data by default.
-    usb_out_ctrl_write(2);
+    usb_out_ctrl_write(1 << CSR_USB_OUT_CTRL_ENABLE_OFFSET);
+
+    usb_address_write(0);
 
     // Turn on the external pullup
     usb_pullup_out_write(1);
@@ -98,13 +95,13 @@ void usb_init(void) {
     usb_out_ev_enable_write(0);
 
     // Reset the IN handler
-    usb_in_ctrl_write(0x20);
+    usb_in_ctrl_write(1 << CSR_USB_IN_CTRL_RESET_OFFSET);
 
     // Reset the SETUP handler
-    usb_setup_ctrl_write(0x04);
+    usb_setup_ctrl_write(1 << CSR_USB_SETUP_CTRL_RESET_OFFSET);
 
     // Reset the OUT handler
-    usb_out_ctrl_write(0x04);
+    usb_out_ctrl_write(1 << CSR_USB_OUT_CTRL_RESET_OFFSET);
 
     return;
 }
@@ -112,7 +109,7 @@ void usb_init(void) {
 static void process_tx(void) {
 
     // Don't allow requeueing -- only queue more data if the system is idle.
-    if (!(usb_in_status_read() & 2)) {
+    if (!(usb_in_status_read() & (1 << CSR_USB_IN_STATUS_IDLE_OFFSET))) {
         return;
     }
 
@@ -161,6 +158,7 @@ static void process_tx(void) {
         return;
     }
 
+    // We have more data to send, so fill the buffer
     int this_offset;
     for (this_offset = data_offset; this_offset < (data_offset + data_to_send); this_offset++) {
         usb_in_data_write(current_data[this_offset]);
@@ -177,15 +175,19 @@ static void process_rx(void) {
         return;
 
     // If there isn't any data in the FIFO, don't do anything.
-    if (!(usb_out_status_read() & 1))
+    if (!(usb_out_status_read() & (1 << CSR_USB_OUT_STATUS_HAVE_OFFSET)))
         return;
 
     out_have = 1;
-    out_ep = (usb_out_status_read() >> 2) & 0xf;
+    out_ep = (usb_out_status_read() >> CSR_USB_OUT_STATUS_EPNO_OFFSET) & 0xf;
     out_buffer_length = 0;
-    while (usb_out_status_read() & 1) {
+    while (usb_out_status_read() & (1 << CSR_USB_OUT_STATUS_HAVE_OFFSET)) {
         out_buffer[out_buffer_length++] = usb_out_data_read();
     }
+
+    // Strip off the CRC16 that's at the end of the buffer
+    if (out_buffer_length >= 2)
+        out_buffer_length -= 2;
 }
 
 void usb_send(uint8_t epno, const void *data, int total_count) {
@@ -204,7 +206,7 @@ void usb_send(uint8_t epno, const void *data, int total_count) {
 void usb_wait_for_send_done(void) {
     while (current_data && current_length)
         usb_poll();
-    while ((usb_in_status_read() & 1) == 1)
+    while (usb_in_status_read() & (1 << CSR_USB_IN_STATUS_HAVE_OFFSET))
         usb_poll();
 }
 
@@ -213,21 +215,29 @@ void usb_isr(void) {
     uint8_t setup_pending   = usb_setup_ev_pending_read();
     uint8_t in_pending      = usb_in_ev_pending_read();
     uint8_t out_pending     = usb_out_ev_pending_read();
-    usb_setup_ev_pending_write(setup_pending);
-    usb_in_ev_pending_write(in_pending);
-    usb_out_ev_pending_write(out_pending);
+
+    // USB reset event
+    if (setup_pending & 2) {
+        setup_length = 0;
+        out_buffer_length = 0;
+        out_have = 0;
+        current_data = NULL;
+        current_length = 0;
+        usb_connect();
+        return;
+    }
 
     // We got a SETUP packet.  Copy it to the setup buffer and clear
     // the "pending" bit.
-    if (setup_pending) {
-        if (!(usb_setup_status_read() & 1))
+    if (setup_pending & 1) {
+        if (!(usb_setup_status_read() & (1 << CSR_USB_SETUP_STATUS_HAVE_OFFSET)))
             rgb_mode_error();
         previous_setup_length = setup_length;
         memcpy(previous_setup_packet, setup_packet, sizeof(setup_packet));
 
         setup_length = 0;
         memset(setup_packet, 0, sizeof(setup_packet));
-        while (usb_setup_status_read() & 1) {
+        while (usb_setup_status_read() & (1 << CSR_USB_SETUP_STATUS_HAVE_OFFSET)) {
             setup_packet[setup_length++] = usb_setup_data_read();
         }
 
@@ -246,57 +256,65 @@ void usb_isr(void) {
     if (in_pending) {
         // Process more data to send, if we have any.
         process_tx();
+
+        // If next_address is nonzero, then this is the completion of
+        // the IN packet that follows as the final ACK.  This means
+        // we're free to set our address now.
+        if (next_address) {
+            usb_address_write(next_address);
+            next_address = 0;
+        }
     } 
 
     // An "OUT" transaction just completed so we have new data.
     // (But only if we can accept the data)
     if (out_pending) {
-        // out_buffer_length -= 2; // Strip CRC16
         process_rx();
     }
+
+    usb_setup_ev_pending_write(setup_pending);
+    usb_in_ev_pending_write(in_pending);
+    usb_out_ev_pending_write(out_pending);
+
     return;
 }
 
-void usb_ack_in(void) {
-    // while (usb_in_status_read() & 1)
-    //     ;
-    // usb_in_ctrl_write(0);
-}
-
-void usb_ack_out(void) {
-    // while (usb_out_status_read() & 1)
-    //     ;
-    out_have = 0;
-    usb_out_ctrl_write(2);
+void usb_ack(uint8_t ep) {
+    if (ep) {
+        // Writing to this register queues a transfer
+        usb_in_ctrl_write(0);
+    }
+    else {
+        out_have = 0;
+        usb_out_ctrl_write(1 << CSR_USB_OUT_CTRL_ENABLE_OFFSET);
+    }
 }
 
 void usb_err(uint8_t ep) {
-    // if (ep)
-    //     usb_in_ctrl_write(0x10);
-    // else
-    //     usb_out_stall_write(0x10);
+    if (ep)
+        usb_in_ctrl_write(1 << CSR_USB_IN_CTRL_STALL_OFFSET);
+    else
+        usb_out_ctrl_write(1 << CSR_USB_OUT_CTRL_STALL_OFFSET);
 }
 
 int usb_recv(void *buffer, unsigned int buffer_len) {
-    usb_setup_ctrl_write(2); // Acknowledge we've handled the SETUP packet
     // Set the OUT response to ACK, since we are in a position to receive data now.
     if (out_have) {
-        usb_ack_out();
+        usb_ack(0);
     }
     while (1) {
         if (out_buffer_length) {
             if (buffer_len > out_buffer_length)
                 buffer_len = out_buffer_length;
             memcpy(buffer, out_buffer, buffer_len);
-            usb_ack_out();
+            usb_ack(0);
             return buffer_len;
         }
     }
-    return 0;
 }
 
 void usb_set_address(uint8_t new_address) {
-    usb_address_write(new_address);
+    next_address = new_address;
 }
 
 void usb_poll(void) {
@@ -304,43 +322,11 @@ void usb_poll(void) {
     if (setup_length) {
         setup_length = 0;
         usb_setup(setup_packet);
-        if (setup_length == 0)
-            usb_setup_ctrl_write(2); // Acknowledge we've handled the SETUP packet
     }
 
-    if (out_have) {
-        out_have = 0;
-        if (out_ep > 0) {
-            int i;
-            for (i = 0; i < out_buffer_length; i++)
-                out_buffer[i] += 1;
-            usb_send(out_ep, out_buffer, out_buffer_length - 2);
-        }
-        usb_ack_out();
-    }
-
-    process_tx();
-    process_rx();
+    // process_tx();
+    // process_rx();
 }
-
-// struct usb_status {
-//     volatile uint32_t error_count;
-//     volatile uint32_t tok_waits;
-//     volatile uint32_t status;
-//     volatile uint32_t address;
-//     volatile uint32_t stage;
-// };
-
-// __attribute__((noinline))
-// struct usb_status usb_get_status(void) {
-//     struct usb_status usb_status;
-//     usb_status.error_count = usb_error_count_read();
-//     usb_status.tok_waits = usb_tok_waits_read();
-//     usb_status.status = usb_status_read();
-//     usb_status.address = usb_address_read();
-//     usb_status.stage = usb_stage_num_read();
-//     return usb_status;
-// }
 
 #else
 #error "Not enabled"

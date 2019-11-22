@@ -39,6 +39,7 @@ from valentyusb.usbcore.cpu import epmem, unififo, epfifo, dummyusb, eptri
 from valentyusb.usbcore.endpoint import EndpointType
 
 import lxsocdoc
+import spibone
 
 import argparse
 import os
@@ -75,6 +76,15 @@ class FirmwareROM(wishbone.SRAM):
         data = []
         with open(filename, 'rb') as inp:
             data = inp.read()
+        wishbone.SRAM.__init__(self, size, read_only=True, init=data)
+
+class JumpToAddressROM(wishbone.SRAM):
+    def __init__(self, size, addr):
+        data = [
+            0x00000537 | ((addr & 0xfffff000) << 0 ), # lui   a0,%hi(addr)
+            0x00052503 | ((addr & 0x00000fff) << 20), # lw    a0,%lo(addr)(a0)
+            0x000500e7,                               # jalr  a0
+        ]
         wishbone.SRAM.__init__(self, size, read_only=True, init=data)
 
 class Platform(LatticePlatform):
@@ -676,9 +686,24 @@ class BaseSoC(SoCCore):
                 # self.cpu.use_external_variant("rtl/VexRiscv_Fomu_Debug.v")
                 os.path.join(output_dir, "gateware")
                 self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x100)
-        # else:
-        #     if hasattr(self, "cpu"):
-        #         self.cpu.use_external_variant("rtl/VexRiscv_Fomu.v")
+        else:
+            if hasattr(self, "cpu"):
+                self.cpu.use_external_variant("rtl/VexRiscv_Fomu.v")
+
+        # Add SPI Wishbone bridge
+        if debug == "spi":
+            spibone_device = [
+                ("spibone_pins", 0,
+                    Subsignal("mosi", Pins("dbg:0")),
+                    Subsignal("miso", Pins("dbg:1")),
+                    Subsignal("clk",  Pins("dbg:2")),
+                    Subsignal("cs_n", Pins("dbg:3")),
+                )
+            ]
+            platform.add_extension(spibone_device)
+            spi_pads = platform.request("spibone_pins")
+            self.submodules.spibone = ClockDomainsRenamer("usb_12")(spibone.SpiWishboneBridge(spi_pads, wires=4))
+            self.add_wb_master(self.spibone.wishbone)
 
         # SPRAM- UP5K has single port RAM, might as well use it as SRAM to
         # free up scarce block RAM.
@@ -690,7 +715,7 @@ class BaseSoC(SoCCore):
         self.submodules.messible = Messible()
 
         if boot_source == "rand":
-            kwargs['cpu_reset_address']=0
+            kwargs['cpu_reset_address'] = 0
             bios_size = 0x2000
             self.submodules.random_rom = RandomFirmwareROM(bios_size)
             self.add_constant("ROM_DISABLE", 1)
@@ -708,31 +733,28 @@ class BaseSoC(SoCCore):
                 self.register_rom(self.firmware_rom.bus, bios_size)
 
         elif boot_source == "spi":
-            platform.gateware_size = 0x1a000
+            kwargs['cpu_reset_address'] = 0
             self.integrated_rom_size = bios_size = 0x2000
-            kwargs["cpu_reset_address"] = 0
-            self.add_constant("SPI_BOOT", 1)
-            self.add_constant("SPI_ENTRYPOINT", self.mem_map["spiflash"] + platform.gateware_size)
+            gateware_size = 0x1a000
+            self.flash_boot_address = self.mem_map["spiflash"] + gateware_size
             self.submodules.rom = wishbone.SRAM(bios_size, read_only=True, init=[])
             self.register_rom(self.rom.bus, bios_size)
         else:
             raise ValueError("unrecognized boot_source: {}".format(boot_source))
 
-        # Add a SPI Flash module
-        if True:
-            spi_pads = platform.request("spiflash4x")
-            if spi_pads is not None:
-                self.submodules.lxspi = spi_flash.SpiFlashDualQuad(spi_pads, dummy=6, endianness="little")
-            else:
-                raise "Error"
-                spi_pads = platform.request("spiflash")
-                self.submodules.lxspi = spi_flash.SpiFlashSingle(spi_pads, dummy=6, endianness="little")
-            self.register_mem("spiflash", self.mem_map["spiflash"],
-                self.lxspi.bus, size=2 * 1024 * 1024) # NOTE: EVT is 16 * 1024 * 1024
+        # Add a simple bit-banged SPI Flash module
+        spi_pads = platform.request("spiflash4x")
+        if spi_pads is not None:
+            self.submodules.lxspi = spi_flash.SpiFlashDualQuad(spi_pads, dummy=6)
         else:
-            self.submodules.picorvspi = PicoRVSpi(platform, platform.request("spiflash"))
-            self.register_mem("spiflash", self.mem_map["spiflash"],
-                self.picorvspi.bus, size=self.picorvspi.size)
+            spi_pads = platform.request("spiflash")
+            self.submodules.lxspi = spi_flash.SpiFlashSingle(spi_pads, dummy=6)
+        self.register_mem("spiflash", self.mem_map["spiflash"],
+            self.lxspi.bus, size=2 * 1024 * 1024) # NOTE: EVT is 16 * 1024 * 1024
+
+        # self.submodules.picorvspi = PicoRVSpi(platform, platform.request("spiflash"))
+        # self.register_mem("spiflash", self.mem_map["spiflash"],
+        #     self.picorvspi.bus, size=self.picorvspi.size)
 
         self.submodules.reboot = SBWarmBoot(self, warmboot_offsets)
         if hasattr(self, "cpu"):

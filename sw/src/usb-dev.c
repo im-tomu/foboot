@@ -54,10 +54,6 @@ void usb_setup(const struct usb_setup_request *setup)
         }
         reply_buffer[0] = 0;
         reply_buffer[1] = 0;
-
-        // XXX handle endpoint stall here
-//        if (USB->DIEP0CTL & USB_DIEP_CTL_STALL)
-//            reply_buffer[0] = 1;
         data = reply_buffer;
         datalen = 2;
         break;
@@ -65,25 +61,17 @@ void usb_setup(const struct usb_setup_request *setup)
     case 0x0102: // CLEAR_FEATURE (endpoint)
         if (setup->wIndex > 0 || setup->wValue != 0)
         {
-            // TODO: do we need to handle IN vs OUT here?
             usb_err(ep_dir);
             return;
         }
-        // XXX: Should we clear the stall bit?
-        // USB->DIEP0CTL &= ~USB_DIEP_CTL_STALL;
-        // TODO: do we need to clear the data toggle here?
         break;
 
     case 0x0302: // SET_FEATURE (endpoint)
         if (setup->wIndex > 0 || setup->wValue != 0)
         {
-            // TODO: do we need to handle IN vs OUT here?
             usb_err(ep_dir);
             return;
         }
-        // XXX: Should we set the stall bit?
-        // USB->DIEP0CTL |= USB_DIEP_CTL_STALL;
-        // TODO: do we need to clear the data toggle here?
         break;
 
     case 0x0680: // GET_DESCRIPTOR
@@ -133,7 +121,6 @@ void usb_setup(const struct usb_setup_request *setup)
                 break;
             }
         }
-        // printf("%s:%d couldn't find webusb descriptor (%d / %d)\n", __FILE__, __LINE__, setup->wIndex, setup->wValue);
         usb_err(ep_dir);
         return;
 
@@ -151,12 +138,12 @@ void usb_setup(const struct usb_setup_request *setup)
                 usb_err(ep_dir);
                 return;
             }
-            usb_ack_in();
+            usb_ack(!ep_dir);
             return;
         }
 
         // ACK the setup packet
-        // usb_ack_out();
+        usb_ack(1);
 
         int bytes_remaining = setup->wLength;
         int ep0_rx_offset = 0;
@@ -165,12 +152,9 @@ void usb_setup(const struct usb_setup_request *setup)
         unsigned int blockNum = setup->wValue;
 
         while (bytes_remaining > 0) {
-            // unsigned int i;
             int len = blockLength;
             if (len > (int) sizeof(rx_buffer))
                 len = sizeof(rx_buffer);
-            // for (i = 0; i < sizeof(rx_buffer)/4; i++)
-            //     rx_buffer[i] = 0xffffffff;
 
             // Receive DATA packets (which are automatically ACKed)
             len = usb_recv((void *)rx_buffer, len);
@@ -188,14 +172,14 @@ void usb_setup(const struct usb_setup_request *setup)
         }
 
         // ACK the final IN packet.
-        usb_ack_in();
+        usb_ack(1);
 
         return;
 
     case 0x0021: // DFU_DETACH
         // Send the "ACK" packet and wait for it
         // to be received.
-        usb_ack_in();
+        usb_ack(1);
         usb_wait_for_send_done();
         reboot();
         while (1)
@@ -284,8 +268,9 @@ send:
         if (datalen > setup->wLength)
             datalen = setup->wLength;
         usb_send(0, data, datalen);
+        usb_ack(!ep_dir);
     }
     else
-        usb_ack_in();
+        usb_ack(!ep_dir);
     return;
 }

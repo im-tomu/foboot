@@ -28,21 +28,22 @@ enum pin {
 	PIN_MOSI = 0,
 	PIN_CLK = 1,
 	PIN_CS = 2,
-	PIN_MISO = 3,
-	PIN_OUTPUT = 4, // Whether it's an output or not
-	PIN_INPUT = 5, // Whether it's an output or not
+	PIN_MISO_EN = 3,
+	PIN_MISO = 4, // Value is ignored
 #endif
 };
 
 static void gpioWrite(enum pin pin, int val);
 
-#if defined(CSR_LXSPI_BASE)
 static void gpioDirection(int is_input) {
-	if (is_input == ((do_mirror >> PIN_MISO) & 1))
+#if defined(CSR_LXSPI_BASE)
+	if (is_input == ((do_mirror >> PIN_MISO_EN) & 1))
 		return;
-	gpioWrite(PIN_MISO, is_input);
-}
+	gpioWrite(PIN_MISO_EN, is_input);
+#else
+	(void)is_input;
 #endif
+}
 
 static void gpioWrite(enum pin pin, int val) {
     if (val)
@@ -53,8 +54,8 @@ static void gpioWrite(enum pin pin, int val) {
     picorvspi_cfg1_write(do_mirror);
 #endif
 #if defined(CSR_LXSPI_BASE)
-	if (pin == PIN_MOSI) // If it's the MOSI pin, ensure we're in OUTPUT mode
-		do_mirror &= ~(1 << PIN_MISO);
+	if (pin == PIN_MOSI)
+		gpioDirection(1);
 	lxspi_bitbang_write(do_mirror);
 #endif
 }
@@ -64,14 +65,13 @@ static int gpioRead(int pin) {
     return !!(picorvspi_stat1_read() & (1 << pin));
 #endif
 #if defined(CSR_LXSPI_BASE)
-	(void)pin;
-	gpioDirection(1);
+	if (pin == PIN_MISO)
+		gpioDirection(1);
 	return lxspi_miso_read();
 #endif
 }
 
 static void gpioSync(void) {
-    // bbspi_do_write(do_mirror);
 }
 
 enum ff_spi_quirks {
@@ -97,10 +97,6 @@ struct ff_spi {
 };
 
 static void spi_get_id(void);
-
-static void spi_set_state(enum spi_state state) {
-	(void)state;
-}
 
 void spiPause(void) {
 	gpioSync();
@@ -137,30 +133,11 @@ static uint8_t spiXfer(uint8_t out) {
 }
 
 static void spiSingleTx(uint8_t out) {
-	spi_set_state(SS_SINGLE);
 	spiXfer(out);
 }
 
 static uint8_t spiSingleRx(void) {
-	spi_set_state(SS_SINGLE);
 	return spiXfer(0xff);
-}
-
-int spiTx(uint8_t word) {
-	spiSingleTx(word);
-	return 0;
-}
-
-uint8_t spiRx(void) {
-	return spiSingleRx();
-}
-
-void spiCommand(uint8_t cmd) {
-	spiSingleTx(cmd);
-}
-
-uint8_t spiCommandRx(void) {
-	return spiSingleRx();
 }
 
 uint8_t spiReadStatus(uint8_t sr) {
@@ -168,51 +145,20 @@ uint8_t spiReadStatus(uint8_t sr) {
 	(void)sr;
 
 	spiBegin();
-	spiCommand(0x05);
-	val = spiCommandRx();
+	spiSingleTx(0x05);
+	val = spiSingleRx();
 	spiEnd();
 	return val;
 }
 
-#if 0
-struct spi_id spiId(struct ff_spi *spi) {
-	return spi->id;
-}
-
-static void spi_decode_id(struct ff_spi *spi) {
-	spi->id.bytes = -1; // unknown
-
-	if (spi->id.manufacturer_id == 0xef) {
-		// spi->id.manufacturer = "Winbond";
-		if ((spi->id.memory_type == 0x70)
-		 && (spi->id.memory_size == 0x18)) {
-			// spi->id.model = "W25Q128JV";
-			// spi->id.capacity = "128 Mbit";
-			spi->id.bytes = 16 * 1024 * 1024;
-		}
-	}
-
-	if (spi->id.manufacturer_id == 0x1f) {
-		// spi->id.manufacturer = "Adesto";
-		 if ((spi->id.memory_type == 0x86)
-		  && (spi->id.memory_size == 0x01)) {
-			// spi->id.model = "AT25SF161";
-			// spi->id.capacity = "16 Mbit";
-			spi->id.bytes = 1 * 1024 * 1024;
-		}
-	}
-	return;
-}
-#endif
-
 static void spi_get_id(void) {
 	spiBegin();
-	spiCommand(0x90);	// Read manufacturer ID
-	spiCommand(0x00);  // Dummy byte 1
-	spiCommand(0x00);  // Dummy byte 2
-	spiCommand(0x00);  // Dummy byte 3
-	spi_id.manufacturer_id = spiCommandRx();
-	spi_id.device_id = spiCommandRx();
+	spiSingleTx(0x90);	// Read manufacturer ID
+	spiSingleTx(0x00);  // Dummy byte 1
+	spiSingleTx(0x00);  // Dummy byte 2
+	spiSingleTx(0x00);  // Dummy byte 3
+	spi_id.manufacturer_id = spiSingleRx();
+	spi_id.device_id = spiSingleRx();
 	spiEnd();
 	return;
 }
@@ -221,17 +167,32 @@ int spiIsBusy(void) {
   	return spiReadStatus(1) & (1 << 0);
 }
 
-int spiBeginErase32(uint32_t erase_addr) {
+int spiBeginErase4(uint32_t erase_addr) {
 	// Enable Write-Enable Latch (WEL)
 	spiBegin();
-	spiCommand(0x06);
+	spiSingleTx(0x06);
 	spiEnd();
 
 	spiBegin();
-	spiCommand(0x52);
-	spiCommand(erase_addr >> 16);
-	spiCommand(erase_addr >> 8);
-	spiCommand(erase_addr >> 0);
+	spiSingleTx(0x20);
+	spiSingleTx(erase_addr >> 16);
+	spiSingleTx(erase_addr >> 8);
+	spiSingleTx(erase_addr >> 0);
+	spiEnd();
+	return 0;
+}
+
+int spiBeginErase32(uint32_t erase_addr) {
+	// Enable Write-Enable Latch (WEL)
+	spiBegin();
+	spiSingleTx(0x06);
+	spiEnd();
+
+	spiBegin();
+	spiSingleTx(0x52);
+	spiSingleTx(erase_addr >> 16);
+	spiSingleTx(erase_addr >> 8);
+	spiSingleTx(erase_addr >> 0);
 	spiEnd();
 	return 0;
 }
@@ -239,14 +200,14 @@ int spiBeginErase32(uint32_t erase_addr) {
 int spiBeginErase64(uint32_t erase_addr) {
 	// Enable Write-Enable Latch (WEL)
 	spiBegin();
-	spiCommand(0x06);
+	spiSingleTx(0x06);
 	spiEnd();
 
 	spiBegin();
-	spiCommand(0xD8);
-	spiCommand(erase_addr >> 16);
-	spiCommand(erase_addr >> 8);
-	spiCommand(erase_addr >> 0);
+	spiSingleTx(0xD8);
+	spiSingleTx(erase_addr >> 16);
+	spiSingleTx(erase_addr >> 8);
+	spiSingleTx(erase_addr >> 0);
 	spiEnd();
 	return 0;
 }
@@ -258,16 +219,16 @@ int spiBeginWrite(uint32_t addr, const void *v_data, unsigned int count) {
 
 	// Enable Write-Enable Latch (WEL)
 	spiBegin();
-	spiCommand(0x06);
+	spiSingleTx(0x06);
 	spiEnd();
 
 	spiBegin();
-	spiCommand(write_cmd);
-	spiCommand(addr >> 16);
-	spiCommand(addr >> 8);
-	spiCommand(addr >> 0);
+	spiSingleTx(write_cmd);
+	spiSingleTx(addr >> 16);
+	spiSingleTx(addr >> 8);
+	spiSingleTx(addr >> 0);
 	for (i = 0; (i < count) && (i < 256); i++)
-		spiTx(*data++);
+		spiSingleTx(*data++);
 	spiEnd();
 
 	return 0;
@@ -280,12 +241,12 @@ uint8_t spiReset(void) {
 	unsigned int i;
 	spiBegin();
 	for (i = 0; i < 8; i++)
-		spiCommand(0xff);
+		spiSingleTx(0xff);
 	spiEnd();
 
 	// Some SPI parts require this to wake up
 	spiBegin();
-	spiCommand(0xab);	// Read electronic signature
+	spiSingleTx(0xab);	// Read electronic signature
 	spiEnd();
 
 	return 0;
@@ -311,13 +272,13 @@ int spiInit(void) {
 
 void spiHold(void) {
 	spiBegin();
-	spiCommand(0xb9);
+	spiSingleTx(0xb9);
 	spiEnd();
 
 }
 void spiUnhold(void) {
 	spiBegin();
-	spiCommand(0xab);
+	spiSingleTx(0xab);
 	spiEnd();
 }
 
