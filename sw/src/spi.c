@@ -11,9 +11,7 @@
 
 #include "spi.h"
 
-struct spi_id spi_id;
-
-static uint8_t do_mirror;
+static uint32_t do_mirror;
 
 enum pin {
 #if defined(CSR_PICORVSPI_BASE)
@@ -33,19 +31,19 @@ enum pin {
 #endif
 };
 
-static void gpioWrite(enum pin pin, int val);
+static void gpio_write(enum pin pin, int val);
 
-static void gpioDirection(int is_input) {
+static void gpio_direction(int is_input) {
 #if defined(CSR_LXSPI_BASE)
 	if (is_input == ((do_mirror >> PIN_MISO_EN) & 1))
 		return;
-	gpioWrite(PIN_MISO_EN, is_input);
+	gpio_write(PIN_MISO_EN, is_input);
 #else
 	(void)is_input;
 #endif
 }
 
-static void gpioWrite(enum pin pin, int val) {
+static void gpio_write(enum pin pin, int val) {
     if (val)
         do_mirror |= 1 << pin;
     else
@@ -54,95 +52,59 @@ static void gpioWrite(enum pin pin, int val) {
     picorvspi_cfg1_write(do_mirror);
 #endif
 #if defined(CSR_LXSPI_BASE)
-	if (pin == PIN_MOSI)
-		gpioDirection(1);
 	lxspi_bitbang_write(do_mirror);
 #endif
 }
 
-static int gpioRead(int pin) {
+static int gpio_read(int pin) {
 #if defined(CSR_PICORVSPI_BASE)
     return !!(picorvspi_stat1_read() & (1 << pin));
 #endif
 #if defined(CSR_LXSPI_BASE)
-	if (pin == PIN_MISO)
-		gpioDirection(1);
+	(void)pin;
 	return lxspi_miso_read();
 #endif
 }
 
-static void gpioSync(void) {
-}
-
-enum ff_spi_quirks {
-	// There is no separate "Write SR 2" command.  Instead,
-	// you must write SR2 after writing SR1
-	SQ_SR2_FROM_SR1    = (1 << 0),
-
-	// Don't issue a "Write Enable" command prior to writing
-	// a status register
-	SQ_SKIP_SR_WEL     = (1 << 1),
-
-	// Security registers are shifted up by 4 bits
-	SQ_SECURITY_NYBBLE_SHIFT = (1 << 2),
-};
-
-struct ff_spi {
-	enum spi_state state;
-	enum spi_type type;
-	enum spi_type desired_type;
-	struct spi_id id;
-	enum ff_spi_quirks quirks;
-	int size_override;
-};
-
-static void spi_get_id(void);
-
-void spiPause(void) {
-	gpioSync();
-	return;
-}
-
 void spiBegin(void) {
-	gpioWrite(PIN_CS, 0);
+	lxspi_bitbang_write((0 << PIN_MISO_EN) | (0 << PIN_CLK) | (0 << PIN_CS));
 }
 
 void spiEnd(void) {
-	gpioWrite(PIN_CS, 1);
+	lxspi_bitbang_write(1 << PIN_CS);
 }
 
-static uint8_t spiXfer(uint8_t out) {
+static void spiSingleTx(uint8_t out) {
 	int bit;
-	uint8_t in = 0;
 
 	for (bit = 7; bit >= 0; bit--) {
 		if (out & (1 << bit)) {
-			gpioWrite(PIN_MOSI, 1);
+			lxspi_bitbang_write((0 << PIN_CLK) | (1 << PIN_MOSI));
+			lxspi_bitbang_write((1 << PIN_CLK) | (1 << PIN_MOSI));
+		} else {
+			lxspi_bitbang_write((0 << PIN_CLK) | (0 << PIN_MOSI));
+			lxspi_bitbang_write((1 << PIN_CLK) | (0 << PIN_MOSI));
 		}
-		else {
-			gpioWrite(PIN_MOSI, 0);
-		}
-		gpioWrite(PIN_CLK, 1);
-		spiPause();
-		in |= ((!!gpioRead(PIN_MISO)) << bit);
-		gpioWrite(PIN_CLK, 0);
-		spiPause();
+	}
+}
+
+static uint8_t spiSingleRx(void) {
+	int bit = 0;
+	uint8_t in = 0;
+
+	lxspi_bitbang_write((1 << PIN_MISO_EN) | (0 << PIN_CLK));
+
+	while (bit++ < 8) {
+		lxspi_bitbang_write((1 << PIN_MISO_EN) | (1 << PIN_CLK));
+		in = (in << 1) | gpio_read(PIN_MISO);
+		lxspi_bitbang_write((1 << PIN_MISO_EN) | (0 << PIN_CLK));
 	}
 
 	return in;
 }
 
-static void spiSingleTx(uint8_t out) {
-	spiXfer(out);
-}
-
-static uint8_t spiSingleRx(void) {
-	return spiXfer(0xff);
-}
-
-uint8_t spiReadStatus(uint8_t sr) {
-	uint8_t val = 0xff;
-	(void)sr;
+static uint8_t spi_read_status(void) {
+	uint8_t val;
 
 	spiBegin();
 	spiSingleTx(0x05);
@@ -151,20 +113,35 @@ uint8_t spiReadStatus(uint8_t sr) {
 	return val;
 }
 
-static void spi_get_id(void) {
-	spiBegin();
-	spiSingleTx(0x90);	// Read manufacturer ID
-	spiSingleTx(0x00);  // Dummy byte 1
-	spiSingleTx(0x00);  // Dummy byte 2
-	spiSingleTx(0x00);  // Dummy byte 3
-	spi_id.manufacturer_id = spiSingleRx();
-	spi_id.device_id = spiSingleRx();
-	spiEnd();
-	return;
+int spiIsBusy(void) {
+  	return spi_read_status() & (1 << 0);
 }
 
-int spiIsBusy(void) {
-  	return spiReadStatus(1) & (1 << 0);
+__attribute__((used))
+uint32_t spi_id;
+
+__attribute__((used))
+uint32_t spiId(void) {
+	uint32_t id = 0;
+
+	spiBegin();
+	spiSingleTx(0x90);               // Read manufacturer ID
+	spiSingleTx(0x00);               // Dummy byte 1
+	spiSingleTx(0x00);               // Dummy byte 2
+	spiSingleTx(0x00);               // Dummy byte 3
+	id = (id << 8) | spiSingleRx();  // Manufacturer ID
+	id = (id << 8) | spiSingleRx();  // Device ID
+	spiEnd();
+
+	spiBegin();
+	spiSingleTx(0x9f);               // Read device id
+	(void)spiSingleRx();             // Manufacturer ID (again)
+	id = (id << 8) | spiSingleRx();  // Memory Type
+	id = (id << 8) | spiSingleRx();  // Memory Size
+	spiEnd();
+
+	spi_id = id;
+	return id;
 }
 
 int spiBeginErase4(uint32_t erase_addr) {
@@ -262,10 +239,10 @@ int spiInit(void) {
 #endif
 
 	// Reset the SPI flash, which will return it to SPI mode even
-	// if it's in QPI mode.
+	// if it's in QPI mode, and ensure the chip is accepting commands.
 	spiReset();
 
-	spi_get_id();
+	spiId();
 
 	return 0;
 }
