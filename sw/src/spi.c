@@ -11,8 +11,6 @@
 
 #include "spi.h"
 
-static uint32_t do_mirror;
-
 enum pin {
 #if defined(CSR_PICORVSPI_BASE)
 	PIN_MOSI = 0,
@@ -31,41 +29,6 @@ enum pin {
 #endif
 };
 
-static void gpio_write(enum pin pin, int val);
-
-static void gpio_direction(int is_input) {
-#if defined(CSR_LXSPI_BASE)
-	if (is_input == ((do_mirror >> PIN_MISO_EN) & 1))
-		return;
-	gpio_write(PIN_MISO_EN, is_input);
-#else
-	(void)is_input;
-#endif
-}
-
-static void gpio_write(enum pin pin, int val) {
-    if (val)
-        do_mirror |= 1 << pin;
-    else
-        do_mirror &= ~(1 << pin);
-#if defined(CSR_PICORVSPI_BASE)
-    picorvspi_cfg1_write(do_mirror);
-#endif
-#if defined(CSR_LXSPI_BASE)
-	lxspi_bitbang_write(do_mirror);
-#endif
-}
-
-static int gpio_read(int pin) {
-#if defined(CSR_PICORVSPI_BASE)
-    return !!(picorvspi_stat1_read() & (1 << pin));
-#endif
-#if defined(CSR_LXSPI_BASE)
-	(void)pin;
-	return lxspi_miso_read();
-#endif
-}
-
 void spiBegin(void) {
 	lxspi_bitbang_write((0 << PIN_MISO_EN) | (0 << PIN_CLK) | (0 << PIN_CS));
 }
@@ -74,7 +37,7 @@ void spiEnd(void) {
 	lxspi_bitbang_write(1 << PIN_CS);
 }
 
-static void spiSingleTx(uint8_t out) {
+static void spi_single_tx(uint8_t out) {
 	int bit;
 
 	for (bit = 7; bit >= 0; bit--) {
@@ -88,7 +51,7 @@ static void spiSingleTx(uint8_t out) {
 	}
 }
 
-static uint8_t spiSingleRx(void) {
+static uint8_t spi_single_rx(void) {
 	int bit = 0;
 	uint8_t in = 0;
 
@@ -96,7 +59,7 @@ static uint8_t spiSingleRx(void) {
 
 	while (bit++ < 8) {
 		lxspi_bitbang_write((1 << PIN_MISO_EN) | (1 << PIN_CLK));
-		in = (in << 1) | gpio_read(PIN_MISO);
+		in = (in << 1) | lxspi_miso_read();
 		lxspi_bitbang_write((1 << PIN_MISO_EN) | (0 << PIN_CLK));
 	}
 
@@ -107,8 +70,8 @@ static uint8_t spi_read_status(void) {
 	uint8_t val;
 
 	spiBegin();
-	spiSingleTx(0x05);
-	val = spiSingleRx();
+	spi_single_tx(0x05);
+	val = spi_single_rx();
 	spiEnd();
 	return val;
 }
@@ -125,19 +88,19 @@ uint32_t spiId(void) {
 	uint32_t id = 0;
 
 	spiBegin();
-	spiSingleTx(0x90);               // Read manufacturer ID
-	spiSingleTx(0x00);               // Dummy byte 1
-	spiSingleTx(0x00);               // Dummy byte 2
-	spiSingleTx(0x00);               // Dummy byte 3
-	id = (id << 8) | spiSingleRx();  // Manufacturer ID
-	id = (id << 8) | spiSingleRx();  // Device ID
+	spi_single_tx(0x90);               // Read manufacturer ID
+	spi_single_tx(0x00);               // Dummy byte 1
+	spi_single_tx(0x00);               // Dummy byte 2
+	spi_single_tx(0x00);               // Dummy byte 3
+	id = (id << 8) | spi_single_rx();  // Manufacturer ID
+	id = (id << 8) | spi_single_rx();  // Device ID
 	spiEnd();
 
 	spiBegin();
-	spiSingleTx(0x9f);               // Read device id
-	(void)spiSingleRx();             // Manufacturer ID (again)
-	id = (id << 8) | spiSingleRx();  // Memory Type
-	id = (id << 8) | spiSingleRx();  // Memory Size
+	spi_single_tx(0x9f);               // Read device id
+	(void)spi_single_rx();             // Manufacturer ID (again)
+	id = (id << 8) | spi_single_rx();  // Memory Type
+	id = (id << 8) | spi_single_rx();  // Memory Size
 	spiEnd();
 
 	spi_id = id;
@@ -147,14 +110,14 @@ uint32_t spiId(void) {
 int spiBeginErase4(uint32_t erase_addr) {
 	// Enable Write-Enable Latch (WEL)
 	spiBegin();
-	spiSingleTx(0x06);
+	spi_single_tx(0x06);
 	spiEnd();
 
 	spiBegin();
-	spiSingleTx(0x20);
-	spiSingleTx(erase_addr >> 16);
-	spiSingleTx(erase_addr >> 8);
-	spiSingleTx(erase_addr >> 0);
+	spi_single_tx(0x20);
+	spi_single_tx(erase_addr >> 16);
+	spi_single_tx(erase_addr >> 8);
+	spi_single_tx(erase_addr >> 0);
 	spiEnd();
 	return 0;
 }
@@ -162,14 +125,14 @@ int spiBeginErase4(uint32_t erase_addr) {
 int spiBeginErase32(uint32_t erase_addr) {
 	// Enable Write-Enable Latch (WEL)
 	spiBegin();
-	spiSingleTx(0x06);
+	spi_single_tx(0x06);
 	spiEnd();
 
 	spiBegin();
-	spiSingleTx(0x52);
-	spiSingleTx(erase_addr >> 16);
-	spiSingleTx(erase_addr >> 8);
-	spiSingleTx(erase_addr >> 0);
+	spi_single_tx(0x52);
+	spi_single_tx(erase_addr >> 16);
+	spi_single_tx(erase_addr >> 8);
+	spi_single_tx(erase_addr >> 0);
 	spiEnd();
 	return 0;
 }
@@ -177,14 +140,14 @@ int spiBeginErase32(uint32_t erase_addr) {
 int spiBeginErase64(uint32_t erase_addr) {
 	// Enable Write-Enable Latch (WEL)
 	spiBegin();
-	spiSingleTx(0x06);
+	spi_single_tx(0x06);
 	spiEnd();
 
 	spiBegin();
-	spiSingleTx(0xD8);
-	spiSingleTx(erase_addr >> 16);
-	spiSingleTx(erase_addr >> 8);
-	spiSingleTx(erase_addr >> 0);
+	spi_single_tx(0xD8);
+	spi_single_tx(erase_addr >> 16);
+	spi_single_tx(erase_addr >> 8);
+	spi_single_tx(erase_addr >> 0);
 	spiEnd();
 	return 0;
 }
@@ -196,16 +159,16 @@ int spiBeginWrite(uint32_t addr, const void *v_data, unsigned int count) {
 
 	// Enable Write-Enable Latch (WEL)
 	spiBegin();
-	spiSingleTx(0x06);
+	spi_single_tx(0x06);
 	spiEnd();
 
 	spiBegin();
-	spiSingleTx(write_cmd);
-	spiSingleTx(addr >> 16);
-	spiSingleTx(addr >> 8);
-	spiSingleTx(addr >> 0);
+	spi_single_tx(write_cmd);
+	spi_single_tx(addr >> 16);
+	spi_single_tx(addr >> 8);
+	spi_single_tx(addr >> 0);
 	for (i = 0; (i < count) && (i < 256); i++)
-		spiSingleTx(*data++);
+		spi_single_tx(*data++);
 	spiEnd();
 
 	return 0;
@@ -218,12 +181,12 @@ uint8_t spiReset(void) {
 	unsigned int i;
 	spiBegin();
 	for (i = 0; i < 8; i++)
-		spiSingleTx(0xff);
+		spi_single_tx(0xff);
 	spiEnd();
 
 	// Some SPI parts require this to wake up
 	spiBegin();
-	spiSingleTx(0xab);	// Read electronic signature
+	spi_single_tx(0xab);	// Read electronic signature
 	spiEnd();
 
 	return 0;
@@ -249,13 +212,13 @@ int spiInit(void) {
 
 void spiHold(void) {
 	spiBegin();
-	spiSingleTx(0xb9);
+	spi_single_tx(0xb9);
 	spiEnd();
 
 }
 void spiUnhold(void) {
 	spiBegin();
-	spiSingleTx(0xab);
+	spi_single_tx(0xab);
 	spiEnd();
 }
 
