@@ -230,8 +230,6 @@ void usb_isr(void) {
     // We got a SETUP packet.  Copy it to the setup buffer and clear
     // the "pending" bit.
     if (setup_pending & 1) {
-        if (!(usb_setup_status_read() & (1 << CSR_USB_SETUP_STATUS_HAVE_OFFSET)))
-            rgb_mode_error();
         previous_setup_length = setup_length;
         memcpy((void *)previous_setup_packet, (void *)setup_packet, sizeof(setup_packet));
 
@@ -247,7 +245,6 @@ void usb_isr(void) {
             setup_packet_count++;
         }
         else {
-            rgb_mode_error();
             setup_length = 0;
         }
     }
