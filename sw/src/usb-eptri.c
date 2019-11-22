@@ -271,10 +271,10 @@ void usb_ack_out(void) {
 }
 
 void usb_err(uint8_t ep) {
-    if (ep)
-        usb_in_ctrl_write(0x20);
-    else
-        usb_out_stall_write(0x10);
+    // if (ep)
+    //     usb_in_ctrl_write(0x10);
+    // else
+    //     usb_out_stall_write(0x10);
 }
 
 int usb_recv(void *buffer, unsigned int buffer_len) {
