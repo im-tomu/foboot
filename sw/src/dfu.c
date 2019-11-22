@@ -34,7 +34,7 @@
 #endif
 #define RAM_BOOT_SENTINAL 0x17ab0f23
 
-#define ERASE_SIZE 65536 // Erase block size (in bytes)
+#define ERASE_SIZE 4096 // Erase block size (in bytes)
 #define WRITE_SIZE 256 // Number of bytes we can write
 
 #include <spi.h>
@@ -100,7 +100,7 @@ static void ftfl_begin_erase_sector(uint32_t address)
         ftfl_busy_wait();
         // Only erase if it's on the page boundry.
         if ((address & ~(ERASE_SIZE - 1) ) == address)
-            spiBeginErase64(address);
+            spiBeginErase4(address);
     }
     fl_state = flsERASING;
 }
