@@ -49,7 +49,7 @@ static enum {
 
 #define BUSY_POLL_TIMEOUT_MS 5
 #define MANIFEST_POLL_TIMEOUT_MS 1
-#define MANIFEST_TIMEOUT_MS 1000
+#define MANIFEST_TIMEOUT_MS 10
 #define IDLE_TIMEOUT_MS 5
 
 static dfu_state_t dfu_state = dfuIDLE;
