@@ -104,7 +104,7 @@ static const uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
         2,                                      // bDescriptorType;
         LSB(CONFIG_DESC_SIZE),                  // wTotalLength
         MSB(CONFIG_DESC_SIZE),
-        5,                                      // bNumInterfaces
+        1,                                      // bNumInterfaces
         1,                                      // bConfigurationValue
         1,                                      // iConfiguration
         0x80,                                   // bmAttributes
@@ -119,7 +119,7 @@ static const uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
         0xFE,                                   // bInterfaceClass
         0x01,                                   // bInterfaceSubClass
         0x02,                                   // bInterfaceProtocol
-        0,                                      // iInterface
+        2,                                      // iInterface
 
         // DFU Functional Descriptor (DFU spec Table 4.2)
         9,                                      // bLength
