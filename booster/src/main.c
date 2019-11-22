@@ -202,6 +202,9 @@ __attribute__((noreturn)) void fobooster_main(void)
     ftfl_busy_wait();
 
     read_spi_id = spiId();
+    // PVT has two possible SPI flashes
+    if (read_spi_id == 0xc8144015)
+        read_spi_id = 0xc2152815;
     if (cached_spi_id != read_spi_id) {
         error(SPI_MISMATCH);
     }
