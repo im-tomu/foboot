@@ -43,7 +43,7 @@ import spibone
 
 import argparse
 import os
-
+import subprocess
 
 class RandomFirmwareROM(wishbone.SRAM):
     """
@@ -504,7 +504,13 @@ class Version(Module, AutoCSR, AutoDoc):
             except:
                 return 0
         def get_gitver():
-            import subprocess
+            major = 0
+            minor = 0
+            rev = 0
+            gitrev = 0
+            gitextra = 0
+            dirty = 0
+
             def decode_version(v):
                 version = v.split(".")
                 major = 0
@@ -523,20 +529,14 @@ class Version(Module, AutoCSR, AutoDoc):
             (git_stdout, _) = git_rev_cmd.communicate()
             if git_rev_cmd.wait() != 0:
                 print('unable to get git version')
-                return
+                return (major, minor, rev, gitrev, gitextra, dirty)
             raw_git_rev = git_stdout.decode().strip()
 
-            dirty = 0
+            parts = raw_git_rev.split("-")
+
             if raw_git_rev[-1] == "+":
                 raw_git_rev = raw_git_rev[:-1]
                 dirty = 1
-
-            parts = raw_git_rev.split("-")
-            major = 0
-            minor = 0
-            rev = 0
-            gitrev = 0
-            gitextra = 0
 
             if len(parts) >= 3:
                 if parts[0].startswith("v"):
