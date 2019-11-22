@@ -12,29 +12,19 @@
 #include "spi.h"
 
 enum pin {
-#if defined(CSR_PICORVSPI_BASE)
-	PIN_MOSI = 0,
-	PIN_MISO = 1,
-	PIN_WP = 2,
-	PIN_HOLD = 3,
-	PIN_CLK = 4,
-	PIN_CS = 5,
-#endif
-#if defined(CSR_LXSPI_BASE)
 	PIN_MOSI = 0,
 	PIN_CLK = 1,
 	PIN_CS = 2,
 	PIN_MISO_EN = 3,
 	PIN_MISO = 4, // Value is ignored
-#endif
 };
 
 void spiBegin(void) {
-	lxspi_bitbang_write((0 << PIN_MISO_EN) | (0 << PIN_CLK) | (0 << PIN_CS));
+	lxspi_bitbang_write((0 << PIN_CLK) | (0 << PIN_CS));
 }
 
 void spiEnd(void) {
-	lxspi_bitbang_write(1 << PIN_CS);
+	lxspi_bitbang_write((0 << PIN_CLK) | (1 << PIN_CS));
 }
 
 static void spi_single_tx(uint8_t out) {
@@ -44,9 +34,11 @@ static void spi_single_tx(uint8_t out) {
 		if (out & (1 << bit)) {
 			lxspi_bitbang_write((0 << PIN_CLK) | (1 << PIN_MOSI));
 			lxspi_bitbang_write((1 << PIN_CLK) | (1 << PIN_MOSI));
+			lxspi_bitbang_write((0 << PIN_CLK) | (1 << PIN_MOSI));
 		} else {
 			lxspi_bitbang_write((0 << PIN_CLK) | (0 << PIN_MOSI));
 			lxspi_bitbang_write((1 << PIN_CLK) | (0 << PIN_MOSI));
+			lxspi_bitbang_write((0 << PIN_CLK) | (0 << PIN_MOSI));
 		}
 	}
 }
@@ -85,26 +77,25 @@ uint32_t spi_id;
 
 __attribute__((used))
 uint32_t spiId(void) {
-	uint32_t id = 0;
+	spi_id = 0;
 
 	spiBegin();
 	spi_single_tx(0x90);               // Read manufacturer ID
 	spi_single_tx(0x00);               // Dummy byte 1
 	spi_single_tx(0x00);               // Dummy byte 2
 	spi_single_tx(0x00);               // Dummy byte 3
-	id = (id << 8) | spi_single_rx();  // Manufacturer ID
-	id = (id << 8) | spi_single_rx();  // Device ID
+	spi_id = (spi_id << 8) | spi_single_rx();  // Manufacturer ID
+	spi_id = (spi_id << 8) | spi_single_rx();  // Device ID
 	spiEnd();
 
 	spiBegin();
 	spi_single_tx(0x9f);               // Read device id
 	(void)spi_single_rx();             // Manufacturer ID (again)
-	id = (id << 8) | spi_single_rx();  // Memory Type
-	id = (id << 8) | spi_single_rx();  // Memory Size
+	spi_id = (spi_id << 8) | spi_single_rx();  // Memory Type
+	spi_id = (spi_id << 8) | spi_single_rx();  // Memory Size
 	spiEnd();
 
-	spi_id = id;
-	return id;
+	return spi_id;
 }
 
 int spiBeginErase4(uint32_t erase_addr) {
@@ -186,20 +177,19 @@ uint8_t spiReset(void) {
 
 	// Some SPI parts require this to wake up
 	spiBegin();
-	spi_single_tx(0xab);	// Read electronic signature
+	spi_single_tx(0xab);    // Read electronic signature
 	spiEnd();
 
 	return 0;
 }
 
 int spiInit(void) {
+
+	// Ensure CS is deasserted and the clock is high
+	lxspi_bitbang_write((0 << PIN_CLK) | (1 << PIN_CS));
+
 	// Disable memory-mapped mode and enable bit-bang mode
-#if defined(CSR_PICORVSPI_BASE)
-	picorvspi_cfg4_write(0);
-#endif
-#if defined(CSR_LXSPI_BASE)
 	lxspi_bitbang_en_write(1);
-#endif
 
 	// Reset the SPI flash, which will return it to SPI mode even
 	// if it's in QPI mode, and ensure the chip is accepting commands.
@@ -224,10 +214,5 @@ void spiUnhold(void) {
 
 void spiFree(void) {
 	// Re-enable memory-mapped mode
-#if defined(CSR_PICORVSPI_BASE)
-	picorvspi_cfg4_write(0x80);
-#endif
-#if defined(CSR_LXSPI_BASE)
 	lxspi_bitbang_en_write(0);
-#endif
 }
