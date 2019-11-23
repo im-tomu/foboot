@@ -66,7 +66,21 @@ class Platform(LatticePlatform):
         raise ValueError("programming is not supported")
 
 
-class BaseSoC(SoCCore):
+class BaseSoC(SoCCore, AutoDoc):
+    """Fomu Bootloader and Base SoC
+
+    Fomu is an FPGA that fits in your USB port.  This reference manual
+    documents the basic SoC that runs the bootloader, and that can be
+    reused to run your own RISC-V programs.
+
+    This reference manual only describes a particular version of the SoC.
+    The register sets described here are guaranteed to be available
+    with a given ``major version``, but are not guaranteed to be available on
+    any other version.  Naturally, you are free to create your own SoC
+    that does not provide these hardware blocks. To see what the version of the
+    bitstream you're running, check the ``VERSION`` registers.
+    """
+
     SoCCore.csr_map = {
         "ctrl":           0,  # provided by default (optional)
         "crg":            1,  # user
