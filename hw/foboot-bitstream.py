@@ -208,12 +208,6 @@ class BaseSoC(SoCCore, AutoDoc):
         self.register_mem("spiflash", self.mem_map["spiflash"],
             self.lxspi.bus, size=2 * 1024 * 1024) # NOTE: EVT is 16 * 1024 * 1024
 
-        self.submodules.reboot = SBWarmBoot(self, warmboot_offsets)
-        if hasattr(self, "cpu"):
-            self.cpu.cpu_params.update(
-                i_externalResetVector=self.reboot.addr.storage,
-            )
-
         # Add USB pads, as well as the appropriate USB controller.  If no CPU is
         # present, use the DummyUsb controller.
         usb_pads = platform.request("usb")
@@ -234,6 +228,15 @@ class BaseSoC(SoCCore, AutoDoc):
         # Add GPIO pads for the touch buttons
         platform.add_extension(TouchPads.touch_device)
         self.submodules.touch = TouchPads(platform.request("touch_pads"))
+
+        # Allow the user to reboot the ICE40.  Additionally, connect the CPU
+        # RESET line to a register that can be modified, to allow for
+        # us to debug programs even during reset.
+        self.submodules.reboot = SBWarmBoot(self, warmboot_offsets)
+        if hasattr(self, "cpu"):
+            self.cpu.cpu_params.update(
+                i_externalResetVector=self.reboot.addr.storage,
+            )
 
         self.submodules.rgb = SBLED(platform.revision, platform.request("rgb_led"))
         self.submodules.version = Version(platform.revision, pnr_seed, models=[
