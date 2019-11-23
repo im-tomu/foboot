@@ -197,7 +197,8 @@ class BaseSoC(SoCCore, AutoDoc):
         else:
             raise ValueError("unrecognized boot_source: {}".format(boot_source))
 
-        # Add a simple bit-banged SPI Flash module
+        # The litex SPI module supports memory-mapped reads, as well as a bit-banged mode
+        # for doing writes.
         spi_pads = platform.request("spiflash4x")
         if spi_pads is not None:
             self.submodules.lxspi = spi_flash.SpiFlashDualQuad(spi_pads, dummy=6, endianness="little")
@@ -207,26 +208,14 @@ class BaseSoC(SoCCore, AutoDoc):
         self.register_mem("spiflash", self.mem_map["spiflash"],
             self.lxspi.bus, size=2 * 1024 * 1024) # NOTE: EVT is 16 * 1024 * 1024
 
-        # self.submodules.picorvspi = PicoRVSpi(platform, platform.request("spiflash"))
-        # self.register_mem("spiflash", self.mem_map["spiflash"],
-        #     self.picorvspi.bus, size=self.picorvspi.size)
-
         self.submodules.reboot = SBWarmBoot(self, warmboot_offsets)
         if hasattr(self, "cpu"):
             self.cpu.cpu_params.update(
                 i_externalResetVector=self.reboot.addr.storage,
             )
 
-        self.submodules.rgb = SBLED(platform.revision, platform.request("rgb_led"))
-        self.submodules.version = Version(platform.revision, pnr_seed, models=[
-                ("0x45", "E", "Fomu EVT"),
-                ("0x44", "D", "Fomu DVT"),
-                ("0x50", "P", "Fomu PVT (production)"),
-                ("0x48", "H", "Fomu Hacker"),
-                ("0x3f", "?", "Unknown model"),
-            ])
-
-        # Add USB pads
+        # Add USB pads, as well as the appropriate USB controller.  If no CPU is
+        # present, use the DummyUsb controller.
         usb_pads = platform.request("usb")
         usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
         if hasattr(self, "cpu"):
@@ -245,6 +234,15 @@ class BaseSoC(SoCCore, AutoDoc):
         # Add GPIO pads for the touch buttons
         platform.add_extension(TouchPads.touch_device)
         self.submodules.touch = TouchPads(platform.request("touch_pads"))
+
+        self.submodules.rgb = SBLED(platform.revision, platform.request("rgb_led"))
+        self.submodules.version = Version(platform.revision, pnr_seed, models=[
+                ("0x45", "E", "Fomu EVT"),
+                ("0x44", "D", "Fomu DVT"),
+                ("0x50", "P", "Fomu PVT (production)"),
+                ("0x48", "H", "Fomu Hacker"),
+                ("0x3f", "?", "Unknown model"),
+            ])
 
         # Add "-relut -dffe_min_ce_use 4" to the synth_ice40 command.
         # The "-reult" adds an additional LUT pass to pack more stuff in,
