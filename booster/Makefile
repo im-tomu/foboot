@@ -24,7 +24,7 @@ endif
 BASE_DIR   := .
 LD_DIR     := $(BASE_DIR)/ld
 LDSCRIPT   := $(BASE_DIR)/ld/linker.ld
-ADD_CFLAGS := -I$(BASE_DIR)/include -D__vexriscv__ -march=rv32i  -mabi=ilp32
+ADD_CFLAGS := -I$(BASE_DIR)/include -D__vexriscv__ -march=rv32i  -mabi=ilp32 -DCSR_ACCESSORS_DEFINED
 ADD_LFLAGS := 
 PACKAGE    := booster
 
