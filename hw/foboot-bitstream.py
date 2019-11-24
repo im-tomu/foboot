@@ -50,15 +50,23 @@ class Platform(LatticePlatform):
         if revision == "evt":
             from litex_boards.partner.platforms.fomu_evt import _io, _connectors
             LatticePlatform.__init__(self, "ice40-up5k-sg48", _io, _connectors, toolchain="icestorm")
+            self.spi_size = 16 * 1024 * 1024
+            self.spi_dummy = 6
         elif revision == "dvt":
             from litex_boards.partner.platforms.fomu_pvt import _io, _connectors
             LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io, _connectors, toolchain="icestorm")
+            self.spi_size = 2 * 1024 * 1024
+            self.spi_dummy = 6
         elif revision == "pvt":
             from litex_boards.partner.platforms.fomu_pvt import _io, _connectors
             LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io, _connectors, toolchain="icestorm")
+            self.spi_size = 2 * 1024 * 1024
+            self.spi_dummy = 6
         elif revision == "hacker":
             from litex_boards.partner.platforms.fomu_hacker import _io, _connectors
             LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io, _connectors, toolchain="icestorm")
+            self.spi_size = 2 * 1024 * 1024
+            self.spi_dummy = 4
         else:
             raise ValueError("Unrecognized revision: {}.  Known values: evt, dvt, pvt, hacker".format(revision))
 
@@ -200,13 +208,8 @@ class BaseSoC(SoCCore, AutoDoc):
         # The litex SPI module supports memory-mapped reads, as well as a bit-banged mode
         # for doing writes.
         spi_pads = platform.request("spiflash4x")
-        if spi_pads is not None:
-            self.submodules.lxspi = spi_flash.SpiFlashDualQuad(spi_pads, dummy=6, endianness="little")
-        else:
-            spi_pads = platform.request("spiflash")
-            self.submodules.lxspi = spi_flash.SpiFlashSingle(spi_pads, dummy=6, endianness="little")
-        self.register_mem("spiflash", self.mem_map["spiflash"],
-            self.lxspi.bus, size=2 * 1024 * 1024) # NOTE: EVT is 16 * 1024 * 1024
+        self.submodules.lxspi = spi_flash.SpiFlashDualQuad(spi_pads, dummy=platform.spi_dummy, endianness="little")
+        self.register_mem("spiflash", self.mem_map["spiflash"], self.lxspi.bus, size=platform.spi_size)
 
         # Add USB pads, as well as the appropriate USB controller.  If no CPU is
         # present, use the DummyUsb controller.
