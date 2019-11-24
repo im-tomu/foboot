@@ -39,7 +39,7 @@ int main(int argc, char **argv)
     int booster_fd = open(BOOSTER_BIN, O_RDONLY);
     if (booster_fd == -1)
     {
-        perror("Unable to open " BOOSTER_BIN " (try running 'make -Iinclude')");
+        perror("Unable to open " BOOSTER_BIN " (try running 'make')");
         return 8;
     }
     if (-1 == fstat(booster_fd, &stat_buf))
@@ -126,6 +126,7 @@ int main(int argc, char **argv)
         return 7;
     }
 
+    printf("Boosted image written to \"%s\".  Calculated hash: 0x%08x\n", outfile_name, booster_data.xxhash);
     close(bitstream_fd);
     close(outfile_fd);
     close(booster_fd);
