@@ -1,6 +1,6 @@
 .obj/
-.swp
-.swo
+*.swp
+*.swo
 *~
 *.bin
 *.dfu
@@ -10,3 +10,4 @@
 build/
 __pycache__/
 .env
+booster/make-booster
