@@ -16,8 +16,8 @@ cd toboot/
 make
 cd ../booster/
 make
-gcc make-booster.c -o make-booster
-./make-booster [flash-id] ../toboot/toboot.bin toboot-booster.bin
+gcc make-booster.c -o make-booster -Iinclude
+./make-booster [flash-id] ../hw/build/gateware/top-multiboot.bin foboot-booster.bin
 ```
 
 The following flash-id values are known:
