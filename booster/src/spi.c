@@ -73,11 +73,8 @@ int spiIsBusy(void) {
 }
 
 __attribute__((used))
-uint32_t spi_id;
-
-__attribute__((used))
 uint32_t spiId(void) {
-	spi_id = 0;
+	uint32_t spi_id = 0;
 
 	spiBegin();
 	spi_single_tx(0x90);               // Read manufacturer ID
@@ -160,7 +157,7 @@ void spiBeginWrite(uint32_t addr, const void *v_data, unsigned int count) {
 	spiEnd();
 }
 
-uint8_t spiReset(void) {
+void spiReset(void) {
 	// Writing 0xff eight times is equivalent to exiting QPI mode,
 	// or if CFM mode is enabled it will terminate CFM and return
 	// to idle.
@@ -174,25 +171,6 @@ uint8_t spiReset(void) {
 	spiBegin();
 	spi_single_tx(0xab);    // Read electronic signature
 	spiEnd();
-
-	return 0;
-}
-
-int spiInit(void) {
-
-	// Ensure CS is deasserted and the clock is high
-	lxspi_bitbang_write((0 << PIN_CLK) | (1 << PIN_CS));
-
-	// Disable memory-mapped mode and enable bit-bang mode
-	lxspi_bitbang_en_write(1);
-
-	// Reset the SPI flash, which will return it to SPI mode even
-	// if it's in QPI mode, and ensure the chip is accepting commands.
-	spiReset();
-
-	spiId();
-
-	return 0;
 }
 
 void spiHold(void) {
@@ -205,9 +183,4 @@ void spiUnhold(void) {
 	spiBegin();
 	spi_single_tx(0xab);
 	spiEnd();
-}
-
-void spiFree(void) {
-	// Re-enable memory-mapped mode
-	lxspi_bitbang_en_write(0);
 }
