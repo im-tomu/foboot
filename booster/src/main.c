@@ -132,11 +132,22 @@ volatile enum error_code error_code;
 __attribute__((noreturn)) static void error(enum error_code code)
 {
     error_code = code;
-    rgb_mode_error();
+    rgb_ctrl_write((1 << CSR_RGB_CTRL_CURREN_OFFSET) | (1 << CSR_RGB_CTRL_RGBLEDEN_OFFSET)
+      | (1 << CSR_RGB_CTRL_RRAW_OFFSET) | (1 << CSR_RGB_CTRL_GRAW_OFFSET) | (1 << CSR_RGB_CTRL_BRAW_OFFSET));
     erase_booster();
     ftfl_busy_wait();
 
-    while(1);
+    // Blink a pattern depending on the error code
+    while(1) {
+        int i;
+        for (i = 0; i < 3; i++) {
+            rgb_raw_write(1);
+            msleep(500 * (((int)code >> i) & 1) + 250);
+            rgb_raw_write(0);
+            msleep(500 * (((int)code >> i) & 1) + 250);
+        }
+        msleep(1000);
+    }
 }
 
 void isr(void)
@@ -245,7 +256,7 @@ __attribute__((noreturn)) void fobooster_main(void)
              bytes_left && (page_offset < SPI_ERASE_SECTOR_SIZE);
              page_offset += SPI_PROGRAM_PAGE_SIZE)
         {
-            rgb_wheel(rgb_color+=10);
+            rgb_wheel(rgb_color+=1);
             uint32_t bytes_to_write = bytes_left;
             if (bytes_to_write > SPI_PROGRAM_PAGE_SIZE)
                 bytes_to_write = SPI_PROGRAM_PAGE_SIZE;
