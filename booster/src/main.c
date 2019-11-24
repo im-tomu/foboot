@@ -13,7 +13,7 @@ extern uint32_t hash_length;
 extern uint32_t image_seed;
 extern uint32_t spi_id;
 
-extern struct booster_data booster_data;
+extern struct booster_data booster_src;
 uint32_t read_spi_id;
 uint32_t cached_image_length;
 uint32_t cached_spi_id;
@@ -35,13 +35,21 @@ static uint8_t multiboot_reference[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
+static void spi_bb_enable(void) {
+    lxspi_bitbang_en_write(1);
+}
+
+static void spi_bb_disable(void) {
+    lxspi_bitbang_en_write(0);
+}
+
 static uint32_t cached_image[0x1a000/4];
 
 void msleep(int ms)
 {
     timer0_en_write(0);
     timer0_reload_write(0);
-    timer0_load_write(SYSTEM_CLOCK_FREQUENCY/1000*ms);
+    timer0_load_write(CONFIG_CLOCK_FREQUENCY/1000*ms);
     timer0_en_write(1);
     timer0_update_value_write(1);
     while(timer0_value_read())
@@ -80,6 +88,7 @@ static void ftfl_begin_erase_sector(uint32_t address)
 /// Erase Booster from flash, and retarget 
 static void erase_booster(void)
 {
+    spi_bb_enable();
     ftfl_busy_wait();
 
     // On reboot, go back to the primary bootloader
@@ -87,7 +96,7 @@ static void erase_booster(void)
     spiBeginWrite(9, &zero, 1);
     ftfl_busy_wait();
 
-    // // Erase our bitstream
+    // // Erase our bitstream (but not really)
     // !!! Don't erase our bitstream, since we don't have the
     // !!! ability to dynamically update SB_WARMBOOT.
     // !!! Instead, we'll actually reboot into the image located
@@ -114,16 +123,16 @@ enum error_code {
     HASH_MISMATCH = 2,
     SPI_MISMATCH = 3,
     MISSING_MULTIBOOT = 4,
-    FINAL_IMAGE_MISMATCH = 5,
+    FINAL_IMAGE_MISMATCH_END = 5,
 };
 
+__attribute__((used))
 volatile enum error_code error_code;
 
 __attribute__((noreturn)) static void error(enum error_code code)
 {
     error_code = code;
     rgb_mode_error();
-    while(1);
     erase_booster();
     ftfl_busy_wait();
 
@@ -140,14 +149,14 @@ void isr(void)
         usb_isr();
 }
 
-// volatile uint32_t should_continue = 0;
 uint32_t calculated_hash;
 __attribute__((noreturn)) void fobooster_main(void)
 {
     uint32_t bytes_left;
     uint32_t target_addr;
-    const void *current_ptr;
+    const uint8_t *current_ptr;
     uint32_t page_offset;
+    uint32_t i;
 
     irq_setmask(0);
     irq_setie(1);
@@ -155,7 +164,7 @@ __attribute__((noreturn)) void fobooster_main(void)
     rgb_init();
     usb_init();
     usb_connect();
-    // while(!should_continue);
+    spi_bb_disable();
 
     // If the booster data doesn't fit in our cached image, error out.
     if (image_length > sizeof(cached_image))
@@ -163,9 +172,14 @@ __attribute__((noreturn)) void fobooster_main(void)
         error(INVALID_IMAGE_SIZE);
     }
 
-    // Ensure the hash matches what's expected.
+    // Patch the target image so that it goes to our program if the user
+    // reboots during an update.
+    ((uint8_t *)cached_image)[9] = 0x04;
+
+    // Ensure the hash matches what's expected.  Note that the hash includes the patch
+    // that's made in the previous line.
     calculated_hash = XXH32((const void *)0x20040000, hash_length, image_seed);
-    if (calculated_hash != booster_data.xxhash)
+    if (calculated_hash != booster_src.xxhash)
     {
         error(HASH_MISMATCH);
     }
@@ -182,46 +196,40 @@ __attribute__((noreturn)) void fobooster_main(void)
         }
     }
 
-    // Patch the target image so that it goes to our program if the user
-    // reboots.
-    ((uint8_t *)cached_image)[9] = 0x04;
-
     // Now that everything is copied to RAM, disable memory-mapped SPI mode.
     // This puts the SPI into bit-banged mode, which allows us to write to it.
     cached_spi_id = spi_id; // Copy spi_id over first, since it is still on the flash.
     cached_image_length = image_length;
 
-    int i;
-    for (i = 0; i < cached_image_length; i++) {
-        if (((uint8_t *)cached_image)[i] != ((uint8_t *)0x20000000)[i]) {
-            error(FINAL_IMAGE_MISMATCH);
-        }
-    }
-
-    picorvspi_cfg4_write(0);
+    spi_bb_enable();
     ftfl_busy_wait();
 
     read_spi_id = spiId();
-    // PVT has two possible SPI flashes
-    if (read_spi_id == 0xc8144015)
+    // PVT has two possible SPI flashes, so treat them
+    // the same as the "PVT" SPI ID.
+    if (read_spi_id == 0xc8144015) {
         read_spi_id = 0xc2152815;
+    }
+    if (cached_spi_id == 0xc8144015) {
+        cached_spi_id = 0xc2152815;
+    }
     if (cached_spi_id != read_spi_id) {
         error(SPI_MISMATCH);
     }
 
     bytes_left = cached_image_length;
     target_addr = 0;
-    current_ptr = &cached_image[0];
+    current_ptr = (const uint8_t *)&cached_image[0];
 
     uint32_t check_block[SPI_ERASE_SECTOR_SIZE/sizeof(uint32_t)];
 
-    uint8_t c = 80;
+    uint8_t rgb_color = 80;
     while (bytes_left && (target_addr < 131072))
     {
         // Check to see if the sector has changed -- don't do anything if it hasn't.
-        picorvspi_cfg4_write(0x80);
+        spi_bb_disable();
         memcpy(check_block, (void *)(target_addr + 0x20000000), SPI_ERASE_SECTOR_SIZE);
-        picorvspi_cfg4_write(0x00);
+        spi_bb_enable();
         if (!memcmp(check_block, current_ptr, SPI_ERASE_SECTOR_SIZE)) {
             current_ptr += SPI_ERASE_SECTOR_SIZE;
             target_addr += SPI_ERASE_SECTOR_SIZE;
@@ -237,7 +245,7 @@ __attribute__((noreturn)) void fobooster_main(void)
              bytes_left && (page_offset < SPI_ERASE_SECTOR_SIZE);
              page_offset += SPI_PROGRAM_PAGE_SIZE)
         {
-            rgb_wheel(c+=10);
+            rgb_wheel(rgb_color+=10);
             uint32_t bytes_to_write = bytes_left;
             if (bytes_to_write > SPI_PROGRAM_PAGE_SIZE)
                 bytes_to_write = SPI_PROGRAM_PAGE_SIZE;
@@ -250,16 +258,16 @@ __attribute__((noreturn)) void fobooster_main(void)
     }
 
     // Final check to ensure the target image matches our image
-    picorvspi_cfg4_write(0x80);
+    spi_bb_disable();
     // Pre-cache due to latency bug when switching between bit-bang and normal mode
     for (i = 0; i < cached_image_length; i += 4) {
         uint32_t dummy;
         memcpy(&dummy, (void *)(0x20000000 + i), 4);
     }
     if (memcmp((const void *)0x20000000, cached_image, cached_image_length)) {
-        error(FINAL_IMAGE_MISMATCH);
+        error(FINAL_IMAGE_MISMATCH_END);
     }
-    picorvspi_cfg4_write(0x00);
+    spi_bb_enable();
 
     rgb_mode_writing();
     finish_flashing();
