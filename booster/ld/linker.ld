@@ -42,6 +42,7 @@ SECTIONS
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
 		*(.srodata)
+		. = ALIGN(4);
 		_erodata = .;
 
 		. = ALIGN(4);
@@ -53,7 +54,7 @@ SECTIONS
 		_edata = ALIGN(16); /* Make sure _edata is >= _gp. */
 	} > sram
 
-  	booster_data = ADDR(.data) + SIZEOF(.data);
+/*	booster_data = ADDR(.data) + SIZEOF(.data); */
 	booster_src = ADDR(.startup) + SIZEOF(.startup) + SIZEOF(.data);
 }
 

@@ -1,3 +1,4 @@
+#include <csr_accessors.h>
 #include <csr.h>
 
 enum led_registers
