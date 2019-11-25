@@ -19,7 +19,7 @@ from migen.fhdl.decorators import ClockDomainsRenamer
 from litex.build.lattice.platform import LatticePlatform
 from litex.build.generic_platform import Pins, Subsignal
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
-from litex.soc.integration import SoCCore
+from litex.soc.integration.soc_core import SoCCore
 from litex.soc.integration.builder import Builder
 from litex.soc.interconnect import wishbone
 
@@ -112,7 +112,7 @@ class BaseSoC(SoCCore, AutoDoc):
         "sram":     0x10000000,  # (default shadow @0xa0000000)
         "spiflash": 0x20000000,  # (default shadow @0xa0000000)
         "main_ram": 0x40000000,  # (default shadow @0xc0000000)
-        "csr":      0x60000000,  # (default shadow @0xe0000000)
+        "csr":      0xe0000000,  # (default shadow @0xe0000000)
     }
 
     interrupt_map = {
