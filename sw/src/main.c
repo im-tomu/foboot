@@ -106,8 +106,12 @@ static int nerve_pinch(void) {
 /// If the updater exists and has a valid header, then jump
 /// to the updater.
 void maybe_boot_updater(void) {
+    extern uint32_t spi_id;
+
     uint32_t booster_base = SPIFLASH_BASE + 0x5a000;
     if (csr_readl(booster_base + 4) != 0x4260fa37)
+        return;
+    if (csr_readl(booster_base + 28) != spi_id)
         return;
     uint32_t booster_size = csr_readl(booster_base + 8);
     uint32_t target_sum = csr_readl(booster_base + 12);
