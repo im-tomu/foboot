@@ -50,11 +50,17 @@ class SBLED(Module, AutoCSR):
                 it is possible to manually control the three individual LEDs.""")
 
         ledd_value = Signal(3)
-        if revision == "pvt" or revision == "evt" or revision == "dvt":
+        if revision == "pvt" or revision == "dvt":
             self.comb += [
                 If(self.ctrl.storage[3], rgba_pwm[1].eq(self.raw.storage[0])).Else(rgba_pwm[1].eq(ledd_value[0])),
                 If(self.ctrl.storage[4], rgba_pwm[0].eq(self.raw.storage[1])).Else(rgba_pwm[0].eq(ledd_value[1])),
                 If(self.ctrl.storage[5], rgba_pwm[2].eq(self.raw.storage[2])).Else(rgba_pwm[2].eq(ledd_value[2])),
+            ]
+        elif revision == "evt":
+            self.comb += [
+                If(self.ctrl.storage[3], rgba_pwm[1].eq(self.raw.storage[0])).Else(rgba_pwm[1].eq(ledd_value[0])),
+                If(self.ctrl.storage[4], rgba_pwm[2].eq(self.raw.storage[1])).Else(rgba_pwm[2].eq(ledd_value[1])),
+                If(self.ctrl.storage[5], rgba_pwm[0].eq(self.raw.storage[2])).Else(rgba_pwm[0].eq(ledd_value[2])),
             ]
         elif revision == "hacker":
             self.comb += [
