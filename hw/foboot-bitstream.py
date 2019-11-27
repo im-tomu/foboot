@@ -20,6 +20,7 @@ from litex.build.lattice.platform import LatticePlatform
 from litex.build.generic_platform import Pins, Subsignal
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
 from litex.soc.integration.soc_core import SoCCore
+from litex.soc.cores.cpu import CPUNone
 from litex.soc.integration.builder import Builder
 from litex.soc.interconnect import wishbone
 
@@ -160,12 +161,12 @@ class BaseSoC(SoCCore, AutoDoc):
                 spi_pads = platform.request("spidebug")
                 self.submodules.spibone = ClockDomainsRenamer("usb_12")(spibone.SpiWishboneBridge(spi_pads, wires=4))
                 self.add_wb_master(self.spibone.wishbone)
-            if hasattr(self, "cpu"):
+            if hasattr(self, "cpu") and not isinstance(self.cpu, CPUNone):
                 self.cpu.use_external_variant("rtl/VexRiscv_Fomu_Debug.v")
                 os.path.join(output_dir, "gateware")
                 self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x100)
         else:
-            if hasattr(self, "cpu"):
+            if hasattr(self, "cpu") and not isinstance(self.cpu, CPUNone):
                 self.cpu.use_external_variant("rtl/VexRiscv_Fomu.v")
 
         # SPRAM- UP5K has single port RAM, might as well use it as SRAM to
@@ -215,7 +216,7 @@ class BaseSoC(SoCCore, AutoDoc):
         # present, use the DummyUsb controller.
         usb_pads = platform.request("usb")
         usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
-        if hasattr(self, "cpu"):
+        if hasattr(self, "cpu") and not isinstance(self.cpu, CPUNone):
             self.submodules.usb = eptri.TriEndpointInterface(usb_iobuf, debug=usb_debug)
         else:
             self.submodules.usb = dummyusb.DummyUsb(usb_iobuf, debug=usb_debug)
@@ -236,7 +237,7 @@ class BaseSoC(SoCCore, AutoDoc):
         # RESET line to a register that can be modified, to allow for
         # us to debug programs even during reset.
         self.submodules.reboot = SBWarmBoot(self, warmboot_offsets)
-        if hasattr(self, "cpu"):
+        if hasattr(self, "cpu") and not isinstance(self.cpu, CPUNone):
             self.cpu.cpu_params.update(
                 i_externalResetVector=self.reboot.addr.storage,
             )
