@@ -194,14 +194,15 @@ static void init(void)
 #if defined(CSR_PICORVSPI_BASE)
     picorvspi_cfg4_write(0x80);
 #endif
+    spiInit();
 
     if (!nerve_pinch()) {
         lxspi_bitbang_en_write(0);
         maybe_boot_updater();
         maybe_boot_fbm();
+        lxspi_bitbang_en_write(1);
     }
 
-    spiInit();
 #ifdef CSR_UART_BASE
     init_printf(NULL, rv_putchar);
 #endif
