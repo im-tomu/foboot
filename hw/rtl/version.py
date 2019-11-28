@@ -37,7 +37,7 @@ class Version(Module, AutoCSR, AutoDoc):
                 if len(version) >= 1:
                     major = makeint(version[0])
                 return (major, minor, rev)
-            git_rev_cmd = subprocess.Popen(["git", "describe", "--tags", "--dirty=+"],
+            git_rev_cmd = subprocess.Popen(["git", "describe", "--tags", "--long", "--dirty=+"],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
             (git_stdout, _) = git_rev_cmd.communicate()
