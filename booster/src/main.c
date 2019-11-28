@@ -137,6 +137,11 @@ __attribute__((noreturn)) static void error(enum error_code code)
     erase_booster();
     ftfl_busy_wait();
 
+    // Now that we're in an error condition, enable USB.
+    // We don't do this earlier in case it generates an IRQ storm,
+    // which might happen if it's installed on an incorrect device.
+    usb_connect();
+
     // Blink a pattern depending on the error code
     while(1) {
         int i;
@@ -174,7 +179,6 @@ __attribute__((noreturn)) void fobooster_main(void)
 
     rgb_init();
     usb_init();
-    usb_connect();
     spi_bb_disable();
 
     // If the booster data doesn't fit in our cached image, error out.
