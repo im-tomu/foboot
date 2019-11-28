@@ -11,7 +11,7 @@
 #include "xxhash.h"
 
 #define BOOSTER_SEED 0xc38b9e66L
-#define BOOSTER_SIGNATURE 0x4260fa37
+#define BOOSTER_SIGNATURE 0xfaa999b1
 
 struct booster_data
 {

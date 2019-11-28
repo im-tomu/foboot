@@ -56,7 +56,7 @@ The SPI flash image looks something like this:
 | 0x05a01c    | 368668           | SPI ID of the target device                                                 |
 | 0x1FFFFF    | 20097151         | End of flash                                                                |
 
-The "Booster Signature" is `0x4260fa37` -- if it contains this value, then
+The "Booster Signature" is `0xfaa999b1` -- if it contains this value, then
 this might be a Booster program.
 
 The "Booster Checksum" is the result of summing together `[Booster length]`

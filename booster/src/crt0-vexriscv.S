@@ -14,7 +14,7 @@
 _start:
   j crt_init
 booster_signature:
-  .word 0x4260fa37
+  .word 0xfaa999b1
 booster_length:
   .word 0
 booster_checksum:
