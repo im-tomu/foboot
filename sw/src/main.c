@@ -105,6 +105,12 @@ static int nerve_pinch(void) {
 
 /// If the updater exists and has a valid header, then jump
 /// to the updater.
+__attribute__((used))
+uint32_t update_ignore_reason;
+__attribute__((used))
+uint32_t update_ignore_val1;
+__attribute__((used))
+uint32_t update_ignore_val2;
 void maybe_boot_updater(void) {
     extern uint32_t spi_id;
     uint32_t corrected_spi_id = spi_id;
@@ -116,10 +122,18 @@ void maybe_boot_updater(void) {
         corrected_spi_id = 0xc2152815;
 
     uint32_t booster_base = SPIFLASH_BASE + 0x5a000;
-    if (csr_readl(booster_base + 4) != 0xfaa999b1)
+    if (csr_readl(booster_base + 4) != 0xfaa999b1) {
+        update_ignore_reason = 1;
+        update_ignore_val1 = csr_readl(booster_base + 4);
+        update_ignore_val2 = 0xfaa999b1;
         return;
-    if (csr_readl(booster_base + 28) != corrected_spi_id)
+    }
+    if (csr_readl(booster_base + 28) != corrected_spi_id) {
+        update_ignore_reason = 2;
+        update_ignore_val1 = csr_readl(booster_base + 28);
+        update_ignore_val2 = corrected_spi_id;
         return;
+    }
     uint32_t booster_size = csr_readl(booster_base + 8);
     uint32_t target_sum = csr_readl(booster_base + 12);
     uint32_t computed_sum = 0;
@@ -127,9 +141,14 @@ void maybe_boot_updater(void) {
     for (booster_offset = 0x20; booster_offset < booster_size; booster_offset++) {
         computed_sum += csr_readb(booster_offset + booster_base);
     }
-    if (target_sum == computed_sum) {
-        riscv_reboot_to((const void *)booster_base, 0x20);
+    if (target_sum != computed_sum) {
+        update_ignore_reason = 3;
+        update_ignore_val1 = target_sum;
+        update_ignore_val2 = computed_sum;
+        return;
     }
+
+    riscv_reboot_to((const void *)booster_base, 0x20);
 }
 
 /// If Foboot_Main exists on SPI flash, and if the bypass isn't active,
