@@ -187,11 +187,9 @@ static void init(void)
 #if defined(CSR_PICORVSPI_BASE)
     picorvspi_cfg4_write(0x80);
 #endif
-    spiInit();
-    spiFree();
-
 
     if (!nerve_pinch()) {
+        lxspi_bitbang_en_write(0);
         maybe_boot_updater();
         maybe_boot_fbm();
     }
