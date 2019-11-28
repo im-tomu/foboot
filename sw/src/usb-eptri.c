@@ -86,6 +86,13 @@ void usb_connect(void) {
 
 void usb_init(void) {
     out_buffer_length = 0;
+
+    // Disable the pullup, allowing the device to enter IDLE state.
+    // Both of the upstream pullups will pull D+/D- to SE0 state.
+    // USB spec (7.1.7.1) says a Disconnect is SE0 for >= 2.5 uS,
+    // so we must ensure we are in SE0 for at least that long before
+    // re-asserting the pullup.
+    // Otherwise, the device may end up in an invalid state.
     usb_pullup_out_write(0);
     usb_address_write(0);
     usb_out_ctrl_write(0);
