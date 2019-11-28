@@ -107,11 +107,18 @@ static int nerve_pinch(void) {
 /// to the updater.
 void maybe_boot_updater(void) {
     extern uint32_t spi_id;
+    uint32_t corrected_spi_id = spi_id;
+
+    // These two PVT SPI IDs are functionally identical,
+    // so convert one to the other.
+    // The canonical ID is 0xc2152815.
+    if (spi_id == 0xc8144015)
+        corrected_spi_id = 0xc2152815;
 
     uint32_t booster_base = SPIFLASH_BASE + 0x5a000;
     if (csr_readl(booster_base + 4) != 0xfaa999b1)
         return;
-    if (csr_readl(booster_base + 28) != spi_id)
+    if (csr_readl(booster_base + 28) != corrected_spi_id)
         return;
     uint32_t booster_size = csr_readl(booster_base + 8);
     uint32_t target_sum = csr_readl(booster_base + 12);
