@@ -36,11 +36,11 @@ output=$root/releases/$release
 
 mkdir -p $output
 cp $input/gateware/top.bin $output/${platform}-foboot-${release}.dfu
-cp $input/gateware/top-multiboot.bin $output/${platform}-${release}-multiboot.bin
-cp $input/software/bios/bios.elf $output/${platform}-${release}-bios.elf
-cp $input/software/include/generated/csr.h $output/${platform}-csr.h
-cp $input/software/include/generated/soc.h $output/${platform}-soc.h
+cp $input/gateware/top-multiboot.bin $output/${platform}-multiboot-${release}.bin
+cp $input/software/bios/bios.elf $output/${platform}-bios-${release}.elf
+cp $input/software/include/generated/csr.h $output/${platform}-csr-${release}.h
+cp $input/software/include/generated/soc.h $output/${platform}-soc-${release}.h
 cd $root/booster
-./make-booster $spi_id $input/gateware/top-multiboot.bin $output/${platform}-${release}-updater.dfu
-dfu-suffix -v 1209 -p 70b1 -a $output/${platform}-${release}-updater.dfu
+./make-booster $spi_id $input/gateware/top-multiboot.bin $output/${platform}-updater-${release}.dfu
+dfu-suffix -v 1209 -p 70b1 -a $output/${platform}-updater-${release}.dfu
 dfu-suffix -v 1209 -p 70b1 -a $output/${platform}-foboot-${release}.dfu
