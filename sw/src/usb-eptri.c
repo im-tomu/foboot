@@ -303,9 +303,6 @@ void usb_err(uint8_t ep) {
 
 int usb_recv(void *buffer, int buffer_len) {
     // Set the OUT response to ACK, since we are in a position to receive data now.
-    if (out_have) {
-        usb_ack(0);
-    }
     while (1) {
         if (out_have) {
             if (buffer_len > out_buffer_length)
