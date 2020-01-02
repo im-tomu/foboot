@@ -256,20 +256,19 @@ class BaseSoC(SoCCore, AutoDoc):
         # and the "-dffe_min_ce_use 4" flag prevents Yosys from generating a
         # Clock Enable signal for a LUT that has fewer than 4 flip-flops.
         # This increases density, and lets us use the FPGA more efficiently.
-        platform.toolchain.nextpnr_yosys_template[2] += " -relut -abc2 -dffe_min_ce_use 4 -relut"
+        platform.toolchain.yosys_template[2] += " -relut -abc2 -dffe_min_ce_use 4 -relut"
         if use_dsp:
-            platform.toolchain.nextpnr_yosys_template[2] += " -dsp"
+            platform.toolchain.yosys_template[2] += " -dsp"
 
         # Disable final deep-sleep power down so firmware words are loaded
         # onto softcore's address bus.
-        platform.toolchain.build_template[3] = "icepack -s {build_name}.txt {build_name}.bin"
-        platform.toolchain.nextpnr_build_template[2] = "icepack -s {build_name}.txt {build_name}.bin"
+        platform.toolchain.build_template[2] = "icepack -s {build_name}.txt {build_name}.bin"
 
         # Allow us to set the nextpnr seed
-        platform.toolchain.nextpnr_build_template[1] += " --seed " + str(pnr_seed)
+        platform.toolchain.build_template[1] += " --seed " + str(pnr_seed)
 
         if placer is not None:
-            platform.toolchain.nextpnr_build_template[1] += " --placer {}".format(placer)
+            platform.toolchain.build_template[1] += " --placer {}".format(placer)
 
     def copy_memory_file(self, src):
         import os
