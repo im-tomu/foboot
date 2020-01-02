@@ -16,7 +16,10 @@ At start, **FBU** is loaded by the hardware.  **FBU** will look for a special *F
 
 A series of *Boot Fags* determine how **FBU** and **FBM** hand over execution to the subsequent program.
 
-*Boot Flags* are indicated by the magic number `0xb469075a`, followed by a 32-bit field, similar to the following C struct:
+*Boot Flags* are indicated by the magic number `0xb469075a`, followed by a
+32-bit field, in the first 128 bytes of the binary.
+
+It's similar to the following C struct:
 
 ```c
 struct {
