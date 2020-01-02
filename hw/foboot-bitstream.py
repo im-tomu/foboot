@@ -251,6 +251,21 @@ class BaseSoC(SoCCore, AutoDoc):
                 ("0x3f", "?", "Unknown model"),
             ])
 
+        # Override default LiteX's yosys/build templates
+        assert hasattr(platform.toolchain, "yosys_template")
+        assert hasattr(platform.toolchain, "build_template")
+        platform.toolchain.yosys_template = [
+            "{read_files}",
+            "attrmap -tocase keep -imap keep=\"true\" keep=1 -imap keep=\"false\" keep=0 -remove keep=0",
+            "synth_ice40 -json {build_name}.json -top {build_name}",
+        ]
+        platform.toolchain.build_template = [
+            "yosys -q -l {build_name}.rpt {build_name}.ys",
+            "nextpnr-ice40 --json {build_name}.json --pcf {build_name}.pcf --asc {build_name}.txt \
+            --pre-pack {build_name}_pre_pack.py --{architecture} --package {package}",
+            "icepack {build_name}.txt {build_name}.bin"
+        ]
+
         # Add "-relut -dffe_min_ce_use 4" to the synth_ice40 command.
         # The "-reult" adds an additional LUT pass to pack more stuff in,
         # and the "-dffe_min_ce_use 4" flag prevents Yosys from generating a
