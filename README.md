@@ -51,7 +51,11 @@ This can take a considerable time.
 
 ### Usage
 
-You can write the bitstream to your SPI flash.  If you're using `fomu-flash`, you would run the following:
+You can write the bitstream to your SPI flash.
+
+#### Loading using `fomu-flash`
+
+If you're using `fomu-flash`, you would run the following:
 
 ```sh
 $ fomu-flash -w build/gateware/top-multiboot.bin
@@ -72,6 +76,36 @@ Fomu should now show up when you connect it to your machine:
 [172294.445692] usb 1-1.3: Manufacturer: Kosagi
 ```
 
+#### Using `dfu-util` to flash the bootloader
+
+First build the flasher program, that will run on the Fomu:
+```sh
+cd booster
+cc -O2 -o make-booster -I ./include make-booster.c
+```
+
+Then package that up ready for loading:
+```sh
+cd releases
+bash ./release.sh pvt
+```
+This will create a new directory in `releases` named by the head of
+your git tree and the last official release.  So you'll see something
+like `v2.0.3-8-g485d232`
+
+In that directory will be a file named `pvt-updater-`_version_`.dfu`
+Load and exectue it using `dfu-util`:
+```sh
+dfu-util -D pvt-updater-v2.0.3-8-g485d232.dfu
+```
+Your Fomu will flash rainbow for about five seconds, then reboot and
+go back to blinking steadily.   To verify that your code has loaded, use
+```sh
+dfu-util -l
+```
+and look at the version output.
+
+#### Loading and running other bitstreams
 To load a new bitstream, use the `dfu-util -D` command.  For example:
 
 ```sh
@@ -87,6 +121,7 @@ $ dfu-util -e
 ```
 
 **Note that, like Toboot, the program will auto-boot once it has finished loading.**
+
 
 ## Building the Software
 
