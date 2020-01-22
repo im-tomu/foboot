@@ -23,10 +23,31 @@ To build the software, you need:
 The hardware half will take care of building the software half, if it is run with `--boot-source bios` (which is the default).  Therefore, to build Foboot, enter the `hw/` directory and run:
 
 ```
-$ python3 foboot-bitstream.py --revision hacker
+$ python3 foboot-bitstream.py --revision hacker --seed 19
 ```
 
 This will verify you have the correct dependencies installed, compile the Foboot software, then synthesize the Foboot bitstream.  The resulting output will be in `build/gateware/`.  You should write `build/gateware/top-multiboot.bin` to your Fomu device in order to get basic bootloader support.
+
+The `seed` argument is to set initial conditions for the
+place-and-route phase.  `nextpnr-ice40` uses a simulated annealing
+algorithm that can result in one of several locally optimal layouts.
+Only some of these will meet the timing requirements for Fomu.
+
+If you see something like
+```
+ERROR: Max frequency for clock 'clk48_$glb_clk': 45.41 MHz (FAIL at 48.00 MHz)
+```
+try a different seed.  You can search for an appropriate seed with:
+```
+for seed in $(seq 0 100)
+do
+  python3 ./foboot-bitstream.py --revision pvt --seed $seed 2>&1 |
+     grep 'FAIL at 48.00 MHz' && continue
+  echo "Working Seed is $seed"
+  break
+done
+```
+This can take a considerable time.
 
 ### Usage
 
