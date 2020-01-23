@@ -78,13 +78,40 @@ Fomu should now show up when you connect it to your machine:
 
 #### Using `dfu-util` to flash the bootloader
 
-First build the flasher program, that will run on the Fomu:
+##### Safe way to test
+
+Just do
+```sh
+dfu-util -D build/gateware/top.bin
+```
+to copy into the SPI flash, then
+```sh
+dfu-util -e
+```
+each time you want to run the generated bitstream after a reboot.
+
+A multiboot enabled bootloader is also generated; you can try that out
+with
+```sh
+dfu-util -D build/gateware/top-multiboot.bin
+```
+
+`dfu-util` loads the bootloader into flash at 0x40000; it'll be overridden
+by any other code you attempt to flash using `dfu-util`
+
+##### Loading the bootloader as first bootloader
+
+**WARNING: Flashing a new bootloader could _brick your device_**
+**It's best to wait for an official release**
+
+First build the flasher program, that will run on the Fomu (you only
+need to do this once):
 ```sh
 cd booster
 cc -O2 -o make-booster -I ./include make-booster.c
 ```
 
-Then package that up ready for loading:
+Then package everything up ready for loading:
 ```sh
 cd releases
 bash ./release.sh pvt
@@ -94,7 +121,7 @@ your git tree and the last official release.  So you'll see something
 like `v2.0.3-8-g485d232`
 
 In that directory will be a file named `pvt-updater-`_version_`.dfu`
-Load and exectue it using `dfu-util`:
+Load  it onto the Fomu using `dfu-util`:
 ```sh
 dfu-util -D pvt-updater-v2.0.3-8-g485d232.dfu
 ```
@@ -121,7 +148,6 @@ $ dfu-util -e
 ```
 
 **Note that, like Toboot, the program will auto-boot once it has finished loading.**
-
 
 ## Building the Software
 
