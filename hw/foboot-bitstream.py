@@ -411,7 +411,7 @@ def main():
         compile_software = True
 
     cpu_type = "vexriscv"
-    cpu_variant = "min"
+    cpu_variant = "minimal"
     if args.with_debug:
         cpu_variant = cpu_variant + "+debug"
 
