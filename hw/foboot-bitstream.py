@@ -49,22 +49,22 @@ class Platform(LatticePlatform):
     def __init__(self, revision=None, toolchain="icestorm"):
         self.revision = revision
         if revision == "evt":
-            from litex_boards.partner.platforms.fomu_evt import _io, _connectors
+            from litex_boards.platforms.fomu_evt import _io, _connectors
             LatticePlatform.__init__(self, "ice40-up5k-sg48", _io, _connectors, toolchain="icestorm")
             self.spi_size = 16 * 1024 * 1024
             self.spi_dummy = 6
         elif revision == "dvt":
-            from litex_boards.partner.platforms.fomu_pvt import _io, _connectors
+            from litex_boards.platforms.fomu_pvt import _io, _connectors
             LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io, _connectors, toolchain="icestorm")
             self.spi_size = 2 * 1024 * 1024
             self.spi_dummy = 6
         elif revision == "pvt":
-            from litex_boards.partner.platforms.fomu_pvt import _io, _connectors
+            from litex_boards.platforms.fomu_pvt import _io, _connectors
             LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io, _connectors, toolchain="icestorm")
             self.spi_size = 2 * 1024 * 1024
             self.spi_dummy = 6
         elif revision == "hacker":
-            from litex_boards.partner.platforms.fomu_hacker import _io, _connectors
+            from litex_boards.platforms.fomu_hacker import _io, _connectors
             LatticePlatform.__init__(self, "ice40-up5k-uwg30", _io, _connectors, toolchain="icestorm")
             self.spi_size = 2 * 1024 * 1024
             self.spi_dummy = 4
