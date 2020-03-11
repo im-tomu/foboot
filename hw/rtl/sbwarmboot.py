@@ -1,7 +1,7 @@
 from migen import Module, Signal, If, Instance
 from litex.soc.integration.doc import ModuleDoc
 from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage, CSRField
-import lxsocdoc
+import litex.soc.doc as lxsocdoc
 
 class SBWarmBoot(Module, AutoCSR):
     def __init__(self, parent, offsets=None):
