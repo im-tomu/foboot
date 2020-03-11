@@ -37,6 +37,8 @@
 #define ERASE_SIZE 4096 // Erase block size (in bytes)
 #define WRITE_SIZE 256 // Number of bytes we can write
 
+#define FLASH_MAX_ADDR ((1024 * 1024) + (1024 * 512)) // 1.5 MB max
+
 #include <spi.h>
 
 // Internal flash-programming state machine
@@ -211,6 +213,11 @@ bool dfu_download(unsigned blockNum, unsigned blockLength,
 
     // Start programming a block by erasing the corresponding flash sector
     fl_current_addr = address_for_block(blockNum);
+    if (!ram_mode && (fl_current_addr >= FLASH_MAX_ADDR)) {
+        set_state(dfuERROR, errADDRESS);
+        return false;
+    }
+
     dfu_bytes_remaining = blockLength;
     ftfl_begin_erase_sector(fl_current_addr);
 
