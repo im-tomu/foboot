@@ -3,7 +3,7 @@
 # This script enables easy, cross-platform building without the need
 # to install third-party Python modules.
 
-LXBUILDENV_VERSION = '2019.8.19.1'
+LXBUILDENV_VERSION = '2020.2.18.1'
 import sys
 import os
 import subprocess
@@ -214,6 +214,9 @@ def check_icestorm(args):
 def check_nextpnr_ice40(args):
     return check_cmd(args, "nextpnr-ice40")
 
+def check_nextpnr_ecp5(args):
+    return check_cmd(args, "nextpnr-ecp5")
+
 dependency_checkers = {
     'python': check_python_version,
     'vivado': check_vivado,
@@ -224,6 +227,7 @@ dependency_checkers = {
     'arachne-pnr': check_arachne,
     'icestorm': check_icestorm,
     'nextpnr-ice40': check_nextpnr_ice40,
+    'nextpnr-ecp5': check_nextpnr_ecp5,
 }
 
 # Validate that the required dependencies (Vivado, compilers, etc.)
@@ -493,7 +497,7 @@ if __name__ == "__main__":
     return True
 
 # For the main command, parse args and hand it off to main()
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(
         description="Wrap Python code to enable quickstart",
         add_help=False)
@@ -528,6 +532,9 @@ if __name__ == "__main__":
 
     if not lx_main(args):
         parser.print_help()
+
+if __name__ == "__main__":
+    main()
 
 elif not os.path.isfile(sys.argv[0]):
     print("lxbuildenv doesn't operate while in interactive mode")
@@ -592,7 +599,8 @@ elif "LXBUILDENV_REEXEC" not in os.environ:
     try:
         sys.exit(subprocess.Popen(
             [sys.executable] + [sys.argv[0]] + rest).wait())
-    except:
+    except Exception as e:
+        print(e)
         sys.exit(1)
 else:
     # Overwrite the deps directory.
