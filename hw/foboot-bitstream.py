@@ -26,7 +26,7 @@ from litex.soc.interconnect import wishbone
 
 from litex.soc.cores import up5kspram, spi_flash
 
-from litex_boards.partner.targets.fomu import _CRG
+from litex_boards.targets.fomu import _CRG
 
 from valentyusb.usbcore import io as usbio
 from valentyusb.usbcore.cpu import epmem, unififo, epfifo, dummyusb, eptri
