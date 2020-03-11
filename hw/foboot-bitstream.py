@@ -32,7 +32,7 @@ from valentyusb.usbcore import io as usbio
 from valentyusb.usbcore.cpu import epmem, unififo, epfifo, dummyusb, eptri
 from valentyusb.usbcore.endpoint import EndpointType
 
-import lxsocdoc
+import litex.soc.doc as lxsocdoc
 import spibone
 
 import argparse
