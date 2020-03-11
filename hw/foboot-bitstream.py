@@ -441,7 +441,7 @@ def main():
                             pnr_seed=int(args.seed),
                             output_dir=output_dir,
                             warmboot_offsets=warmboot_offsets[1:])
-    builder = Builder(soc, output_dir=output_dir, csr_csv="build/csr.csv",
+    builder = Builder(soc, output_dir=output_dir, csr_csv="build/csr.csv", csr_svd="build/soc.svd",
                       compile_software=compile_software, compile_gateware=compile_gateware)
     if compile_software:
         builder.software_packages = [
@@ -450,7 +450,6 @@ def main():
     vns = builder.build()
     soc.do_exit(vns)
     lxsocdoc.generate_docs(soc, "build/documentation/", project_name="Fomu Bootloader", author="Sean Cross")
-    lxsocdoc.generate_svd(soc, "build/software", vendor="Foosn", name="Fomu")
 
     if not args.document_only:
         make_multiboot_header(os.path.join(output_dir, "gateware", "multiboot-header.bin"),
