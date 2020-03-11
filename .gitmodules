@@ -16,9 +16,6 @@
 [submodule "hw/deps/litex-boards"]
 	path = hw/deps/litex-boards
 	url = https://github.com/litex-hub/litex-boards.git
-[submodule "hw/deps/lxsocdoc"]
-	path = hw/deps/lxsocdoc
-	url = https://github.com/xobs/lxsocdoc.git
 [submodule "hw/deps/spibone"]
 	path = hw/deps/spibone
 	url = https://github.com/xobs/spibone.git
