@@ -19,3 +19,6 @@
 [submodule "hw/deps/spibone"]
 	path = hw/deps/spibone
 	url = https://github.com/xobs/spibone.git
+[submodule "hw/deps/pythondata-software-compiler_rt"]
+	path = hw/deps/pythondata-software-compiler_rt
+	url = https://github.com/litex-hub/pythondata-software-compiler_rt.git

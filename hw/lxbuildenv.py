@@ -3,7 +3,7 @@
 # This script enables easy, cross-platform building without the need
 # to install third-party Python modules.
 
-LXBUILDENV_VERSION = '2020.2.18.1'
+LXBUILDENV_VERSION = '2020.4.28.1'
 import sys
 import os
 import subprocess
@@ -267,6 +267,10 @@ def check_module_recursive(root_path, depth, verbose=False, breadcrumbs=[]):
         print('git-dep: checking if "{}" requires updating (depth: {})...'.format(root_path, depth))
 
     # If the directory isn't a valid git repo, initialization is required
+    if not os.path.exists(root_path):
+        if verbose:
+            print('git-dep: subdirectory {} does not exist, so starting update'.format(root_path))
+        return True
     git_dir_cmd = subprocess.Popen(["git", "rev-parse", "--show-toplevel"],
                         cwd=root_path,
                         stdout=subprocess.PIPE,
