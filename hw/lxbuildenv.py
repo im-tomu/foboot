@@ -3,7 +3,7 @@
 # This script enables easy, cross-platform building without the need
 # to install third-party Python modules.
 
-LXBUILDENV_VERSION = '2020.4.28.1'
+LXBUILDENV_VERSION = '2020.6.1.1'
 import sys
 import os
 import subprocess
@@ -262,7 +262,7 @@ def check_dependencies(args, dependency_list):
         sys.exit(0)
 
 # Return True if the given tree needs to be initialized
-def check_module_recursive(root_path, depth, verbose=False, breadcrumbs=[]):
+def check_module(root_path, depth, verbose=False, recursive=True, breadcrumbs=[]):
     if verbose:
         print('git-dep: checking if "{}" requires updating (depth: {})...'.format(root_path, depth))
 
@@ -300,23 +300,27 @@ def check_module_recursive(root_path, depth, verbose=False, breadcrumbs=[]):
         return False
 
     # Loop through the gitmodules to check all submodules
-    gitmodules = open(git_dir + os.path.sep + '.gitmodules', 'r')
-    for line in gitmodules:
-        parts = line.split("=", 2)
-        if parts[0].strip() == "path":
-            path = parts[1].strip()
-            if check_module_recursive(git_dir + os.path.sep + path, depth + 1, verbose=verbose, breadcrumbs=breadcrumbs):
-                return True
+    if recursive or depth == 0:
+        gitmodules = open(git_dir + os.path.sep + '.gitmodules', 'r')
+        for line in gitmodules:
+            parts = line.split("=", 2)
+            if parts[0].strip() == "path":
+                path = parts[1].strip()
+                if check_module(git_dir + os.path.sep + path, depth + 1, verbose=verbose, recursive=recursive, breadcrumbs=breadcrumbs):
+                    return True
     return False
 
 # Determine whether we need to invoke "git submodules init --recurse"
 def check_submodules(script_path, args):
-    if check_module_recursive(script_path, 0, verbose=args.lx_verbose):
+    if check_module(script_path, 0, verbose=args.lx_verbose, recursive=args.lx_recursive_git):
         if not args.lx_quiet:
             print("lxbuildenv: Missing git submodules -- updating")
             print("lxbuildenv: To ignore git issues, re-run with --lx-ignore-git")
-        subprocess.Popen(["git", "submodule", "update",
-                          "--init", "--recursive"], cwd=script_path).wait()
+
+        git_cmd = ["git", "submodule", "update", "--init"]
+        if args.lx_recursive_git:
+            git_cmd.append("--recursive")
+        subprocess.Popen(git_cmd, cwd=script_path).wait()
     elif args.lx_verbose:
         if not args.lx_quiet:
             print("lxbuildenv: Submodule check: Submodules found")
@@ -389,7 +393,10 @@ def lx_main(args):
                     lx_git('submodule', 'add', dep_url, dest_path)
                     lx_git('add', dest_path)
 
-            lx_git('submodule', 'update', '--init', '--recursive')
+            if args.lx_recursive_git:
+                lx_git('submodule', 'update', '--init', '--recursive')
+            else:
+                lx_git('submodule', 'update', '--init')
 
         if args.no_bin:
             print("lxbuildenv: skipping bin/ initialization")
@@ -573,6 +580,9 @@ elif "LXBUILDENV_REEXEC" not in os.environ:
     )
     parser.add_argument(
         "--lx-check-git", help="force a git check even if it's otherwise disabled", action="store_true"
+    )
+    parser.add_argument(
+        "--lx-recursive-git", help="recursively check out submodules", action="store_true"
     )
     (args, rest) = parser.parse_known_args()
 
