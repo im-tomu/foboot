@@ -14,7 +14,7 @@ At start, **FBU** is loaded by the hardware.  **FBU** will look for a special *F
 
 ## Boot Flags
 
-A series of *Boot Flags* determine hows **FBU** and **FBM** hand over execution to the subsequent program.
+A series of *Boot Flags* determines how **FBU** and **FBM** hand over execution to the subsequent program.
 
 *Boot Flags* are indicated by the magic number `0xb469075a`, followed by a
 32-bit field, in the first 128 bytes of the binary.
