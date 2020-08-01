@@ -6,6 +6,10 @@
 
 _start:
   j crt_init
+#ifdef AUTOBOOT_TIMEOUT
+  .word 0x4a6de3ac
+  .word AUTOBOOT_TIMEOUT
+#endif
   .word 0xb469075a
   .word 0x00000020
 

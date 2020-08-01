@@ -24,6 +24,15 @@ void isr(void)
 
     if (irqs & (1 << USB_INTERRUPT))
         usb_isr();
+
+    if (irqs & (1 << TIMER0_INTERRUPT)) {
+        timer0_ev_pending_write(timer0_ev_pending_read());
+        if (dfu_getstate() == dfuIDLE) {
+            reboot();
+            while (1)
+                ;
+        }
+    }
 }
 
 static void riscv_reboot_to(const void *addr, uint32_t boot_config) {
@@ -201,6 +210,29 @@ void reboot(void) {
     __builtin_unreachable();
 }
 
+static void init_timeout(void) {
+    uint8_t timeout = 0;
+
+    lxspi_bitbang_en_write(0);
+    uint32_t reboot_addr = dfu_origin_addr();
+    uint32_t *addr = (uint32_t *)reboot_addr;
+    if (addr[1] == 0x4a6de3ac) {
+        timeout = addr[2] & 0xff;
+    }
+    lxspi_bitbang_en_write(1);
+
+    if (timeout) {
+        timer0_en_write(0);
+        timer0_reload_write(0);
+        timer0_load_write(timeout * CONFIG_CLOCK_FREQUENCY);
+        timer0_en_write(1);
+        timer0_update_value_write(0);
+        timer0_ev_pending_write(timer0_ev_pending_read());
+        irq_setmask(irq_getmask() | (1 << TIMER0_INTERRUPT));
+        timer0_ev_enable_write(1);
+    }
+}
+
 static void init(void)
 {
 #ifdef FLASH_BOOT_ADDRESS
@@ -229,6 +261,7 @@ static void init(void)
     irq_setie(1);
     time_init();
     dfu_init();
+    init_timeout();
 }
 
 int main(int argc, char **argv)

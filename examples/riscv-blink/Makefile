@@ -28,6 +28,10 @@ ADD_CFLAGS := -I$(BASE_DIR)/include -D__vexriscv__ -march=rv32i  -mabi=ilp32
 ADD_LFLAGS := 
 PACKAGE    := example
 
+ifdef AUTOBOOT_TIMEOUT
+ADD_CFLAGS += -DAUTOBOOT_TIMEOUT=$(AUTOBOOT_TIMEOUT)
+endif
+
 LDSCRIPTS  := $(LDSCRIPT) $(LD_DIR)/output_format.ld $(LD_DIR)/regions.ld
 SRC_DIR    := $(BASE_DIR)/src
 THIRD_PARTY := $(BASE_DIR)/third_party
