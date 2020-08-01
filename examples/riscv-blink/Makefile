@@ -34,7 +34,9 @@ THIRD_PARTY := $(BASE_DIR)/third_party
 DBG_CFLAGS := -ggdb -g -DDEBUG -Wall
 DBG_LFLAGS := -ggdb -g -Wall
 CFLAGS     := $(ADD_CFLAGS) \
+			  -D__vexriscv__ -march=rv32i  -mabi=ilp32 \
 			  -Wall -Wextra \
+			  -flto \
 			  -ffunction-sections -fdata-sections -fno-common \
 			  -fomit-frame-pointer -Os \
 			  -march=rv32i \
@@ -42,6 +44,7 @@ CFLAGS     := $(ADD_CFLAGS) \
 CXXFLAGS   := $(CFLAGS) -std=c++11 -fno-rtti -fno-exceptions
 LFLAGS     := $(CFLAGS) $(ADD_LFLAGS) -L$(LD_DIR) \
 			  -nostartfiles \
+			  -nostdlib \
 			  -Wl,--gc-sections \
 			  -Wl,--no-warn-mismatch \
 			  -Wl,--script=$(LDSCRIPT) \
@@ -64,7 +67,7 @@ ALL        := all
 TARGET     := $(PACKAGE).elf
 CLEAN      := clean
 
-$(ALL): $(TARGET) $(PACKAGE).bin $(PACKAGE).ihex
+$(ALL): $(TARGET) $(PACKAGE).bin $(PACKAGE).ihex $(PACKAGE).dfu
 
 $(OBJECTS): | $(OBJ_DIR)
 
@@ -76,7 +79,7 @@ $(PACKAGE).bin: $(TARGET)
 	$(QUIET) echo "  OBJCOPY  $@"
 	$(QUIET) $(OBJCOPY) -O binary $(TARGET) $@
 
-$(PACKAGE).dfu: $(TARGET)
+$(PACKAGE).dfu: $(PACKAGE).bin
 	$(QUIET) echo "  DFU      $@"
 	$(QUIET) $(COPY) $(PACKAGE).bin $@
 	$(QUIET) dfu-suffix -v 1209 -p 70b1 -a $@
@@ -106,7 +109,7 @@ $(OBJ_DIR)/%.o: %.S
 	$(QUIET) echo "  AS       $<	$(notdir $@)"
 	$(QUIET) $(CC) -x assembler-with-cpp -c $< $(CFLAGS) -o $@ -MMD
 
-.PHONY: clean
+.PHONY: clean load
 
 clean:
 	$(QUIET) echo "  RM      $(subst /,$(PATH_SEP),$(wildcard $(OBJ_DIR)/*.d))"
@@ -116,4 +119,8 @@ clean:
 	$(QUIET) echo "  RM      $(TARGET) $(PACKAGE).bin $(PACKAGE).symbol $(PACKAGE).ihex $(PACKAGE).dfu"
 	-$(QUIET) $(RM) $(TARGET) $(PACKAGE).bin $(PACKAGE).symbol $(PACKAGE).ihex $(PACKAGE).dfu
 
+load: $(PACKAGE).dfu
+	$(QUIET) dfu-util -D $<
+
 include $(wildcard $(OBJ_DIR)/*.d)
+
