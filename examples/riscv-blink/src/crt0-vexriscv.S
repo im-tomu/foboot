@@ -6,8 +6,14 @@
 
 _start:
   j crt_init
+#ifdef LOAD_RAM_ADDR
+  .word 0x17ab0f23
+  .word LOAD_RAM_ADDR
+#endif
+#ifdef LOAD_BOOT_CONFIG
   .word 0xb469075a
-  .word 0x00000020
+  .word LOAD_BOOT_CONFIG
+#endif
 
 .section .text
 .global  trap_entry

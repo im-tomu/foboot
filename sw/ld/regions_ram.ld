@@ -1,0 +1,5 @@
+MEMORY {
+	ram : ORIGIN = LOAD_RAM_ADDR, LENGTH = 0x00010000
+}
+REGION_ALIAS("rom", ram)
+REGION_ALIAS("sram", ram)

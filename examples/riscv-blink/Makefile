@@ -26,9 +26,21 @@ LD_DIR     := $(BASE_DIR)/ld
 LDSCRIPT   := $(BASE_DIR)/ld/linker.ld
 ADD_CFLAGS := -I$(BASE_DIR)/include -D__vexriscv__ -march=rv32i  -mabi=ilp32
 ADD_LFLAGS := 
-PACKAGE    := example
+PACKAGE    := riscv-blink
 
-LDSCRIPTS  := $(LDSCRIPT) $(LD_DIR)/output_format.ld $(LD_DIR)/regions.ld
+ifdef LOAD_RAM_ADDR
+LDREGIONS  := $(LD_DIR)/regions_ram.ld
+ADD_CFLAGS += -DLOAD_RAM_ADDR=$(LOAD_RAM_ADDR)
+ADD_LFLAGS += -Wl,--defsym=LOAD_RAM_ADDR=$(LOAD_RAM_ADDR)
+else
+LDREGIONS  := $(LD_DIR)/regions.ld
+endif
+
+ifdef LOAD_BOOT_CONFIG
+ADD_CFLAGS += -DLOAD_BOOT_CONFIG=$(LOAD_BOOT_CONFIG)
+endif
+
+LDSCRIPTS  := $(LDSCRIPT) $(LDREGIONS) $(LD_DIR)/output_format.ld
 SRC_DIR    := $(BASE_DIR)/src
 THIRD_PARTY := $(BASE_DIR)/third_party
 DBG_CFLAGS := -ggdb -g -DDEBUG -Wall
@@ -47,6 +59,7 @@ LFLAGS     := $(CFLAGS) $(ADD_LFLAGS) -L$(LD_DIR) \
 			  -nostdlib \
 			  -Wl,--gc-sections \
 			  -Wl,--no-warn-mismatch \
+			  -Wl,--script=$(LDREGIONS) \
 			  -Wl,--script=$(LDSCRIPT) \
 			  -Wl,--build-id=none
 
