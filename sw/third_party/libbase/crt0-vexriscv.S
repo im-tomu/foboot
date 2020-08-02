@@ -7,10 +7,20 @@
 _start:
   j crt_init
   nop
+#ifdef LOAD_RAM_ADDR
+  .word 0x17ab0f23
+  .word LOAD_RAM_ADDR
+#else
   nop
   nop
+#endif
+#ifdef LOAD_BOOT_CONFIG
+  .word 0xb469075a
+  .word LOAD_BOOT_CONFIG
+#else
   nop
   nop
+#endif
   nop
   nop
 

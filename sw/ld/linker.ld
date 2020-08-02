@@ -3,8 +3,6 @@ ENTRY(_start)
 
 __DYNAMIC = 0;
 
-INCLUDE regions.ld
-
 SECTIONS
 {
 	.text :

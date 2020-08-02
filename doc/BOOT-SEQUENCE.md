@@ -14,7 +14,7 @@ At start, **FBU** is loaded by the hardware.  **FBU** will look for a special *F
 
 ## Boot Flags
 
-A series of *Boot Fags* determine how **FBU** and **FBM** hand over execution to the subsequent program.
+A series of *Boot Flags* determines how **FBU** and **FBM** hand over execution to the subsequent program.
 
 *Boot Flags* are indicated by the magic number `0xb469075a`, followed by a
 32-bit field, in the first 128 bytes of the binary.
@@ -27,6 +27,8 @@ struct {
     uint32_t bitfield;
 }
 ```
+
+These can be provided when making the program (when using a Makefile as in `examples/riscv-blink`), e.g. `make LOAD_BOOT_CONFIG=0x00000020`.
 
 | Bit Flag | Short Name   | Description                                      |
 | -------- | ------------ | ------------------------------------------------ |
@@ -44,6 +46,8 @@ During development, it may be inconvenient to load a program onto SPI flash.  Or
 If the DFU bootloader encounters the magic number `0x17ab0f23` within the first 56 bytes, then it will enable *RAM boot* mode.  In this mode, the SPI flash won't be erased, and the program will be loaded to RAM.
 
 Note that the value following the magic number indicates the offset where the program will be loaded to.  This should be somewhere in RAM.  `0x10001000` is a good value, and is guaranteed to not interfere with Foboot itself.
+
+When using a Makefile as in `examples/riscv-blink` you can provide the offset as in `make LOAD_RAM_ADDR=0x10001000`. This makes sure that the linker links the binary as one block.
 
 ## Magic Numbers
 
