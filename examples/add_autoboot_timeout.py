@@ -25,7 +25,7 @@ def from_bytes(v):
 
 
 if args.timeout < 1 or args.timeout > 255:
-    sys.stderr.write("Pick a timeout between 1s and 255s")
+    sys.stderr.write("Error: Pick a timeout between 1s and 255s")
     sys.exit(1)
 
 with open(args.infile, "rb") as infile:
@@ -36,7 +36,10 @@ with open(args.infile, "rb") as infile:
             and first_word != BITSTREAM_SYNC_HEADER2
             and first_word & 0xFFFF != COMMENT_START
         ):
-            sys.stderr.write("Unsupported file")
+            sys.stderr.write("Error: File does not appear to be a bitstream")
+            sys.stderr.write(
+                "(for RISC-V programs use the AUTOBOOT_TIMEOUT make option)"
+            )
             sys.exit(1)
         outfile.write(to_bytes(COMMENT_START))
         outfile.write(to_bytes(MAGIC_WORD))
