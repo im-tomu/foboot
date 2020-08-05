@@ -39,7 +39,7 @@ struct {
 
 ## Auto-boot
 
-A user program can provide a timeout between 1s and 255s, after which it is automatically loaded by the boot loader (given the user does not load a new programm in the meantime).
+A user program can provide a timeout between 1s and 255s, after which it is automatically loaded by the boot loader. Uploading a new program via USB will cancel this timeout.
 
 The timeout must be given in the third (4-byte little-endian) word of the programm and must be preceeded by the magic word `0x4a6de3ac` in the second word. For bitstreams these can be added using the `examples/add_timeout.py` script, for RISC-V programs use the make file option `make AUTOBOOT_TIMEOUT=5` (e.g., for 5s; when using a Makefile as in `examples/riscv-blink`).
 
