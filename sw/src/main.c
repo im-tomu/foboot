@@ -11,6 +11,8 @@
 
 struct ff_spi *spi;
 
+static int nerve_pinch(void);
+
 // ICE40UP5K bitstream images (with SB_MULTIBOOT header) are
 // 104250 bytes.  The SPI flash has 4096-byte erase blocks.
 // The smallest divisible boundary is 4096*26.
@@ -27,7 +29,7 @@ void isr(void)
 
     if (irqs & (1 << TIMER0_INTERRUPT)) {
         timer0_ev_pending_write(timer0_ev_pending_read());
-        if (dfu_getstate() == dfuIDLE) {
+        if (dfu_getstate() == dfuIDLE && !nerve_pinch()) {
             reboot();
             while (1)
                 ;
