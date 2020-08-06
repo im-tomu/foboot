@@ -6,6 +6,10 @@
 
 _start:
   j crt_init
+#ifdef AUTOBOOT_TIMEOUT
+  .word 0x4a6de3ac
+  .word AUTOBOOT_TIMEOUT
+#endif
 #ifdef LOAD_RAM_ADDR
   .word 0x17ab0f23
   .word LOAD_RAM_ADDR

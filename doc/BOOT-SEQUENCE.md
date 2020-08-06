@@ -39,6 +39,12 @@ These can be provided when making the program (when using a Makefile as in `exam
 | 00000010 | FLUSH_CACHE  | Issue a "fence.i" prior to running user program  |
 | 00000020 | NO_USB_RESET | Don't reset the USB -- useful for debugging      |
 
+## Auto-boot
+
+A user program can provide a timeout between 1s and 255s, after which it is automatically loaded by the boot loader. Uploading a new program via USB will cancel this timeout.
+
+The timeout must be given in the third (4-byte little-endian) word of the programm and must be preceeded by the magic word `0x4a6de3ac` in the second word. For bitstreams these can be added using the `examples/add_timeout.py` script, for RISC-V programs use the make file option `make AUTOBOOT_TIMEOUT=5` (e.g., for 5s; when using a Makefile as in `examples/riscv-blink`).
+
 ## RAM boot
 
 During development, it may be inconvenient to load a program onto SPI flash.  Or maybe you want to run something that doesn't modify the contents of SPI.  This is possible with `RAM boot`.
@@ -51,8 +57,9 @@ When using a Makefile as in `examples/riscv-blink` you can provide the offset as
 
 ## Magic Numbers
 
-| Value        | Description                                 |
-| ------------ | ------------------------------------------- |
-| `0xb469075a` | Denotes the start of *boot flags* bitfield  |
-| `0x17ab0f23` | Loads the program into RAM instead of flash |
-| `0x032bd37d` | Indicates a valid **FBM** image             |
+| Value        | Description                                                    |
+| ------------ | -------------------------------------------------------------- |
+| `0xb469075a` | Denotes the start of *boot flags* bitfield                     |
+| `0x17ab0f23` | Loads the program into RAM instead of flash                    |
+| `0x032bd37d` | Indicates a valid **FBM** image                                |
+| `0x4a6de3ac` | Auto-boot user image after timeout (1-255s) given in next word |

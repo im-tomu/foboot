@@ -28,6 +28,10 @@ ADD_CFLAGS := -I$(BASE_DIR)/include -D__vexriscv__ -march=rv32i  -mabi=ilp32
 ADD_LFLAGS := 
 PACKAGE    := riscv-blink
 
+ifdef AUTOBOOT_TIMEOUT
+ADD_CFLAGS += -DAUTOBOOT_TIMEOUT=$(AUTOBOOT_TIMEOUT)
+endif
+
 ifdef LOAD_RAM_ADDR
 LDREGIONS  := $(LD_DIR)/regions_ram.ld
 ADD_CFLAGS += -DLOAD_RAM_ADDR=$(LOAD_RAM_ADDR)
