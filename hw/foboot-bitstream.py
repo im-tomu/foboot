@@ -285,15 +285,16 @@ class BaseSoC(SoCCore, AutoDoc):
             self.register_rom(self.random_rom.bus, bios_size)
         elif boot_source == "bios":
             kwargs['cpu_reset_address'] = 0
-            if bios_file is None:
-                self.integrated_rom_size = bios_size = 0x2000
-                self.submodules.rom = wishbone.SRAM(bios_size, read_only=True, init=[])
-                self.register_rom(self.rom.bus, bios_size)
-            else:
-                bios_size = 0x2000
-                self.submodules.firmware_rom = FirmwareROM(bios_size, bios_file)
-                self.add_constant("ROM_DISABLE", 1)
-                self.register_rom(self.firmware_rom.bus, bios_size)
+            if hasattr(self, "cpu") and not isinstance(self.cpu, CPUNone):
+                if bios_file is None:
+                    self.integrated_rom_size = bios_size = 0x2000
+                    self.submodules.rom = wishbone.SRAM(bios_size, read_only=True, init=[])
+                    self.register_rom(self.rom.bus, bios_size)
+                else:
+                    bios_size = 0x2000
+                    self.submodules.firmware_rom = FirmwareROM(bios_size, bios_file)
+                    self.add_constant("ROM_DISABLE", 1)
+                    self.register_rom(self.firmware_rom.bus, bios_size)
 
         elif boot_source == "spi":
             kwargs['cpu_reset_address'] = 0
