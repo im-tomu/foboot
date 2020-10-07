@@ -15,6 +15,7 @@ import lxbuildenv
 from migen import Module, Signal, Instance, ClockDomain, If
 from migen.fhdl.specials import TSTriple
 from migen.fhdl.decorators import ClockDomainsRenamer
+from migen.genlib.cdc import AsyncResetSynchronizer
 
 from litex.build.lattice.platform import LatticePlatform
 from litex.build.generic_platform import Pins, Subsignal
