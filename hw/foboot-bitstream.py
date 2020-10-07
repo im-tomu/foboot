@@ -546,7 +546,7 @@ def main():
         builder.software_packages = [
             ("bios", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "sw")))
         ]
-    vns = builder.build()
+    vns = builder.build(build_name="top")
     soc.do_exit(vns)
     lxsocdoc.generate_docs(soc, "build/documentation/", project_name="Fomu Bootloader", author="Sean Cross")
 
