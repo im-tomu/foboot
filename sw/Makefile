@@ -16,7 +16,7 @@ COPY       := cp -a
 PATH_SEP   := /
 
 ifeq ($(OS),Windows_NT)
-COPY       := copy
+COPY       := cmd /c copy
 RM         := del
 PATH_SEP   := \\
 endif
