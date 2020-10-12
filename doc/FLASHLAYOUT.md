@@ -8,4 +8,4 @@
 | 0x026800 | 157696  |  The second image for SB_WARMBOOT |
 | 0x040000 | 262144  |  The third image for SB_WARMBOOT |
 | 0x048000 | 294912  |  The third image for SB_WARMBOOT |
-| 0x1FFFFF | 20097151 | End of flash |
+| 0x1FFFFF | 2097151 | End of flash |
