@@ -109,6 +109,7 @@ need to do this once):
 ```sh
 cd booster
 cc -O2 -o make-booster -I ./include make-booster.c
+make
 ```
 
 Then package everything up ready for loading:
