@@ -235,7 +235,7 @@ class BaseSoC(SoCCore, AutoDoc):
         clk_freq = int(12e6)
         self.submodules.crg = _CRG(platform)
 
-        SoCCore.__init__(self, platform, clk_freq, integrated_sram_size=0, with_uart=False, csr_data_width=32, **kwargs)
+        SoCCore.__init__(self, platform, clk_freq, integrated_sram_size=0, with_uart=False, **kwargs)
 
         usb_debug = False
         if debug is not None:
