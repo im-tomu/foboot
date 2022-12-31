@@ -54,7 +54,7 @@ static void riscv_reboot_to(const void *addr, uint32_t boot_config) {
     }
     if (boot_config & 0x00000002) // DDR_EN
         picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x40);
-    if (boot_config & 0x00000002) // CFM_EN
+    if (boot_config & 0x00000004) // CFM_EN
         picorvspi_cfg3_write(picorvspi_cfg3_read() | 0x10);
 #endif
     rgb_mode_error();
