@@ -49,7 +49,7 @@ The timeout must be given in the third (4-byte little-endian) word of the progra
 
 During development, it may be inconvenient to load a program onto SPI flash.  Or maybe you want to run something that doesn't modify the contents of SPI.  This is possible with `RAM boot`.
 
-If the DFU bootloader encounters the magic number `0x17ab0f23` within the first 56 bytes, then it will enable *RAM boot* mode.  In this mode, the SPI flash won't be erased, and the program will be loaded to RAM.
+If the DFU bootloader encounters the magic number `0x17ab0f23` within the first 60 bytes, then it will enable *RAM boot* mode.  In this mode, the SPI flash won't be erased, and the program will be loaded to RAM.
 
 Note that the value following the magic number indicates the offset where the program will be loaded to.  This should be somewhere in RAM.  `0x10002000` is a good value, and is guaranteed to not interfere with Foboot itself.
 

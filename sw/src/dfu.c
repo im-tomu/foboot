@@ -177,12 +177,12 @@ bool dfu_download(unsigned blockNum, unsigned blockLength,
     // Check to see if we're writing to RAM instead of SPI flash
     if ((blockNum == 0) && (packetOffset == 0) && (packetLength > 0)) {
         unsigned int i = 0;
-        unsigned int max_check = packetLength;
+        unsigned int max_check = packetLength / 4;
         if (max_check > sizeof(dfu_buffer))
             max_check = sizeof(dfu_buffer);
-        for (i = 0; i < (max_check/4)-1; i++) {
-            if (dfu_buffer[i/4] == RAM_BOOT_SENTINAL) {
-                ram_mode = dfu_buffer[(i/4)+1];
+        for (i = 0; i < max_check-1; i++) {
+            if (dfu_buffer[i] == RAM_BOOT_SENTINAL) {
+                ram_mode = dfu_buffer[i+1];
                 break;
             }
         }
